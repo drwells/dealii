@@ -13,17 +13,49 @@
 //
 // ---------------------------------------------------------------------
 
-
 for (deal_II_dimension : DIMENSIONS; deal_II_space_dimension : SPACE_DIMENSIONS)
   {
-#if deal_II_dimension <= deal_II_space_dimension
+#if deal_II_dimension == deal_II_space_dimension
     namespace DoFRenumbering
     \{
       namespace boost
       \{
-        // TODO[WB]: also implement the following boost for hp DoFHandlers etc.
-      \}
+        template void
+        Cuthill_McKee(DoFHandler<deal_II_dimension, deal_II_space_dimension> &,
+                      bool,
+                      bool);
 
+        template void
+        compute_Cuthill_McKee(
+          std::vector<dealii::types::global_dof_index> &,
+          const DoFHandler<deal_II_dimension, deal_II_space_dimension> &,
+          bool,
+          bool);
+
+        template void
+        king_ordering(DoFHandler<deal_II_dimension, deal_II_space_dimension> &,
+                      bool,
+                      bool);
+
+        template void
+        compute_king_ordering(
+          std::vector<dealii::types::global_dof_index> &,
+          const DoFHandler<deal_II_dimension, deal_II_space_dimension> &,
+          bool,
+          bool);
+
+        template void
+        minimum_degree(DoFHandler<deal_II_dimension, deal_II_space_dimension> &,
+                       bool,
+                       bool);
+
+        template void
+        compute_minimum_degree(
+          std::vector<dealii::types::global_dof_index> &,
+          const DoFHandler<deal_II_dimension, deal_II_space_dimension> &,
+          bool,
+          bool);
+      \}
 
       // non-boost functions:
       template void
@@ -63,51 +95,6 @@ for (deal_II_dimension : DIMENSIONS; deal_II_space_dimension : SPACE_DIMENSIONS)
       template void
       hierarchical(DoFHandler<deal_II_dimension, deal_II_space_dimension> &);
 
-    \}
-#endif
-  }
-
-// TODO[SP]: replace <deal_II_dimension> by <deal_II_dimension,
-// deal_II_space_dimension>
-// where applicable and move to codimension cases above also when applicable
-for (deal_II_dimension : DIMENSIONS; deal_II_space_dimension : SPACE_DIMENSIONS)
-  {
-#if deal_II_dimension == deal_II_space_dimension
-    namespace DoFRenumbering
-    \{
-      namespace boost
-      \{
-        // TODO[WB]: also implement the following boost for hp DoFHandlers etc.
-        template void
-        Cuthill_McKee(DoFHandler<deal_II_dimension> &, bool, bool);
-
-        template void
-        compute_Cuthill_McKee(std::vector<dealii::types::global_dof_index> &,
-                              const DoFHandler<deal_II_dimension> &,
-                              bool,
-                              bool);
-
-        template void
-        king_ordering(DoFHandler<deal_II_dimension> &, bool, bool);
-
-        template void
-        compute_king_ordering(std::vector<dealii::types::global_dof_index> &,
-                              const DoFHandler<deal_II_dimension> &,
-                              bool,
-                              bool);
-
-        template void
-        minimum_degree(DoFHandler<deal_II_dimension> &, bool, bool);
-
-        template void
-        compute_minimum_degree(std::vector<dealii::types::global_dof_index> &,
-                               const DoFHandler<deal_II_dimension> &,
-                               bool,
-                               bool);
-      \}
-
-
-      // non-boost functions:
 
       template void
       component_wise(DoFHandler<deal_II_dimension> &,
@@ -167,9 +154,6 @@ for (deal_II_dimension : DIMENSIONS; deal_II_space_dimension : SPACE_DIMENSIONS)
         const DoFHandler<deal_II_dimension> &,
         const Point<deal_II_dimension> &,
         const bool);
-
-      // Renumbering for DoFHandler
-
 
       template void
       downstream(

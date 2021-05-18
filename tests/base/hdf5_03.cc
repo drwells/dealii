@@ -203,193 +203,6 @@ write_test(HDF5::Group &              root_group,
   auto group = root_group.create_group(container_name + "<" + type_name + ">");
 
   {
-    std::string dataset_name("dataset_1");
-    auto        dataset =
-      group.create_dataset<Number>(dataset_name, dataset_dimensions);
-    dataset.set_query_io_mode(true);
-    deallog << "Dimensions " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Write): " << dataset.get_dimensions() << std::endl;
-    deallog << "Size " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Write): " << dataset.get_size() << std::endl;
-    deallog << "Rank " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Write): " << dataset.get_rank() << std::endl;
-    auto data = initialize_container<Container, Number>(dataset_dimensions);
-    assign_data(data);
-    if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
-      {
-        dataset.write(data);
-      }
-    else
-      {
-        dataset.template write_none<Number>();
-      }
-    deallog << "Sum " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Write): " << container_sum(data) << std::endl;
-    pcout << "IO mode " + dataset_name << " " << container_name << "<"
-          << type_name << ">"
-          << " (Write): " << dataset.get_io_mode() << std::endl;
-    pcout << "Local no collective cause " + dataset_name << " "
-          << container_name << "<" << type_name << ">"
-          << " (Write): " << dataset.get_local_no_collective_cause()
-          << std::endl;
-    pcout << "Global no collective cause " + dataset_name << " "
-          << container_name << "<" << type_name << ">"
-          << " (Write): " << dataset.get_global_no_collective_cause()
-          << std::endl;
-  }
-
-  {
-    std::string dataset_name("dataset_2");
-    auto        dataset =
-      group.create_dataset<Number>(dataset_name, dataset_dimensions);
-    dataset.set_query_io_mode(true);
-    deallog << "Dimensions " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Write): " << dataset.get_dimensions() << std::endl;
-    deallog << "Size " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Write): " << dataset.get_size() << std::endl;
-    deallog << "Rank " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Write): " << dataset.get_rank() << std::endl;
-
-    std::vector<hsize_t> coordinates_a = {0,
-                                          0, // first point
-                                          0,
-                                          2, // second point
-                                          3,
-                                          4, // third point
-                                          25,
-                                          12}; // fourth point
-    std::vector<Number>  data_a        = {2, 3, 5, 6};
-
-    std::vector<hsize_t> coordinates_b = {5,
-                                          0, // first point
-                                          0,
-                                          4, // second point
-                                          5,
-                                          4, // third point
-                                          26,
-                                          12}; // fourth point
-    std::vector<Number>  data_b        = {9, 4, 7, 6};
-
-    std::vector<hsize_t> coordinates_c = {5,
-                                          7, // first point
-                                          1,
-                                          8, // second point
-                                          5,
-                                          5, // third point
-                                          27,
-                                          12, // fourth point
-                                          28,
-                                          29}; // fifth point
-    std::vector<Number>  data_c        = {2, 3, 5, 6, 3};
-
-    if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
-      {
-        dataset.write_selection(data_a, coordinates_a);
-      }
-    else if (Utilities::MPI::this_mpi_process(mpi_communicator) == 1)
-      {
-        dataset.write_selection(data_b, coordinates_b);
-      }
-    else if (Utilities::MPI::this_mpi_process(mpi_communicator) == 2)
-      {
-        dataset.write_selection(data_c, coordinates_c);
-      }
-    else
-      {
-        dataset.template write_none<Number>();
-      }
-    deallog << "Sum " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Write): "
-            << container_sum(data_a) + container_sum(data_b) +
-                 container_sum(data_c)
-            << std::endl;
-    pcout << "IO mode " + dataset_name << " " << container_name << "<"
-          << type_name << ">"
-          << " (Write): " << dataset.get_io_mode() << std::endl;
-    pcout << "Local no collective cause " + dataset_name << " "
-          << container_name << "<" << type_name << ">"
-          << " (Write): " << dataset.get_local_no_collective_cause()
-          << std::endl;
-    pcout << "Global no collective cause " + dataset_name << " "
-          << container_name << "<" << type_name << ">"
-          << " (Write): " << dataset.get_global_no_collective_cause()
-          << std::endl;
-  }
-
-  {
-    // In this dataset, data conversion is tested. The test is only performed
-    // for float and double.
-    if (std::is_same<Number, float>::value)
-      {
-        std::string dataset_name("dataset_3");
-        auto        dataset =
-          group.create_dataset<Number>(dataset_name, dataset_dimensions);
-        dataset.set_query_io_mode(true);
-        deallog << "Dimensions " + dataset_name << " " << container_name << "<"
-                << type_name << ">"
-                << " (Write): " << dataset.get_dimensions() << std::endl;
-        deallog << "Size " + dataset_name << " " << container_name << "<"
-                << type_name << ">"
-                << " (Write): " << dataset.get_size() << std::endl;
-        deallog << "Rank " + dataset_name << " " << container_name << "<"
-                << type_name << ">"
-                << " (Write): " << dataset.get_rank() << std::endl;
-        auto data = initialize_container<Container, double>(dataset_dimensions);
-        assign_data(data);
-        if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
-          {
-            dataset.write(data);
-          }
-        else
-          {
-            dataset.template write_none<Number>();
-          }
-        deallog << "Sum " + dataset_name << " " << container_name << "<"
-                << type_name << ">"
-                << " (Write): " << container_sum(data) << std::endl;
-      }
-    else if (std::is_same<Number, double>::value)
-      {
-        std::string dataset_name("dataset_3");
-        auto        dataset =
-          group.create_dataset<Number>(dataset_name, dataset_dimensions);
-        dataset.set_query_io_mode(true);
-        auto data = initialize_container<Container, float>(dataset_dimensions);
-        assign_data(data);
-        if (Utilities::MPI::this_mpi_process(mpi_communicator) == 0)
-          {
-            dataset.write(data);
-          }
-        else
-          {
-            dataset.template write_none<Number>();
-          }
-        deallog << "Sum " + dataset_name << " " << container_name << "<"
-                << type_name << ">"
-                << " (Write): " << container_sum(data) << std::endl;
-        pcout << "IO mode " + dataset_name << " " << container_name << "<"
-              << type_name << ">"
-              << " (Write): " << dataset.get_io_mode() << std::endl;
-        pcout << "Local no collective cause " + dataset_name << " "
-              << container_name << "<" << type_name << ">"
-              << " (Write): " << dataset.get_local_no_collective_cause()
-              << std::endl;
-        pcout << "Global no collective cause " + dataset_name << " "
-              << container_name << "<" << type_name << ">"
-              << " (Write): " << dataset.get_global_no_collective_cause()
-              << std::endl;
-      }
-  }
-
-  {
     std::string dataset_name("dataset_4");
     auto        dataset =
       group.create_dataset<Number>(dataset_name, dataset_dimensions);
@@ -533,132 +346,6 @@ read_test(HDF5::Group        root_group,
   auto group = root_group.open_group(container_name + "<" + type_name + ">");
 
   {
-    std::string dataset_name("dataset_1");
-    auto        dataset = group.open_dataset(dataset_name);
-    dataset.set_query_io_mode(true);
-    deallog << "Dimensions " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Read): " << dataset.get_dimensions() << std::endl;
-    deallog << "Size " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Read): " << dataset.get_size() << std::endl;
-    deallog << "Rank " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Read): " << dataset.get_rank() << std::endl;
-    Container<Number> data = dataset.read<Container<Number>>();
-    deallog << "Sum " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Read): " << container_sum(data) << std::endl;
-    pcout << "IO mode " + dataset_name << " " << container_name << "<"
-          << type_name << ">"
-          << " (Read): " << dataset.get_io_mode() << std::endl;
-    pcout << "Local no collective cause " + dataset_name << " "
-          << container_name << "<" << type_name << ">"
-          << " (Read): " << dataset.get_local_no_collective_cause()
-          << std::endl;
-    pcout << "Global no collective cause " + dataset_name << " "
-          << container_name << "<" << type_name << ">"
-          << " (Read): " << dataset.get_global_no_collective_cause()
-          << std::endl;
-  }
-
-  {
-    std::string dataset_name("dataset_2");
-    auto        dataset = group.open_dataset(dataset_name);
-    dataset.set_query_io_mode(true);
-    deallog << "Dimensions " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Read): " << dataset.get_dimensions() << std::endl;
-    deallog << "Size " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Read): " << dataset.get_size() << std::endl;
-    deallog << "Rank " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Read): " << dataset.get_rank() << std::endl;
-    {
-      Container<Number> data = dataset.read<Container<Number>>();
-      deallog << "Sum " + dataset_name << " " << container_name << "<"
-              << type_name << ">"
-              << " (Read): " << container_sum(data) << std::endl;
-      pcout << "IO mode " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Read): " << dataset.get_io_mode() << std::endl;
-      pcout << "Local no collective cause " + dataset_name << " "
-            << container_name << "<" << type_name << ">"
-            << " (Read): " << dataset.get_local_no_collective_cause()
-            << std::endl;
-      pcout << "Global no collective cause " + dataset_name << " "
-            << container_name << "<" << type_name << ">"
-            << " (Read): " << dataset.get_global_no_collective_cause()
-            << std::endl;
-    }
-
-    {
-      std::vector<hsize_t> coordinates_a = {0,
-                                            0, // first point
-                                            0,
-                                            2, // second point
-                                            3,
-                                            4, // third point
-                                            25,
-                                            12}; // fourth point
-      auto                 data_a =
-        dataset.template read_selection<std::vector<Number>>(coordinates_a);
-      deallog << "Selection " + dataset_name << " " << container_name << "<"
-              << type_name << ">"
-              << " (Read): " << data_a[0] << ", " << data_a[1] << ", "
-              << data_a[2] << ", " << data_a[3] << std::endl;
-      pcout << "IO mode " + dataset_name << " " << container_name << "<"
-            << type_name << ">"
-            << " (Read): " << dataset.get_io_mode() << std::endl;
-      pcout << "Local no collective cause " + dataset_name << " "
-            << container_name << "<" << type_name << ">"
-            << " (Read): " << dataset.get_local_no_collective_cause()
-            << std::endl;
-      pcout << "Global no collective cause " + dataset_name << " "
-            << container_name << "<" << type_name << ">"
-            << " (Read): " << dataset.get_global_no_collective_cause()
-            << std::endl;
-    }
-  }
-
-  {
-    // In this test data conversion is tested. The dataset only exists for
-    // float and double.
-    if (std::is_same<Number, float>::value ||
-        std::is_same<Number, double>::value)
-      {
-        std::string dataset_name("dataset_3");
-        auto        dataset = group.open_dataset(dataset_name);
-        dataset.set_query_io_mode(true);
-        deallog << "Dimensions " + dataset_name << " " << container_name << "<"
-                << type_name << ">"
-                << " (Read): " << dataset.get_dimensions() << std::endl;
-        deallog << "Size " + dataset_name << " " << container_name << "<"
-                << type_name << ">"
-                << " (Read): " << dataset.get_size() << std::endl;
-        deallog << "Rank " + dataset_name << " " << container_name << "<"
-                << type_name << ">"
-                << " (Read): " << dataset.get_rank() << std::endl;
-        Container<Number> data = dataset.read<Container<Number>>();
-        deallog << "Sum " + dataset_name << " " << container_name << "<"
-                << type_name << ">"
-                << " (Read): " << container_sum(data) << std::endl;
-        pcout << "IO mode " + dataset_name << " " << container_name << "<"
-              << type_name << ">"
-              << " (Read): " << dataset.get_io_mode() << std::endl;
-        pcout << "Local no collective cause " + dataset_name << " "
-              << container_name << "<" << type_name << ">"
-              << " (Read): " << dataset.get_local_no_collective_cause()
-              << std::endl;
-        pcout << "Global no collective cause " + dataset_name << " "
-              << container_name << "<" << type_name << ">"
-              << " (Read): " << dataset.get_global_no_collective_cause()
-              << std::endl;
-      }
-  }
-
-  {
     std::string dataset_name("dataset_4");
     auto        dataset = group.open_dataset(dataset_name);
     dataset.set_query_io_mode(true);
@@ -711,6 +398,9 @@ read_test(HDF5::Group        root_group,
             << std::endl;
     }
 
+    const int ierr = MPI_Barrier(MPI_COMM_WORLD);
+    AssertThrowMPI(ierr);
+
     {
       const std::vector<hsize_t> hyperslab_offset_b = {2, 0};
       const std::vector<hsize_t> hyperslab_count_b  = {1, 4};
@@ -754,16 +444,6 @@ read_test(HDF5::Group        root_group,
 int
 main(int argc, char **argv)
 {
-  // tests.h enables floating point exceptions in debug mode, but this test
-  // generates an (irrelevant) exception when run with more than one MPI
-  // process so disable them again:
-#if defined(DEBUG) && defined(DEAL_II_HAVE_FP_EXCEPTIONS)
-  {
-    const int current_fe_except = fegetexcept();
-    fedisableexcept(current_fe_except);
-  }
-#endif
-
   initlog();
 
   try
@@ -778,123 +458,24 @@ main(int argc, char **argv)
       std::string                filename           = "test.h5";
       const std::vector<hsize_t> dataset_dimensions = {50, 30};
 
+      using Type = std::complex<float>;
       {
         HDF5::File data_file(filename,
                              HDF5::File::FileAccessMode::create,
                              mpi_communicator);
 
-        // write_test<std::vector, float>(data_file,
-        //                                dataset_dimensions,
-        //                                mpi_communicator,
-        //                                pcout);
-        // write_test<std::vector, double>(data_file,
-        //                                 dataset_dimensions,
-        //                                 mpi_communicator,
-        //                                 pcout);
-
-#ifdef DEAL_II_WITH_COMPLEX_VALUES
-        write_test<std::vector, std::complex<float>>(data_file,
-                                                     dataset_dimensions,
-                                                     mpi_communicator,
-                                                     pcout);
-        // write_test<std::vector, std::complex<double>>(data_file,
-        //                                               dataset_dimensions,
-        //                                               mpi_communicator,
-        //                                               pcout);
-#endif
-
-//         write_test<std::vector, int>(data_file,
-//                                      dataset_dimensions,
-//                                      mpi_communicator,
-//                                      pcout);
-//         write_test<std::vector, unsigned int>(data_file,
-//                                               dataset_dimensions,
-//                                               mpi_communicator,
-//                                               pcout);
-//         write_test<FullMatrix, float>(data_file,
-//                                       dataset_dimensions,
-//                                       mpi_communicator,
-//                                       pcout);
-//         write_test<FullMatrix, double>(data_file,
-//                                        dataset_dimensions,
-//                                        mpi_communicator,
-//                                        pcout);
-
-// #ifdef DEAL_II_WITH_COMPLEX_VALUES
-//         write_test<FullMatrix, std::complex<float>>(data_file,
-//                                                     dataset_dimensions,
-//                                                     mpi_communicator,
-//                                                     pcout);
-//         write_test<FullMatrix, std::complex<double>>(data_file,
-//                                                      dataset_dimensions,
-//                                                      mpi_communicator,
-//                                                      pcout);
-// #endif
-
-//         write_test<Vector, float>(data_file,
-//                                   dataset_dimensions,
-//                                   mpi_communicator,
-//                                   pcout);
-//         write_test<Vector, double>(data_file,
-//                                    dataset_dimensions,
-//                                    mpi_communicator,
-//                                    pcout);
-
-// #ifdef DEAL_II_WITH_COMPLEX_VALUES
-//         write_test<Vector, std::complex<float>>(data_file,
-//                                                 dataset_dimensions,
-//                                                 mpi_communicator,
-//                                                 pcout);
-//         write_test<Vector, std::complex<double>>(data_file,
-//                                                  dataset_dimensions,
-//                                                  mpi_communicator,
-//                                                  pcout);
-// #endif
+        write_test<std::vector, Type>(data_file,
+                                      dataset_dimensions,
+                                      mpi_communicator,
+                                      pcout);
       }
 
       {
         HDF5::File data_file(filename,
                              HDF5::File::FileAccessMode::open,
                              mpi_communicator);
-        // read_test<std::vector, float>(data_file, mpi_communicator, pcout);
-        // read_test<std::vector, double>(data_file, mpi_communicator, pcout);
 
-#ifdef DEAL_II_WITH_COMPLEX_VALUES
-        read_test<std::vector, std::complex<float>>(data_file,
-                                                    mpi_communicator,
-                                                    pcout);
-        // read_test<std::vector, std::complex<double>>(data_file,
-        //                                              mpi_communicator,
-        //                                              pcout);
-#endif
-
-//         read_test<std::vector, int>(data_file, mpi_communicator, pcout);
-//         read_test<std::vector, unsigned int>(data_file,
-//                                              mpi_communicator,
-//                                              pcout);
-//         read_test<FullMatrix, float>(data_file, mpi_communicator, pcout);
-//         read_test<FullMatrix, double>(data_file, mpi_communicator, pcout);
-
-// #ifdef DEAL_II_WITH_COMPLEX_VALUES
-//         read_test<FullMatrix, std::complex<float>>(data_file,
-//                                                    mpi_communicator,
-//                                                    pcout);
-//         read_test<FullMatrix, std::complex<double>>(data_file,
-//                                                     mpi_communicator,
-//                                                     pcout);
-// #endif
-
-//         read_test<Vector, float>(data_file, mpi_communicator, pcout);
-//         read_test<Vector, double>(data_file, mpi_communicator, pcout);
-
-// #ifdef DEAL_II_WITH_COMPLEX_VALUES
-//         read_test<Vector, std::complex<float>>(data_file,
-//                                                mpi_communicator,
-//                                                pcout);
-//         read_test<Vector, std::complex<double>>(data_file,
-//                                                 mpi_communicator,
-//                                                 pcout);
-// #endif
+        read_test<std::vector, Type>(data_file, mpi_communicator, pcout);
       }
     }
   catch (std::exception &exc)

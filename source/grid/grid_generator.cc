@@ -8091,10 +8091,9 @@ namespace GridGenerator
            volume_mesh.begin(0);
          cell != volume_mesh.end(0);
          ++cell)
-      for (unsigned int i : GeometryInfo<dim>::face_indices())
+      for (unsigned int i = 0; i < cell->n_faces(); ++i)
         {
-          const typename MeshType<dim, spacedim>::face_iterator face =
-            cell->face(i);
+          const auto face = cell->face(i);
 
           if (face->at_boundary() &&
               (boundary_ids.empty() ||

@@ -201,7 +201,9 @@ namespace DoFTools
     {
       const dealii::hp::FECollection<dim, spacedim> &fe_collection =
         dof.get_fe_collection();
-      Assert(fe_collection.n_components() < 256, ExcNotImplemented());
+      Assert(fe_collection.n_components() <=
+               std::numeric_limits<unsigned char>::max(),
+             ExcNotImplemented());
       Assert(dofs_by_component.size() == dof.n_locally_owned_dofs(),
              ExcDimensionMismatch(dofs_by_component.size(),
                                   dof.n_locally_owned_dofs()));
@@ -253,7 +255,9 @@ namespace DoFTools
     {
       const dealii::hp::FECollection<dim, spacedim> &fe_collection =
         dof.get_fe_collection();
-      Assert(fe_collection.n_components() < 256, ExcNotImplemented());
+      Assert(fe_collection.n_components() <=
+               std::numeric_limits<unsigned char>::max(),
+             ExcNotImplemented());
       Assert(dofs_by_block.size() == dof.n_locally_owned_dofs(),
              ExcDimensionMismatch(dofs_by_block.size(),
                                   dof.n_locally_owned_dofs()));
@@ -1982,7 +1986,8 @@ namespace DoFTools
   {
     const dealii::hp::FECollection<dim, spacedim> &fe_collection =
       dof_handler.get_fe_collection();
-    Assert(fe_collection.size() < 256, ExcNotImplemented());
+    Assert(fe_collection.size() <= std::numeric_limits<unsigned char>::max(),
+           ExcNotImplemented());
 
     // If the empty vector for target_block(e.g., as default argument), then
     // set up this vector as identity. We do this set up with the first

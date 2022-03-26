@@ -39,6 +39,8 @@
     \brief This file contains the parser token definition.
 */
 
+namespace dealii
+{
 namespace mu
 {
   /** \brief Encapsulation of the data for a single formula token. 
@@ -397,5 +399,6 @@ namespace mu
       }
   };
 } // namespace mu
+}
 
 #endif

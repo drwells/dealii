@@ -43,6 +43,8 @@
 */
 
 
+namespace dealii
+{
 namespace mu
 {
   // Forward declaration
@@ -155,6 +157,7 @@ namespace mu
       char_type m_cArgSep;     ///< The character used for separating function arguments
   };
 } // namespace mu
+}
 
 #endif
 

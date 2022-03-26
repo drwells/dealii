@@ -46,6 +46,8 @@ using namespace std;
     \brief This file contains the basic implementation of the muparser engine.
 */
 
+namespace dealii
+{
 namespace mu
 {
   std::locale ParserBase::s_locale = std::locale(std::locale::classic(), new change_dec_sep<char_type>('.'));
@@ -1778,3 +1780,4 @@ namespace mu
 
   }
 } // namespace mu
+}

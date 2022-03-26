@@ -25,6 +25,8 @@
 #include "muParserError.h"
 
 
+namespace dealii
+{
 namespace mu
 {
   const ParserErrorMsg ParserErrorMsg::m_Instance;
@@ -335,3 +337,4 @@ namespace mu
     return m_iErrc;
   }
 } // namespace mu
+}

@@ -37,6 +37,8 @@
 */
 
 
+namespace dealii
+{
 namespace mu
 {
 
@@ -955,4 +957,4 @@ namespace mu
     return m_cArgSep;
   }
 } // namespace mu
-
+}

@@ -102,6 +102,8 @@
 #endif
 
 
+namespace dealii
+{
 namespace mu
 {
 #if defined(_UNICODE)
@@ -363,6 +365,7 @@ namespace mu
   /** \brief Callback used for variable creation factory functions. */
   typedef value_type* (*facfun_type)(const char_type*, void*);
 } // end of namespace
+}
 
 #endif
 

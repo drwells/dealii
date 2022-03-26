@@ -39,6 +39,8 @@
 #include "muParserTemplateMagic.h"
 
 
+namespace dealii
+{
 namespace mu
 {
   //---------------------------------------------------------------------------
@@ -587,3 +589,4 @@ namespace mu
     mu::console() << _T("END") << std::endl;
   }
 } // namespace mu
+}

@@ -35,6 +35,8 @@
 */
 
 
+namespace dealii
+{
 namespace mu
 {
 
@@ -135,6 +137,7 @@ public:
 };
 
 } // namespace mu
+}
 
 #endif
 

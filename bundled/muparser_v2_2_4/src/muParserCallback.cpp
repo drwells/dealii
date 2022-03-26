@@ -30,6 +30,8 @@
 */
 
 
+namespace dealii
+{
 namespace mu
 {
   //---------------------------------------------------------------------------
@@ -461,3 +463,4 @@ namespace mu
     return m_iArgc; 
   }
 } // namespace mu
+}

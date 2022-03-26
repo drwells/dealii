@@ -36,6 +36,8 @@ using namespace std;
 */
 
 /** \brief Namespace for mathematical applications. */
+namespace dealii
+{
 namespace mu
 {
 value_type ParserInt::Abs(value_type v)  { return (value_type)Round(fabs((double)v)); }
@@ -278,3 +280,4 @@ void ParserInt::InitOprt()
 }
 
 } // namespace mu
+}

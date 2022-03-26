@@ -46,6 +46,8 @@ using namespace std;
 
 
 /** \brief Namespace for mathematical applications. */
+namespace dealii
+{
 namespace mu
 {
 
@@ -395,3 +397,4 @@ namespace mu
     return fRes;
   }
 } // namespace mu
+}

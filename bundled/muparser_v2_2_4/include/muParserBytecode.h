@@ -39,6 +39,8 @@
 */
 
 
+namespace dealii
+{
 namespace mu
 {
   struct SToken
@@ -135,6 +137,7 @@ public:
 };
 
 } // namespace mu
+}
 
 #endif
 

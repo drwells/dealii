@@ -39,6 +39,8 @@
     \brief This file defines the error class used by the parser.
 */
 
+namespace dealii
+{
 namespace mu
 {
 
@@ -171,6 +173,7 @@ private:
 };		
 
 } // namespace mu
+}
 
 #endif
 

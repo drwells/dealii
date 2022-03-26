@@ -42,6 +42,8 @@
 #include "muParserError.h"
 
 
+namespace dealii
+{
 namespace mu
 {
 /** \file
@@ -312,6 +314,7 @@ private:
 };
 
 } // namespace mu
+}
 
 #endif
 

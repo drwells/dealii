@@ -38,6 +38,8 @@
     \brief This file defines the stack used by muparser.
 */
 
+namespace dealii
+{
 namespace mu
 {
 
@@ -121,5 +123,6 @@ namespace mu
       }
   };
 } // namespace MathUtils
+}
 
 #endif

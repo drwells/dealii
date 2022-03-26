@@ -158,19 +158,19 @@ FunctionParser<dim>::init_muparser() const
   // check that we have not already initialized the parser on the
   // current thread, i.e., that the current function is only called
   // once per thread
-  Assert(fp.get().size() == 0, ExcInternalError());
+  Assert(fp.size() == 0, ExcInternalError());
 
-  // initialize the objects for the current thread (fp.get() and
-  // vars.get())
-  fp.get().reserve(this->n_components);
-  vars.get().resize(var_names.size());
+  // initialize the objects for the current thread (fp and
+  // vars)
+  fp.reserve(this->n_components);
+  vars.resize(var_names.size());
   for (unsigned int component = 0; component < this->n_components; ++component)
     {
-      fp.get().emplace_back(
+      fp.emplace_back(
         std::make_unique<internal::FunctionParserImplementation::Parser>());
       mu::Parser &parser =
         dynamic_cast<internal::FunctionParserImplementation::Parser &>(
-          *fp.get().back());
+          *fp.back());
 
       for (const auto &constant : constants)
         {
@@ -178,7 +178,7 @@ FunctionParser<dim>::init_muparser() const
         }
 
       for (unsigned int iv = 0; iv < var_names.size(); ++iv)
-        parser.DefineVar(var_names[iv], &vars.get()[iv]);
+        parser.DefineVar(var_names[iv], &vars[iv]);
 
       // define some compatibility functions:
       parser.DefineFun("if", internal::FunctionParser::mu_if, true);
@@ -282,18 +282,18 @@ FunctionParser<dim>::value(const Point<dim> & p,
   AssertIndexRange(component, this->n_components);
 
   // initialize the parser if that hasn't happened yet on the current thread
-  if (fp.get().size() == 0)
+  if (fp.size() == 0)
     init_muparser();
 
   for (unsigned int i = 0; i < dim; ++i)
-    vars.get()[i] = p(i);
+    vars[i] = p(i);
   if (dim != n_vars)
-    vars.get()[dim] = this->get_time();
+    vars[dim] = this->get_time();
 
   try
     {
       Assert(dynamic_cast<internal::FunctionParserImplementation::Parser *>(
-               fp.get()[component].get()),
+               fp[component].get()),
              ExcInternalError());
       // using dynamic_cast in the next line is about 6% slower than
       // static_cast, so use the assertion above for debugging and disable
@@ -328,19 +328,19 @@ FunctionParser<dim>::vector_value(const Point<dim> &p,
 
 
   // initialize the parser if that hasn't happened yet on the current thread
-  if (fp.get().size() == 0)
+  if (fp.size() == 0)
     init_muparser();
 
   for (unsigned int i = 0; i < dim; ++i)
-    vars.get()[i] = p(i);
+    vars[i] = p(i);
   if (dim != n_vars)
-    vars.get()[dim] = this->get_time();
+    vars[dim] = this->get_time();
 
   for (unsigned int component = 0; component < this->n_components; ++component)
     {
       // Same comment in value() applies here too:
       Assert(dynamic_cast<internal::FunctionParserImplementation::Parser *>(
-               fp.get()[component].get()),
+               fp[component].get()),
              ExcInternalError());
       mu::Parser &parser =
         static_cast<internal::FunctionParserImplementation::Parser &>( // NOLINT

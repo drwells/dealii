@@ -400,15 +400,13 @@ private:
   /**
    * Place for the variables for each thread
    */
-  mutable Threads::ThreadLocalStorage<std::vector<double>> vars;
+  mutable std::vector<double> vars;
 
   /**
    * The muParser objects (hidden with the PIMPL idiom) for each thread (and one
    * for each component).
    */
-  mutable Threads::ThreadLocalStorage<
-    std::vector<std::unique_ptr<internal::muParserBase>>>
-    fp;
+  mutable std::vector<std::unique_ptr<internal::muParserBase>> fp;
 
   /**
    * An array to keep track of all the constants, required to initialize fp in

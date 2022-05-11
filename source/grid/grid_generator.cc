@@ -3305,7 +3305,7 @@ namespace GridGenerator
 
     // Find the minimal distance between two vertices. This is useful for
     // computing a tolerance for merging vertices in
-    // GridTools::merge_triangulations.
+    // GridGenerator::merge_triangulations.
     template <int dim, int spacedim>
     double
     minimal_vertex_distance(const Triangulation<dim, spacedim> &triangulation)
@@ -7700,11 +7700,12 @@ namespace GridGenerator
                         face->set_user_flag();
                       }
 
-                    // Then also loop over the edges of this face. Because every
-                    // boundary edge must also be a part of a boundary face, we
-                    // can ignore these. But it is possible that we have already
-                    // encountered an interior edge through a previous face, and
-                    // in that case we have to just ignore it
+                    // Then also loop over the edges of this face. Because
+                    // every boundary edge must also be a part of a boundary
+                    // face, we can ignore these. But it is possible that we
+                    // have already encountered an interior edge through a
+                    // previous face, and in that case we have to just ignore
+                    // it
                     for (unsigned int e = 0; e < face->n_lines(); ++e)
                       if (face->line(e)->at_boundary() == false)
                         if (face->line(e)->user_flag_set() == false)
@@ -8198,137 +8199,56 @@ namespace GridGenerator
       std::pair<typename MeshType<dim, spacedim>::face_iterator, unsigned int>>
       temporary_mapping_level0;
 
-    // vector indicating whether a vertex of the volume mesh has
-    // already been visited (necessary to avoid duplicate vertices in
-    // boundary mesh)
-    std::vector<bool> touched(volume_mesh.get_triangulation().n_vertices(),
-                              false);
-
     // data structures required for creation of boundary mesh
     std::vector<CellData<boundary_dim>> cells;
     SubCellData                         subcell_data;
-    std::vector<Point<spacedim>>        vertices;
+    std::vector<Point<spacedim>>        vertices =
+      volume_mesh.get_triangulation().get_vertices();
 
-    // volume vertex indices to surf ones
-    std::map<unsigned int, unsigned int> map_vert_index;
-
-    // define swapping of vertices to get proper normal orientation of boundary
-    // mesh;
-    // the entry (i,j) of swap_matrix stores the index of the vertex of
-    // the boundary cell corresponding to the j-th vertex on the i-th face
-    // of the underlying volume cell
-    // if e.g. face 3 of a volume cell is considered and vertices 1 and 2 of the
-    // corresponding boundary cell are swapped to get
-    // proper normal orientation, swap_matrix[3]=( 0, 2, 1, 3 )
-    Table<2, unsigned int> swap_matrix(
-      GeometryInfo<spacedim>::faces_per_cell,
-      GeometryInfo<dim - 1>::vertices_per_cell);
-    for (unsigned int i1 = 0; i1 < GeometryInfo<spacedim>::faces_per_cell; ++i1)
-      {
-        for (unsigned int i2 = 0; i2 < GeometryInfo<dim - 1>::vertices_per_cell;
-             i2++)
-          swap_matrix[i1][i2] = i2;
-      }
-    // vertex swapping such that normals on the surface mesh point out of the
-    // underlying volume
-    if (dim == 3)
-      {
-        std::swap(swap_matrix[0][1], swap_matrix[0][2]);
-        std::swap(swap_matrix[2][1], swap_matrix[2][2]);
-        std::swap(swap_matrix[4][1], swap_matrix[4][2]);
-      }
-    else if (dim == 2)
-      {
-        std::swap(swap_matrix[1][0], swap_matrix[1][1]);
-        std::swap(swap_matrix[2][0], swap_matrix[2][1]);
-      }
+    // TODO: I deleted all the orientation code, and the vertex mapping code.
+    // Was it a good idea? Maybe.
 
     // Create boundary mesh and mapping
     // from only level(0) cells of volume_mesh
-    for (typename MeshType<dim, spacedim>::cell_iterator cell =
-           volume_mesh.begin(0);
-         cell != volume_mesh.end(0);
-         ++cell)
-      for (unsigned int i : GeometryInfo<dim>::face_indices())
+    for (const auto &cell : volume_mesh.cell_iterators_on_level(0))
+      for (unsigned int i : cell->face_indices())
         {
-          const typename MeshType<dim, spacedim>::face_iterator face =
-            cell->face(i);
+          const auto face = cell->face(i);
 
           if (face->at_boundary() &&
               (boundary_ids.empty() ||
                (boundary_ids.find(face->boundary_id()) != boundary_ids.end())))
             {
-              CellData<boundary_dim> c_data;
+              CellData<boundary_dim> c_data(face->n_vertices());
 
-              for (const unsigned int j :
-                   GeometryInfo<boundary_dim>::vertex_indices())
-                {
-                  const unsigned int v_index = face->vertex_index(j);
-
-                  if (!touched[v_index])
-                    {
-                      vertices.push_back(face->vertex(j));
-                      map_vert_index[v_index] = vertices.size() - 1;
-                      touched[v_index]        = true;
-                    }
-
-                  c_data.vertices[swap_matrix[i][j]] = map_vert_index[v_index];
-                }
+              for (const unsigned int j : face->vertex_indices())
+                c_data.vertices[j] = face->vertex_index(j);
               c_data.material_id =
                 static_cast<types::material_id>(face->boundary_id());
               c_data.manifold_id = face->manifold_id();
 
-
               // in 3d, we need to make sure we copy the manifold
               // indicators from the edges of the volume mesh to the
               // edges of the surface mesh
-              //
-              // we set default boundary ids for boundary lines
-              // and numbers::internal_face_boundary_id for internal lines
               if (dim == 3)
-                for (unsigned int e = 0; e < 4; ++e)
+                for (unsigned int e : face->line_indices())
                   {
-                    // see if we already saw this edge from a
-                    // neighboring face, either in this or the reverse
-                    // orientation. if so, skip it.
-                    {
-                      bool edge_found = false;
-                      for (auto &boundary_line : subcell_data.boundary_lines)
-                        if (((boundary_line.vertices[0] ==
-                              map_vert_index[face->line(e)->vertex_index(0)]) &&
-                             (boundary_line.vertices[1] ==
-                              map_vert_index[face->line(e)->vertex_index(
-                                1)])) ||
-                            ((boundary_line.vertices[0] ==
-                              map_vert_index[face->line(e)->vertex_index(1)]) &&
-                             (boundary_line.vertices[1] ==
-                              map_vert_index[face->line(e)->vertex_index(0)])))
-                          {
-                            boundary_line.boundary_id =
-                              numbers::internal_face_boundary_id;
-                            edge_found = true;
-                            break;
-                          }
-                      if (edge_found == true)
-                        // try next edge of current face
-                        continue;
-                    }
-
                     CellData<1> edge;
-                    edge.vertices[0] =
-                      map_vert_index[face->line(e)->vertex_index(0)];
-                    edge.vertices[1] =
-                      map_vert_index[face->line(e)->vertex_index(1)];
-                    edge.boundary_id = 0;
+                    edge.vertices[0] = face->line(e)->vertex_index(0);
+                    edge.vertices[1] = face->line(e)->vertex_index(1);
+                    // TODO: this totally ignores boundary ids for now
                     edge.manifold_id = face->line(e)->manifold_id();
-
-                    subcell_data.boundary_lines.push_back(edge);
+                    edge.boundary_id = numbers::internal_face_boundary_id;
+                    subcell_data.boundary_lines.push_back(std::move(edge));
                   }
 
-              cells.push_back(c_data);
+              cells.push_back(std::move(c_data));
               temporary_mapping_level0.push_back(std::make_pair(face, i));
             }
         }
+
+    // do some cleanup
+    GridTools::delete_unused_vertices(vertices, cells, subcell_data);
 
     // create level 0 surface triangulation
     Assert(cells.size() > 0, ExcMessage("No boundary faces selected"));
@@ -8336,14 +8256,7 @@ namespace GridGenerator
       surface_mesh.get_triangulation())
       .create_triangulation(vertices, cells, subcell_data);
 
-    // in 2d: set default boundary ids for "boundary vertices"
-    if (dim == 2)
-      {
-        for (const auto &cell : surface_mesh.active_cell_iterators())
-          for (unsigned int vertex = 0; vertex < 2; ++vertex)
-            if (cell->face(vertex)->at_boundary())
-              cell->face(vertex)->set_boundary_id(0);
-      }
+    // TODO - what are the default values for boundary ids?
 
     // Make mapping for level 0
 
@@ -8411,29 +8324,13 @@ namespace GridGenerator
 
             // add new level of cells to temporary_map_boundary_cell_face
             index_cells_deepest_level = temporary_map_boundary_cell_face.size();
+
+#  if 0
             for (const auto &refined_cell_n : cells_refined)
               {
-                const typename MeshType<dim - 1, spacedim>::cell_iterator
-                  refined_cell =
-                    temporary_map_boundary_cell_face[refined_cell_n].first;
-                const typename MeshType<dim,
-                                        spacedim>::face_iterator refined_face =
-                  temporary_map_boundary_cell_face[refined_cell_n].second.first;
-                const unsigned int refined_face_number =
-                  temporary_map_boundary_cell_face[refined_cell_n]
-                    .second.second;
-                for (unsigned int child_n = 0;
-                     child_n < refined_cell->n_children();
-                     ++child_n)
-                  // at this point, the swapping of vertices done earlier must
-                  // be taken into account to get the right association between
-                  // volume faces and boundary cells!
-                  temporary_map_boundary_cell_face.push_back(
-                    std::make_pair(refined_cell->child(
-                                     swap_matrix[refined_face_number][child_n]),
-                                   std::make_pair(refined_face->child(child_n),
-                                                  refined_face_number)));
+                // TODO: something about boundary cells and association here?
               }
+#  endif
           }
         // we are at the deepest level of refinement of the volume mesh
         else

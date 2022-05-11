@@ -252,6 +252,12 @@ for (deal_II_dimension : DIMENSIONS; deal_II_space_dimension : SPACE_DIMENSIONS)
                                  double);
 
       template void
+      delete_internal_boundaries(
+        const std::vector<Point<deal_II_space_dimension>> &,
+        const std::vector<CellData<deal_II_dimension>> &,
+        SubCellData &);
+
+      template void
       invert_all_negative_measure_cells(
         const std::vector<Point<deal_II_space_dimension>> &,
         std::vector<CellData<deal_II_dimension>> &);

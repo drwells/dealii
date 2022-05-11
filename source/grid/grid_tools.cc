@@ -35,6 +35,7 @@
 #include <deal.II/fe/mapping_q1.h>
 
 #include <deal.II/grid/filtered_iterator.h>
+#include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/grid_reordering.h>
 #include <deal.II/grid/grid_tools.h>
 #include <deal.II/grid/grid_tools_cache.h>
@@ -863,6 +864,162 @@ namespace GridTools
         vertex_index = new_vertex_numbers[vertex_index];
 
     delete_unused_vertices(vertices, cells, subcelldata);
+  }
+
+
+
+  template <int dim, int spacedim>
+  void
+  delete_internal_boundaries(const std::vector<Point<spacedim>> &vertices,
+                             const std::vector<CellData<dim>> &  cells,
+                             SubCellData &                       subcelldata)
+  {
+    Triangulation<dim, spacedim> tria;
+    tria.create_triangulation(vertices, cells, SubCellData());
+    Triangulation<dim - 1, spacedim> boundary_tria;
+    GridGenerator::extract_boundary_mesh(tria, boundary_tria);
+
+    SubCellData fixed_subcell_data;
+#if 1
+    std::vector<Point<spacedim>> boundary_vertices =
+      boundary_tria.get_vertices();
+
+    auto comp = [](const auto &p0, const auto &p1) {
+      double a[spacedim];
+      double b[spacedim];
+      p0.unroll(std::begin(a), std::end(a));
+      p1.unroll(std::begin(b), std::end(b));
+      return std::lexicographical_compare(std::begin(a),
+                                          std::end(a),
+                                          std::begin(b),
+                                          std::end(b));
+    };
+
+    std::sort(boundary_vertices.begin(), boundary_vertices.end(), comp);
+
+    // Any true boundary object will have all its vertices on the boundary
+    // triangulation
+    for (CellData<1> &line : subcelldata.boundary_lines)
+      {
+        if (line.boundary_id != numbers::internal_face_boundary_id)
+          {
+            bool all_vertices_on_boundary = true;
+            for (const unsigned int vertex_no : line.vertices)
+              {
+                all_vertices_on_boundary =
+                  all_vertices_on_boundary &&
+                  std::binary_search(boundary_vertices.begin(),
+                                     boundary_vertices.end(),
+                                     vertices[vertex_no],
+                                     comp);
+              }
+            if (all_vertices_on_boundary)
+              fixed_subcell_data.boundary_lines.emplace_back(std::move(line));
+            else if (line.manifold_id != numbers::flat_manifold_id)
+              {
+                line.boundary_id = numbers::internal_face_boundary_id;
+                fixed_subcell_data.boundary_lines.emplace_back(std::move(line));
+              }
+          }
+        else
+          {
+            fixed_subcell_data.boundary_lines.emplace_back(std::move(line));
+          }
+      }
+
+    for (CellData<2> &quad : subcelldata.boundary_quads)
+      {
+        if (quad.boundary_id != numbers::internal_face_boundary_id)
+          {
+            bool all_vertices_on_boundary = true;
+            for (const unsigned int vertex_no : quad.vertices)
+              {
+                all_vertices_on_boundary =
+                  all_vertices_on_boundary &&
+                  std::binary_search(boundary_vertices.begin(),
+                                     boundary_vertices.end(),
+                                     vertices[vertex_no],
+                                     comp);
+              }
+            if (all_vertices_on_boundary)
+              fixed_subcell_data.boundary_quads.emplace_back(std::move(quad));
+            else if (quad.manifold_id != numbers::flat_manifold_id)
+              {
+                quad.boundary_id = numbers::internal_face_boundary_id;
+                fixed_subcell_data.boundary_quads.emplace_back(std::move(quad));
+              }
+          }
+        else
+          {
+            fixed_subcell_data.boundary_quads.emplace_back(std::move(quad));
+          }
+      }
+#else
+    Assert(boundary_tria.get_reference_cells().size() == 1,
+           ExcNotImplemented());
+    const auto reference_cell = boundary_tria.get_reference_cells().front();
+    std::unique_ptr<Mapping<dim - 1, spacedim>> mapping =
+      reference_cell.template get_default_mapping<dim - 1, spacedim>();
+    GridTools::Cache<dim - 1, spacedim> cache(boundary_tria, *mapping);
+    const double                        tolerance =
+      minimal_cell_diameter(boundary_tria, *mapping) / 100.0;
+    auto cell_hint =
+      typename Triangulation<dim - 1, spacedim>::active_cell_iterator();
+
+    // Any true boundary line should have both points on the boundary
+    // triangulation
+    for (CellData<1> &line : subcelldata.boundary_lines)
+      {
+        bool all_vertices_on_boundary = true;
+        for (const unsigned int vertex_no : line.vertices)
+          {
+            const auto pair = GridTools::find_active_cell_around_point(
+              cache, vertices[line.vertices[vertex_no]], cell_hint);
+            if (pair.first == boundary_tria.end())
+              {
+                all_vertices_on_boundary = false;
+                break;
+              }
+            else
+              cell_hint = pair.first;
+          }
+        if (all_vertices_on_boundary)
+          fixed_subcell_data.boundary_lines.emplace_back(std::move(line));
+      }
+
+    // Same idea for boundary quads
+    for (CellData<2> &quad : subcelldata.boundary_quads)
+      {
+        bool all_vertices_on_boundary = true;
+        for (const unsigned int vertex_no : quad.vertices)
+          {
+            const auto pair = GridTools::find_active_cell_around_point(
+              cache, vertices[quad.vertices[vertex_no]], cell_hint);
+            if (pair.first == boundary_tria.end())
+              {
+                all_vertices_on_boundary = false;
+                break;
+              }
+            else
+              cell_hint = pair.first;
+          }
+        if (all_vertices_on_boundary)
+          fixed_subcell_data.boundary_quads.emplace_back(std::move(quad));
+      }
+#endif
+
+    std::swap(fixed_subcell_data, subcelldata);
+  }
+
+
+
+  template <int spacedim>
+  void
+  delete_internal_boundaries(const std::vector<Point<spacedim>> & /*vertices*/,
+                             const std::vector<CellData<1>> & /*cells*/,
+                             SubCellData & /*subcelldata*/)
+  {
+    Assert(false, ExcNotImplemented());
   }
 
 

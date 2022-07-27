@@ -16,7 +16,6 @@
 #ifndef dealii_petsc_vector_h
 #  define dealii_petsc_vector_h
 
-
 #  include <deal.II/base/config.h>
 
 #  ifdef DEAL_II_WITH_PETSC
@@ -33,6 +32,17 @@
 
 DEAL_II_NAMESPACE_OPEN
 
+// forward declaration
+#    ifndef DOXYGEN
+namespace PETScWrappers
+{
+  namespace MPI
+  {
+    class Vector;
+  }
+} // namespace PETScWrappers
+#    endif
+
 
 /**
  * @addtogroup PETScWrappers
@@ -40,6 +50,174 @@ DEAL_II_NAMESPACE_OPEN
  */
 namespace PETScWrappers
 {
+  /**
+   * @cond internal
+   */
+
+  /**
+   * A namespace for internal implementation details of the PETScWrapper
+   * members.
+   * @ingroup PETScWrappers
+   */
+  namespace internal
+  {
+    /**
+     * Since access to PETSc vectors only goes through functions, rather than
+     * by obtaining a reference to a vector element, we need a wrapper class
+     * that acts as if it was a reference, and basically redirects all
+     * accesses (read and write) to member functions of this class.
+     *
+     * This class implements such a wrapper: it is initialized with a vector
+     * and an element within it, and has a conversion operator to extract the
+     * scalar value of this element. It also has a variety of assignment
+     * operator for writing to this one element.
+     * @ingroup PETScWrappers
+     */
+    class VectorReference
+    {
+    public:
+      /**
+       * Declare type for container size.
+       */
+      using size_type = types::global_dof_index;
+
+    private:
+      /**
+       * Constructor. It is made private so as to only allow the actual vector
+       * class to create it.
+       */
+      VectorReference(const MPI::Vector &vector, const size_type index);
+
+    public:
+      /*
+       * Copy constructor.
+       */
+      VectorReference(const VectorReference &vector) = default;
+
+      /**
+       * This looks like a copy operator, but does something different than
+       * usual. In particular, it does not copy the member variables of this
+       * reference. Rather, it handles the situation where we have two vectors
+       * @p v and @p w, and assign elements like in <tt>v(i)=w(i)</tt>. Here,
+       * both left and right hand side of the assignment have data type
+       * VectorReference, but what we really mean is to assign the vector
+       * elements represented by the two references. This operator implements
+       * this operation. Note also that this allows us to make the assignment
+       * operator const.
+       */
+      const VectorReference &
+      operator=(const VectorReference &r) const;
+
+      /**
+       * The same function as above, but for non-const reference objects. The
+       * function is needed since the compiler might otherwise automatically
+       * generate a copy operator for non-const objects.
+       */
+      VectorReference &
+      operator=(const VectorReference &r);
+
+      /**
+       * Set the referenced element of the vector to <tt>s</tt>.
+       */
+      const VectorReference &
+      operator=(const PetscScalar &s) const;
+
+      /**
+       * Add <tt>s</tt> to the referenced element of the vector.
+       */
+      const VectorReference &
+      operator+=(const PetscScalar &s) const;
+
+      /**
+       * Subtract <tt>s</tt> from the referenced element of the vector.
+       */
+      const VectorReference &
+      operator-=(const PetscScalar &s) const;
+
+      /**
+       * Multiply the referenced element of the vector by <tt>s</tt>.
+       */
+      const VectorReference &
+      operator*=(const PetscScalar &s) const;
+
+      /**
+       * Divide the referenced element of the vector by <tt>s</tt>.
+       */
+      const VectorReference &
+      operator/=(const PetscScalar &s) const;
+
+      /**
+       * Return the real part of the value of the referenced element.
+       */
+      PetscReal
+      real() const;
+
+      /**
+       * Return the imaginary part of the value of the referenced element.
+       *
+       * @note This operation is not defined for real numbers and an exception
+       * is thrown.
+       */
+      PetscReal
+      imag() const;
+
+      /**
+       * Convert the reference to an actual value, i.e. return the value of
+       * the referenced element of the vector.
+       */
+      operator PetscScalar() const;
+      /**
+       * Exception
+       */
+      DeclException3(
+        ExcAccessToNonlocalElement,
+        int,
+        int,
+        int,
+        << "You tried to access element " << arg1
+        << " of a distributed vector, but only elements in range [" << arg2
+        << ',' << arg3 << "] are stored locally and can be accessed."
+        << "\n\n"
+        << "A common source for this kind of problem is that you "
+        << "are passing a 'fully distributed' vector into a function "
+        << "that needs read access to vector elements that correspond "
+        << "to degrees of freedom on ghost cells (or at least to "
+        << "'locally active' degrees of freedom that are not also "
+        << "'locally owned'). You need to pass a vector that has these "
+        << "elements as ghost entries.");
+      /**
+       * Exception.
+       */
+      DeclException2(ExcWrongMode,
+                     int,
+                     int,
+                     << "You tried to do a "
+                     << (arg1 == 1 ? "'set'" : (arg1 == 2 ? "'add'" : "???"))
+                     << " operation but the vector is currently in "
+                     << (arg2 == 1 ? "'set'" : (arg2 == 2 ? "'add'" : "???"))
+                     << " mode. You first have to call 'compress()'.");
+
+    private:
+      /**
+       * Point to the vector we are referencing.
+       */
+      const MPI::Vector &vector;
+
+      /**
+       * Index of the referenced element of the vector.
+       */
+      const size_type index;
+
+      // Make the vector class a friend, so that it can create objects of the
+      // present type.
+      friend class ::dealii::PETScWrappers::MPI::Vector;
+    };
+  } // namespace internal
+  /**
+   * @endcond
+   */
+
+
   /**
    * Namespace for PETSc classes that work in parallel over MPI, such as
    * distributed vectors and matrices.
@@ -159,9 +337,13 @@ namespace PETScWrappers
     {
     public:
       /**
-       * Declare type for container size.
+       * Declare some of the standard types used in all containers. These types
+       * parallel those in the <tt>C++</tt> standard libraries
+       * <tt>vector<...></tt> class.
        */
-      using size_type = types::global_dof_index;
+      using reference       = internal::VectorReference;
+      using const_reference = const internal::VectorReference;
+      using size_type       = types::global_dof_index;
 
       /**
        * Default constructor. Initialize the vector as empty.
@@ -367,6 +549,34 @@ namespace PETScWrappers
         const std::shared_ptr<const Utilities::MPI::Partitioner> &partitioner);
 
       /**
+       * Provide access to a given element, both read and write.
+       */
+      reference
+      operator()(const size_type index);
+
+      /**
+       * Provide read-only access to an element.
+       */
+      PetscScalar
+      operator()(const size_type index) const;
+
+      /**
+       * Provide access to a given element, both read and write.
+       *
+       * Exactly the same as operator().
+       */
+      reference
+      operator[](const size_type index);
+
+      /**
+       * Provide read-only access to an element.
+       *
+       * Exactly the same as operator().
+       */
+      PetscScalar
+      operator[](const size_type index) const;
+
+      /**
        * Return a reference to the MPI communicator object in use with this
        * vector.
        */
@@ -427,12 +637,236 @@ namespace PETScWrappers
        * Copy of the communicator object to be used for this parallel vector.
        */
       MPI_Comm communicator;
+
+      /**
+       * Make the reference class a friend.
+       */
+      friend class internal::VectorReference;
     };
+  } // namespace MPI
 
 
-    // ------------------ template and inline functions -------------
+  // ------------------ template and inline functions -------------
 
 
+#    ifndef DOXYGEN
+  namespace internal
+  {
+    inline VectorReference::VectorReference(const MPI::Vector &vector,
+                                            const size_type    index)
+      : vector(vector)
+      , index(index)
+    {}
+
+
+    inline const VectorReference &
+    VectorReference::operator=(const VectorReference &r) const
+    {
+      // as explained in the class
+      // documentation, this is not the copy
+      // operator. so simply pass on to the
+      // "correct" assignment operator
+      *this = static_cast<PetscScalar>(r);
+
+      return *this;
+    }
+
+
+
+    inline VectorReference &
+    VectorReference::operator=(const VectorReference &r)
+    {
+      // as explained in the class
+      // documentation, this is not the copy
+      // operator. so simply pass on to the
+      // "correct" assignment operator
+      *this = static_cast<PetscScalar>(r);
+
+      return *this;
+    }
+
+
+
+    inline const VectorReference &
+    VectorReference::operator=(const PetscScalar &value) const
+    {
+      Assert((vector.last_action == VectorOperation::insert) ||
+               (vector.last_action == VectorOperation::unknown),
+             ExcWrongMode(VectorOperation::insert, vector.last_action));
+
+      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
+
+      const PetscInt petsc_i = index;
+
+      const PetscErrorCode ierr =
+        VecSetValues(vector, 1, &petsc_i, &value, INSERT_VALUES);
+      AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+      vector.last_action = VectorOperation::insert;
+
+      return *this;
+    }
+
+
+
+    inline const VectorReference &
+    VectorReference::operator+=(const PetscScalar &value) const
+    {
+      Assert((vector.last_action == VectorOperation::add) ||
+               (vector.last_action == VectorOperation::unknown),
+             ExcWrongMode(VectorOperation::add, vector.last_action));
+
+      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
+
+      vector.last_action = VectorOperation::add;
+
+      // we have to do above actions in any
+      // case to be consistent with the MPI
+      // communication model (see the
+      // comments in the documentation of
+      // PETScWrappers::MPI::Vector), but we
+      // can save some work if the addend is
+      // zero
+      if (value == PetscScalar())
+        return *this;
+
+      // use the PETSc function to add something
+      const PetscInt       petsc_i = index;
+      const PetscErrorCode ierr =
+        VecSetValues(vector, 1, &petsc_i, &value, ADD_VALUES);
+      AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+
+      return *this;
+    }
+
+
+
+    inline const VectorReference &
+    VectorReference::operator-=(const PetscScalar &value) const
+    {
+      Assert((vector.last_action == VectorOperation::add) ||
+               (vector.last_action == VectorOperation::unknown),
+             ExcWrongMode(VectorOperation::add, vector.last_action));
+
+      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
+
+      vector.last_action = VectorOperation::add;
+
+      // we have to do above actions in any
+      // case to be consistent with the MPI
+      // communication model (see the
+      // comments in the documentation of
+      // PETScWrappers::MPI::Vector), but we
+      // can save some work if the addend is
+      // zero
+      if (value == PetscScalar())
+        return *this;
+
+      // use the PETSc function to
+      // add something
+      const PetscInt       petsc_i     = index;
+      const PetscScalar    subtractand = -value;
+      const PetscErrorCode ierr =
+        VecSetValues(vector, 1, &petsc_i, &subtractand, ADD_VALUES);
+      AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+      return *this;
+    }
+
+
+
+    inline const VectorReference &
+    VectorReference::operator*=(const PetscScalar &value) const
+    {
+      Assert((vector.last_action == VectorOperation::insert) ||
+               (vector.last_action == VectorOperation::unknown),
+             ExcWrongMode(VectorOperation::insert, vector.last_action));
+
+      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
+
+      vector.last_action = VectorOperation::insert;
+
+      // we have to do above actions in any
+      // case to be consistent with the MPI
+      // communication model (see the
+      // comments in the documentation of
+      // PETScWrappers::MPI::Vector), but we
+      // can save some work if the factor is
+      // one
+      if (value == 1.)
+        return *this;
+
+      const PetscInt    petsc_i   = index;
+      const PetscScalar new_value = static_cast<PetscScalar>(*this) * value;
+
+      const PetscErrorCode ierr =
+        VecSetValues(vector, 1, &petsc_i, &new_value, INSERT_VALUES);
+      AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+      return *this;
+    }
+
+
+
+    inline const VectorReference &
+    VectorReference::operator/=(const PetscScalar &value) const
+    {
+      Assert((vector.last_action == VectorOperation::insert) ||
+               (vector.last_action == VectorOperation::unknown),
+             ExcWrongMode(VectorOperation::insert, vector.last_action));
+
+      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
+
+      vector.last_action = VectorOperation::insert;
+
+      // we have to do above actions in any
+      // case to be consistent with the MPI
+      // communication model (see the
+      // comments in the documentation of
+      // PETScWrappers::MPI::Vector), but we
+      // can save some work if the factor is
+      // one
+      if (value == 1.)
+        return *this;
+
+      const PetscInt    petsc_i   = index;
+      const PetscScalar new_value = static_cast<PetscScalar>(*this) / value;
+
+      const PetscErrorCode ierr =
+        VecSetValues(vector, 1, &petsc_i, &new_value, INSERT_VALUES);
+      AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+      return *this;
+    }
+
+
+
+    inline PetscReal
+    VectorReference::real() const
+    {
+#      ifndef PETSC_USE_COMPLEX
+      return static_cast<PetscScalar>(*this);
+#      else
+      return PetscRealPart(static_cast<PetscScalar>(*this));
+#      endif
+    }
+
+
+
+    inline PetscReal
+    VectorReference::imag() const
+    {
+#      ifndef PETSC_USE_COMPLEX
+      return PetscReal(0);
+#      else
+      return PetscImaginaryPart(static_cast<PetscScalar>(*this));
+#      endif
+    }
+  } // namespace internal
+
+  namespace MPI
+  {
     /**
      * Global function @p swap which overloads the default implementation of
      * the C++ standard library which uses a temporary object. The function
@@ -445,9 +879,6 @@ namespace PETScWrappers
     {
       u.swap(v);
     }
-
-
-#    ifndef DOXYGEN
 
     template <typename number>
     Vector::Vector(const MPI_Comm &              communicator,
@@ -510,6 +941,38 @@ namespace PETScWrappers
       compress(::dealii::VectorOperation::insert);
 
       return *this;
+    }
+
+
+
+    inline internal::VectorReference
+    Vector::operator()(const size_type index)
+    {
+      return internal::VectorReference(*this, index);
+    }
+
+
+
+    inline internal::VectorReference
+    Vector::operator[](const size_type index)
+    {
+      return operator()(index);
+    }
+
+
+
+    inline PetscScalar
+    Vector::operator()(const size_type index) const
+    {
+      return static_cast<PetscScalar>(internal::VectorReference(*this, index));
+    }
+
+
+
+    inline PetscScalar
+    Vector::operator[](const size_type index) const
+    {
+      return operator()(index);
     }
 
 

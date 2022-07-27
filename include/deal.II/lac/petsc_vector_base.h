@@ -35,17 +35,6 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-// forward declaration
-#    ifndef DOXYGEN
-template <typename number>
-class Vector;
-
-namespace PETScWrappers
-{
-  class VectorBase;
-}
-#    endif
-
 /**
  * A namespace in which wrapper classes for PETSc objects reside.
  *
@@ -54,174 +43,6 @@ namespace PETScWrappers
  */
 namespace PETScWrappers
 {
-  /**
-   * @cond internal
-   */
-
-  /**
-   * A namespace for internal implementation details of the PETScWrapper
-   * members.
-   * @ingroup PETScWrappers
-   */
-  namespace internal
-  {
-    /**
-     * Since access to PETSc vectors only goes through functions, rather than
-     * by obtaining a reference to a vector element, we need a wrapper class
-     * that acts as if it was a reference, and basically redirects all
-     * accesses (read and write) to member functions of this class.
-     *
-     * This class implements such a wrapper: it is initialized with a vector
-     * and an element within it, and has a conversion operator to extract the
-     * scalar value of this element. It also has a variety of assignment
-     * operator for writing to this one element.
-     * @ingroup PETScWrappers
-     */
-    class VectorReference
-    {
-    public:
-      /**
-       * Declare type for container size.
-       */
-      using size_type = types::global_dof_index;
-
-    private:
-      /**
-       * Constructor. It is made private so as to only allow the actual vector
-       * class to create it.
-       */
-      VectorReference(const VectorBase &vector, const size_type index);
-
-    public:
-      /*
-       * Copy constructor.
-       */
-      VectorReference(const VectorReference &vector) = default;
-
-      /**
-       * This looks like a copy operator, but does something different than
-       * usual. In particular, it does not copy the member variables of this
-       * reference. Rather, it handles the situation where we have two vectors
-       * @p v and @p w, and assign elements like in <tt>v(i)=w(i)</tt>. Here,
-       * both left and right hand side of the assignment have data type
-       * VectorReference, but what we really mean is to assign the vector
-       * elements represented by the two references. This operator implements
-       * this operation. Note also that this allows us to make the assignment
-       * operator const.
-       */
-      const VectorReference &
-      operator=(const VectorReference &r) const;
-
-      /**
-       * The same function as above, but for non-const reference objects. The
-       * function is needed since the compiler might otherwise automatically
-       * generate a copy operator for non-const objects.
-       */
-      VectorReference &
-      operator=(const VectorReference &r);
-
-      /**
-       * Set the referenced element of the vector to <tt>s</tt>.
-       */
-      const VectorReference &
-      operator=(const PetscScalar &s) const;
-
-      /**
-       * Add <tt>s</tt> to the referenced element of the vector.
-       */
-      const VectorReference &
-      operator+=(const PetscScalar &s) const;
-
-      /**
-       * Subtract <tt>s</tt> from the referenced element of the vector.
-       */
-      const VectorReference &
-      operator-=(const PetscScalar &s) const;
-
-      /**
-       * Multiply the referenced element of the vector by <tt>s</tt>.
-       */
-      const VectorReference &
-      operator*=(const PetscScalar &s) const;
-
-      /**
-       * Divide the referenced element of the vector by <tt>s</tt>.
-       */
-      const VectorReference &
-      operator/=(const PetscScalar &s) const;
-
-      /**
-       * Return the real part of the value of the referenced element.
-       */
-      PetscReal
-      real() const;
-
-      /**
-       * Return the imaginary part of the value of the referenced element.
-       *
-       * @note This operation is not defined for real numbers and an exception
-       * is thrown.
-       */
-      PetscReal
-      imag() const;
-
-      /**
-       * Convert the reference to an actual value, i.e. return the value of
-       * the referenced element of the vector.
-       */
-      operator PetscScalar() const;
-      /**
-       * Exception
-       */
-      DeclException3(
-        ExcAccessToNonlocalElement,
-        int,
-        int,
-        int,
-        << "You tried to access element " << arg1
-        << " of a distributed vector, but only elements in range [" << arg2
-        << ',' << arg3 << "] are stored locally and can be accessed."
-        << "\n\n"
-        << "A common source for this kind of problem is that you "
-        << "are passing a 'fully distributed' vector into a function "
-        << "that needs read access to vector elements that correspond "
-        << "to degrees of freedom on ghost cells (or at least to "
-        << "'locally active' degrees of freedom that are not also "
-        << "'locally owned'). You need to pass a vector that has these "
-        << "elements as ghost entries.");
-      /**
-       * Exception.
-       */
-      DeclException2(ExcWrongMode,
-                     int,
-                     int,
-                     << "You tried to do a "
-                     << (arg1 == 1 ? "'set'" : (arg1 == 2 ? "'add'" : "???"))
-                     << " operation but the vector is currently in "
-                     << (arg2 == 1 ? "'set'" : (arg2 == 2 ? "'add'" : "???"))
-                     << " mode. You first have to call 'compress()'.");
-
-    private:
-      /**
-       * Point to the vector we are referencing.
-       */
-      const VectorBase &vector;
-
-      /**
-       * Index of the referenced element of the vector.
-       */
-      const size_type index;
-
-      // Make the vector class a friend, so that it can create objects of the
-      // present type.
-      friend class ::dealii::PETScWrappers::VectorBase;
-    };
-  } // namespace internal
-  /**
-   * @endcond
-   */
-
-
   /**
    * Base class for all vector classes that are implemented on top of the
    * PETSc vector types. Since in PETSc all vector types (i.e. sequential and
@@ -255,11 +76,9 @@ namespace PETScWrappers
      * parallel those in the <tt>C++</tt> standard libraries
      * <tt>vector<...></tt> class.
      */
-    using value_type      = PetscScalar;
-    using real_type       = PetscReal;
-    using size_type       = types::global_dof_index;
-    using reference       = internal::VectorReference;
-    using const_reference = const internal::VectorReference;
+    using value_type = PetscScalar;
+    using real_type  = PetscReal;
+    using size_type  = types::global_dof_index;
 
     /**
      * Default constructor. It doesn't do anything, derived classes will have
@@ -426,34 +245,6 @@ namespace PETScWrappers
      */
     void
     update_ghost_values() const;
-
-    /**
-     * Provide access to a given element, both read and write.
-     */
-    reference
-    operator()(const size_type index);
-
-    /**
-     * Provide read-only access to an element.
-     */
-    PetscScalar
-    operator()(const size_type index) const;
-
-    /**
-     * Provide access to a given element, both read and write.
-     *
-     * Exactly the same as operator().
-     */
-    reference
-    operator[](const size_type index);
-
-    /**
-     * Provide read-only access to an element.
-     *
-     * Exactly the same as operator().
-     */
-    PetscScalar
-    operator[](const size_type index) const;
 
     /**
      * A collective set operation: instead of setting individual elements of a
@@ -819,9 +610,6 @@ namespace PETScWrappers
      */
     mutable VectorOperation::values last_action;
 
-    // Make the reference class a friend.
-    friend class internal::VectorReference;
-
     /**
      * Specifies if the vector is the owner of the PETSc Vec. This is true if
      * it got created by this class and determines if it gets destroyed in
@@ -859,221 +647,6 @@ namespace PETScWrappers
   }
 
 #    ifndef DOXYGEN
-  namespace internal
-  {
-    inline VectorReference::VectorReference(const VectorBase &vector,
-                                            const size_type   index)
-      : vector(vector)
-      , index(index)
-    {}
-
-
-    inline const VectorReference &
-    VectorReference::operator=(const VectorReference &r) const
-    {
-      // as explained in the class
-      // documentation, this is not the copy
-      // operator. so simply pass on to the
-      // "correct" assignment operator
-      *this = static_cast<PetscScalar>(r);
-
-      return *this;
-    }
-
-
-
-    inline VectorReference &
-    VectorReference::operator=(const VectorReference &r)
-    {
-      // as explained in the class
-      // documentation, this is not the copy
-      // operator. so simply pass on to the
-      // "correct" assignment operator
-      *this = static_cast<PetscScalar>(r);
-
-      return *this;
-    }
-
-
-
-    inline const VectorReference &
-    VectorReference::operator=(const PetscScalar &value) const
-    {
-      Assert((vector.last_action == VectorOperation::insert) ||
-               (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::insert, vector.last_action));
-
-      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
-
-      const PetscInt petsc_i = index;
-
-      const PetscErrorCode ierr =
-        VecSetValues(vector, 1, &petsc_i, &value, INSERT_VALUES);
-      AssertThrow(ierr == 0, ExcPETScError(ierr));
-
-      vector.last_action = VectorOperation::insert;
-
-      return *this;
-    }
-
-
-
-    inline const VectorReference &
-    VectorReference::operator+=(const PetscScalar &value) const
-    {
-      Assert((vector.last_action == VectorOperation::add) ||
-               (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::add, vector.last_action));
-
-      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
-
-      vector.last_action = VectorOperation::add;
-
-      // we have to do above actions in any
-      // case to be consistent with the MPI
-      // communication model (see the
-      // comments in the documentation of
-      // PETScWrappers::MPI::Vector), but we
-      // can save some work if the addend is
-      // zero
-      if (value == PetscScalar())
-        return *this;
-
-      // use the PETSc function to add something
-      const PetscInt       petsc_i = index;
-      const PetscErrorCode ierr =
-        VecSetValues(vector, 1, &petsc_i, &value, ADD_VALUES);
-      AssertThrow(ierr == 0, ExcPETScError(ierr));
-
-
-      return *this;
-    }
-
-
-
-    inline const VectorReference &
-    VectorReference::operator-=(const PetscScalar &value) const
-    {
-      Assert((vector.last_action == VectorOperation::add) ||
-               (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::add, vector.last_action));
-
-      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
-
-      vector.last_action = VectorOperation::add;
-
-      // we have to do above actions in any
-      // case to be consistent with the MPI
-      // communication model (see the
-      // comments in the documentation of
-      // PETScWrappers::MPI::Vector), but we
-      // can save some work if the addend is
-      // zero
-      if (value == PetscScalar())
-        return *this;
-
-      // use the PETSc function to
-      // add something
-      const PetscInt       petsc_i     = index;
-      const PetscScalar    subtractand = -value;
-      const PetscErrorCode ierr =
-        VecSetValues(vector, 1, &petsc_i, &subtractand, ADD_VALUES);
-      AssertThrow(ierr == 0, ExcPETScError(ierr));
-
-      return *this;
-    }
-
-
-
-    inline const VectorReference &
-    VectorReference::operator*=(const PetscScalar &value) const
-    {
-      Assert((vector.last_action == VectorOperation::insert) ||
-               (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::insert, vector.last_action));
-
-      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
-
-      vector.last_action = VectorOperation::insert;
-
-      // we have to do above actions in any
-      // case to be consistent with the MPI
-      // communication model (see the
-      // comments in the documentation of
-      // PETScWrappers::MPI::Vector), but we
-      // can save some work if the factor is
-      // one
-      if (value == 1.)
-        return *this;
-
-      const PetscInt    petsc_i   = index;
-      const PetscScalar new_value = static_cast<PetscScalar>(*this) * value;
-
-      const PetscErrorCode ierr =
-        VecSetValues(vector, 1, &petsc_i, &new_value, INSERT_VALUES);
-      AssertThrow(ierr == 0, ExcPETScError(ierr));
-
-      return *this;
-    }
-
-
-
-    inline const VectorReference &
-    VectorReference::operator/=(const PetscScalar &value) const
-    {
-      Assert((vector.last_action == VectorOperation::insert) ||
-               (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::insert, vector.last_action));
-
-      Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
-
-      vector.last_action = VectorOperation::insert;
-
-      // we have to do above actions in any
-      // case to be consistent with the MPI
-      // communication model (see the
-      // comments in the documentation of
-      // PETScWrappers::MPI::Vector), but we
-      // can save some work if the factor is
-      // one
-      if (value == 1.)
-        return *this;
-
-      const PetscInt    petsc_i   = index;
-      const PetscScalar new_value = static_cast<PetscScalar>(*this) / value;
-
-      const PetscErrorCode ierr =
-        VecSetValues(vector, 1, &petsc_i, &new_value, INSERT_VALUES);
-      AssertThrow(ierr == 0, ExcPETScError(ierr));
-
-      return *this;
-    }
-
-
-
-    inline PetscReal
-    VectorReference::real() const
-    {
-#      ifndef PETSC_USE_COMPLEX
-      return static_cast<PetscScalar>(*this);
-#      else
-      return PetscRealPart(static_cast<PetscScalar>(*this));
-#      endif
-    }
-
-
-
-    inline PetscReal
-    VectorReference::imag() const
-    {
-#      ifndef PETSC_USE_COMPLEX
-      return PetscReal(0);
-#      else
-      return PetscImaginaryPart(static_cast<PetscScalar>(*this));
-#      endif
-    }
-
-  } // namespace internal
 
   inline bool
   VectorBase::in_local_range(const size_type index) const
@@ -1115,36 +688,6 @@ namespace PETScWrappers
 
 
 
-  inline internal::VectorReference
-  VectorBase::operator()(const size_type index)
-  {
-    return internal::VectorReference(*this, index);
-  }
-
-
-
-  inline PetscScalar
-  VectorBase::operator()(const size_type index) const
-  {
-    return static_cast<PetscScalar>(internal::VectorReference(*this, index));
-  }
-
-
-
-  inline internal::VectorReference
-  VectorBase::operator[](const size_type index)
-  {
-    return operator()(index);
-  }
-
-
-
-  inline PetscScalar
-  VectorBase::operator[](const size_type index) const
-  {
-    return operator()(index);
-  }
-
   inline const MPI_Comm &
   VectorBase::get_mpi_communicator() const
   {
@@ -1152,6 +695,8 @@ namespace PETScWrappers
     PetscObjectGetComm(reinterpret_cast<PetscObject>(vector), &comm);
     return comm;
   }
+
+
 
   inline void
   VectorBase::extract_subvector_to(const std::vector<size_type> &indices,

@@ -166,36 +166,6 @@ namespace PETScWrappers
        * the referenced element of the vector.
        */
       operator PetscScalar() const;
-      /**
-       * Exception
-       */
-      DeclException3(
-        ExcAccessToNonlocalElement,
-        int,
-        int,
-        int,
-        << "You tried to access element " << arg1
-        << " of a distributed vector, but only elements in range [" << arg2
-        << ',' << arg3 << "] are stored locally and can be accessed."
-        << "\n\n"
-        << "A common source for this kind of problem is that you "
-        << "are passing a 'fully distributed' vector into a function "
-        << "that needs read access to vector elements that correspond "
-        << "to degrees of freedom on ghost cells (or at least to "
-        << "'locally active' degrees of freedom that are not also "
-        << "'locally owned'). You need to pass a vector that has these "
-        << "elements as ghost entries.");
-      /**
-       * Exception.
-       */
-      DeclException2(ExcWrongMode,
-                     int,
-                     int,
-                     << "You tried to do a "
-                     << (arg1 == 1 ? "'set'" : (arg1 == 2 ? "'add'" : "???"))
-                     << " operation but the vector is currently in "
-                     << (arg2 == 1 ? "'set'" : (arg2 == 2 ? "'add'" : "???"))
-                     << " mode. You first have to call 'compress()'.");
 
     private:
       /**
@@ -692,7 +662,8 @@ namespace PETScWrappers
     {
       Assert((vector.last_action == VectorOperation::insert) ||
                (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::insert, vector.last_action));
+             VectorBase::ExcWrongMode(VectorOperation::insert,
+                                      vector.last_action));
 
       Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
 
@@ -714,7 +685,8 @@ namespace PETScWrappers
     {
       Assert((vector.last_action == VectorOperation::add) ||
                (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::add, vector.last_action));
+             VectorBase::ExcWrongMode(VectorOperation::add,
+                                      vector.last_action));
 
       Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
 
@@ -747,7 +719,8 @@ namespace PETScWrappers
     {
       Assert((vector.last_action == VectorOperation::add) ||
                (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::add, vector.last_action));
+             VectorBase::ExcWrongMode(VectorOperation::add,
+                                      vector.last_action));
 
       Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
 
@@ -781,7 +754,8 @@ namespace PETScWrappers
     {
       Assert((vector.last_action == VectorOperation::insert) ||
                (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::insert, vector.last_action));
+             VectorBase::ExcWrongMode(VectorOperation::insert,
+                                      vector.last_action));
 
       Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
 
@@ -814,7 +788,8 @@ namespace PETScWrappers
     {
       Assert((vector.last_action == VectorOperation::insert) ||
                (vector.last_action == VectorOperation::unknown),
-             ExcWrongMode(VectorOperation::insert, vector.last_action));
+             VectorBase::ExcWrongMode(VectorOperation::insert,
+                                      vector.last_action));
 
       Assert(!vector.has_ghost_elements(), ExcGhostsPresent());
 

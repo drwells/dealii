@@ -868,11 +868,9 @@ namespace PETScWrappers
     ::dealii::VectorOperation::values action =
       (add_values ? ::dealii::VectorOperation::add :
                     ::dealii::VectorOperation::insert);
-#  if 0
     Assert((last_action == action) ||
              (last_action == ::dealii::VectorOperation::unknown),
-           internal::VectorReference::ExcWrongMode(action, last_action));
-#  endif
+           VectorBase::ExcWrongMode(action, last_action));
     Assert(!has_ghost_elements(), ExcGhostsPresent());
     // VecSetValues complains if we
     // come with an empty

@@ -102,7 +102,9 @@ namespace PETScWrappers
 
       AssertThrow((index >= static_cast<size_type>(begin)) &&
                     (index < static_cast<size_type>(end)),
-                  ExcAccessToNonlocalElement(index, begin, end - 1));
+                  VectorBase::ExcAccessToNonlocalElement(index,
+                                                         begin,
+                                                         end - 1));
 
       PetscInt    idx = index;
       PetscScalar value;
@@ -205,11 +207,9 @@ namespace PETScWrappers
       // make sure left- and right-hand side of the assignment are
       // compress()'ed:
       Assert(v.last_action == VectorOperation::unknown,
-             internal::VectorReference::ExcWrongMode(VectorOperation::unknown,
-                                                     v.last_action));
+             VectorBase::ExcWrongMode(VectorOperation::unknown, v.last_action));
       Assert(last_action == VectorOperation::unknown,
-             internal::VectorReference::ExcWrongMode(VectorOperation::unknown,
-                                                     last_action));
+             VectorBase::ExcWrongMode(VectorOperation::unknown, last_action));
 
       // if the vectors have different sizes,
       // then first resize the present one

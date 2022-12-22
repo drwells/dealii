@@ -75,10 +75,10 @@ test(const unsigned int degree)
 
   double previous_error = 1.0;
 
-  for (unsigned int r = 0; r < 3; ++r)
+  for (unsigned int r = 0; r < 4; ++r)
     {
       Triangulation<dim> tria_hex, tria_flat, tria;
-#if 1
+#if 0
       // having two cells is nice for debugging
       // GridGenerator::subdivided_hyper_cube_with_simplices(tria, 1);
 

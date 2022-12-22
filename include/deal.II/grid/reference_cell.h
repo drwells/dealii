@@ -1711,9 +1711,9 @@ ReferenceCell::standard_to_real_face_vertex(
     {
       static const ndarray<unsigned int, 6, 3> table = {{{{0, 2, 1}},
                                                          {{0, 1, 2}},
-                                                         {{2, 1, 0}},
-                                                         {{1, 2, 0}},
                                                          {{1, 0, 2}},
+                                                         {{1, 2, 0}},
+                                                         {{2, 1, 0}},
                                                          {{2, 0, 1}}}};
 
       return table[face_orientation][vertex];
@@ -1732,9 +1732,9 @@ ReferenceCell::standard_to_real_face_vertex(
         {
           static const ndarray<unsigned int, 6, 3> table = {{{{0, 2, 1}},
                                                              {{0, 1, 2}},
-                                                             {{2, 1, 0}},
-                                                             {{1, 2, 0}},
                                                              {{1, 0, 2}},
+                                                             {{1, 2, 0}},
+                                                             {{2, 1, 0}},
                                                              {{2, 0, 1}}}};
 
           return table[face_orientation][vertex];
@@ -1801,11 +1801,11 @@ ReferenceCell::standard_to_real_face_line(
     }
   else if (*this == ReferenceCells::Tetrahedron)
     {
-      static const ndarray<unsigned int, 6, 3> table = {{{{2, 1, 0}},
+      static const ndarray<unsigned int, 6, 3> table = {{{{0, 2, 1}},
                                                          {{0, 1, 2}},
                                                          {{1, 0, 2}},
                                                          {{1, 2, 0}},
-                                                         {{0, 2, 1}},
+                                                         {{2, 1, 0}},
                                                          {{2, 0, 1}}}};
 
       return table[face_orientation][line];
@@ -1822,11 +1822,11 @@ ReferenceCell::standard_to_real_face_line(
         }
       else // One of the triangular faces
         {
-          static const ndarray<unsigned int, 6, 3> table = {{{{2, 1, 0}},
+          static const ndarray<unsigned int, 6, 3> table = {{{{0, 2, 1}},
                                                              {{0, 1, 2}},
                                                              {{1, 0, 2}},
                                                              {{1, 2, 0}},
-                                                             {{0, 2, 1}},
+                                                             {{2, 1, 0}},
                                                              {{2, 0, 1}}}};
 
           return table[face_orientation][line];
@@ -1844,11 +1844,11 @@ ReferenceCell::standard_to_real_face_line(
         }
       else // One of the triangular faces
         {
-          static const ndarray<unsigned int, 6, 3> table = {{{{2, 1, 0}},
+          static const ndarray<unsigned int, 6, 3> table = {{{{0, 2, 1}},
                                                              {{0, 1, 2}},
                                                              {{1, 0, 2}},
                                                              {{1, 2, 0}},
-                                                             {{0, 2, 1}},
+                                                             {{2, 1, 0}},
                                                              {{2, 0, 1}}}};
 
           return table[face_orientation][line];
@@ -2352,27 +2352,27 @@ ReferenceCell::standard_vs_true_line_orientation(
       static constexpr dealii::ndarray<bool, 4, 6, 3> bool_table{
         {{{{{true, false, true}},
            {{true, true, true}},
-           {{false, false, false}},
-           {{true, false, false}},
            {{false, true, true}},
+           {{true, false, false}},
+           {{false, false, false}},
            {{false, true, false}}}},
          {{{{true, false, false}},
            {{false, true, true}},
-           {{false, true, false}},
-           {{true, false, true}},
            {{true, true, true}},
+           {{true, false, true}},
+           {{false, true, false}},
            {{false, false, false}}}},
          {{{{true, false, true}},
            {{true, true, true}},
-           {{false, false, false}},
-           {{true, false, false}},
            {{false, true, true}},
+           {{true, false, false}},
+           {{false, false, false}},
            {{false, true, false}}}},
          {{{{true, false, false}},
            {{false, true, true}},
-           {{false, true, false}},
-           {{true, false, true}},
            {{true, true, true}},
+           {{true, false, true}},
+           {{false, true, false}},
            {{false, false, false}}}}}};
 
       return (line_orientation == bool_table[face][face_orientation_raw][line]);

@@ -375,10 +375,11 @@ namespace internal
                                       const unsigned int face) const override
       {
         const static dealii::ndarray<unsigned int, 4, 3, 2> table = {
-          {{{{{0, 1}}, {{1, 2}}, {{2, 0}}}},
-           {{{{1, 0}}, {{0, 3}}, {{3, 1}}}},
-           {{{{0, 2}}, {{2, 3}}, {{3, 0}}}},
-           {{{{2, 1}}, {{1, 3}}, {{3, 2}}}}}};
+          {{{{{0, 1}}, {{1, 2}}, {{0, 2}}}},
+           // TODO: not sure if these are right...
+           {{{{1, 0}}, {{0, 3}}, {{1, 3}}}},
+           {{{{0, 2}}, {{2, 3}}, {{0, 3}}}},
+           {{{{2, 1}}, {{1, 3}}, {{2, 3}}}}}};
 
         return table[face][line];
       }

@@ -603,7 +603,14 @@ FE_SimplexP<dim, spacedim>::FE_SimplexP(const unsigned int degree)
       unit_support_points_fe_p<dim>(degree),
       unit_face_support_points_fe_p<dim>(degree, FiniteElementData<dim>::H1),
       constraints_fe_p<dim>(degree))
-{}
+{
+  if (degree > 2)
+    for (unsigned int i = 0; i < this->n_dofs_per_line(); ++i)
+      this->adjust_line_dof_index_for_line_orientation_table[i] =
+        this->n_dofs_per_line() - 1 - i - i;
+  // We do not support multiple DoFs per quad yet
+  Assert(degree <= 3, ExcNotImplemented());
+}
 
 
 

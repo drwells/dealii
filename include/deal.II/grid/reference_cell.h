@@ -480,6 +480,7 @@ public:
    */
   bool
   standard_vs_true_line_orientation(const unsigned int  line,
+                                    const unsigned int  face,
                                     const unsigned char face_orientation,
                                     const bool          line_orientation) const;
 
@@ -1276,7 +1277,7 @@ ReferenceCell::child_cell_on_face(
   else if (*this == ReferenceCells::Triangle)
     {
       static const ndarray<unsigned int, 3, 2> subcells = {
-        {{{0, 1}}, {{1, 2}}, {{2, 0}}}};
+        {{{0, 1}}, {{1, 2}}, {{0, 2}}}};
 
       return subcells[face][subface];
     }
@@ -1472,13 +1473,13 @@ ReferenceCell::line_to_cell_vertices(const unsigned int line,
   else if (*this == ReferenceCells::Triangle)
     {
       static const ndarray<unsigned int, 4, 2> table = {
-        {{{0, 1}}, {{1, 2}}, {{2, 0}}}};
+        {{{0, 1}}, {{1, 2}}, {{0, 2}}}};
       return table[line][vertex];
     }
   else if (*this == ReferenceCells::Tetrahedron)
     {
       static const ndarray<unsigned int, 6, 2> table = {
-        {{{0, 1}}, {{1, 2}}, {{2, 0}}, {{0, 3}}, {{1, 3}}, {{2, 3}}}};
+        {{{0, 1}}, {{1, 2}}, {{0, 2}}, {{0, 3}}, {{1, 3}}, {{2, 3}}}};
       return table[line][vertex];
     }
   else if (*this == ReferenceCells::Pyramid)
@@ -1617,7 +1618,7 @@ ReferenceCell::face_to_cell_vertices(const unsigned int  face,
   else if (*this == ReferenceCells::Triangle)
     {
       static const ndarray<unsigned int, 3, 2> table = {
-        {{{0, 1}}, {{1, 2}}, {{2, 0}}}};
+        {{{0, 1}}, {{1, 2}}, {{0, 2}}}};
 
       return table[face][face_orientation != 0u ? vertex : (1 - vertex)];
     }
@@ -2334,6 +2335,7 @@ ReferenceCell::n_face_orientations(const unsigned int face_no) const
 inline bool
 ReferenceCell::standard_vs_true_line_orientation(
   const unsigned int  line,
+  const unsigned int  face,
   const unsigned char face_orientation_raw,
   const bool          line_orientation) const
 {
@@ -2344,6 +2346,36 @@ ReferenceCell::standard_vs_true_line_orientation(
          {{true, true, true, false, false, false, false, true}}}};
 
       return (line_orientation == bool_table[line / 2][face_orientation_raw]);
+    }
+  else if (*this == ReferenceCells::Tetrahedron)
+    {
+      static constexpr dealii::ndarray<bool, 4, 6, 3> bool_table{
+        {{{{{true, false, true}},
+           {{true, true, true}},
+           {{false, false, false}},
+           {{true, false, false}},
+           {{false, true, true}},
+           {{false, true, false}}}},
+         {{{{true, false, false}},
+           {{false, true, true}},
+           {{false, true, false}},
+           {{true, false, true}},
+           {{true, true, true}},
+           {{false, false, false}}}},
+         {{{{true, false, true}},
+           {{true, true, true}},
+           {{false, false, false}},
+           {{true, false, false}},
+           {{false, true, true}},
+           {{false, true, false}}}},
+         {{{{true, false, false}},
+           {{false, true, true}},
+           {{false, true, false}},
+           {{true, false, true}},
+           {{true, true, true}},
+           {{false, false, false}}}}}};
+
+      return (line_orientation == bool_table[face][face_orientation_raw][line]);
     }
   else
     // TODO: This might actually be wrong for some of the other

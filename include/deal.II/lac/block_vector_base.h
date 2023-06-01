@@ -26,6 +26,7 @@
 
 #include <deal.II/lac/block_indices.h>
 #include <deal.II/lac/exceptions.h>
+#include <deal.II/lac/read_vector.h>
 #include <deal.II/lac/vector.h>
 #include <deal.II/lac/vector_operation.h>
 
@@ -431,7 +432,8 @@ namespace internal
  * @ref GlossBlockLA "Block (linear algebra)"
  */
 template <class VectorType>
-class BlockVectorBase : public Subscriptor
+class BlockVectorBase : public Subscriptor,
+                        public ReadVector<typename VectorType::value_type>
 {
 public:
   /**
@@ -540,8 +542,8 @@ public:
    * Return dimension of the vector. This is the sum of the dimensions of all
    * components.
    */
-  std::size_t
-  size() const;
+  size_type
+  size() const override;
 
   /**
    * Return local dimension of the vector. This is the sum of the local
@@ -643,6 +645,10 @@ public:
   void
   extract_subvector_to(const std::vector<size_type> &indices,
                        std::vector<OtherNumber> &    values) const;
+
+  virtual void
+  extract_elements(const ArrayView<const types::global_dof_index> &indices,
+                   ArrayView<value_type> &entries) const override;
 
   /**
    * Instead of getting individual elements of a vector via operator(),
@@ -1432,7 +1438,7 @@ namespace internal
 
 
 template <class VectorType>
-inline std::size_t
+inline typename BlockVectorBase<VectorType>::size_type
 BlockVectorBase<VectorType>::size() const
 {
   return block_indices.total_size();
@@ -2135,6 +2141,22 @@ BlockVectorBase<VectorType>::extract_subvector_to(
 {
   for (size_type i = 0; i < indices.size(); ++i)
     values[i] = operator()(indices[i]);
+}
+
+
+
+template <typename VectorType>
+inline void
+BlockVectorBase<VectorType>::extract_elements(
+  const ArrayView<const types::global_dof_index> &indices,
+  ArrayView<value_type> &                         entries) const
+{
+  AssertDimension(indices.size(), entries.size());
+  for (unsigned int i = 0; i < indices.size(); ++i)
+    {
+      AssertIndexRange(indices[i], size());
+      entries[i] = (*this)[indices[i]];
+    }
 }
 
 

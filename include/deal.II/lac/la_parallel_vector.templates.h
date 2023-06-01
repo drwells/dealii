@@ -1752,6 +1752,22 @@ namespace LinearAlgebra
 
 
     template <typename Number, typename MemorySpaceType>
+    void
+    Vector<Number, MemorySpaceType>::extract_elements(
+      const ArrayView<const types::global_dof_index> &indices,
+      ArrayView<Number> &                             elements) const
+    {
+      AssertDimension(indices.size(), elements.size());
+      for (unsigned int i = 0; i < indices.size(); ++i)
+        {
+          AssertIndexRange(indices[i], size());
+          elements[i] = (*this)[indices[i]];
+        }
+    }
+
+
+
+    template <typename Number, typename MemorySpaceType>
     bool
     Vector<Number, MemorySpaceType>::all_zero() const
     {

@@ -163,8 +163,8 @@ namespace Functions
    *
    * @ingroup functions
    */
-  template <int dim, typename VectorType = Vector<double>, int spacedim = dim>
-  class FEFieldFunction : public Function<dim, typename VectorType::value_type>
+  template <int dim, typename Number, int spacedim = dim>
+  class FEFieldFunction : public Function<dim, Number>
   {
   public:
     /**
@@ -177,7 +177,7 @@ namespace Functions
      */
     FEFieldFunction(
       const DoFHandler<dim, spacedim> &dh,
-      const VectorType &               data_vector,
+      const ReadVector<Number> &       data_vector,
       const Mapping<dim> &             mapping = StaticMappingQ1<dim>::mapping);
 
     /**
@@ -205,9 +205,7 @@ namespace Functions
      * information.
      */
     virtual void
-    vector_value(
-      const Point<dim> &                       p,
-      Vector<typename VectorType::value_type> &values) const override;
+    vector_value(const Point<dim> &p, Vector<Number> &values) const override;
 
     /**
      * Return the value of the function at the given point. Unless there is
@@ -226,7 +224,7 @@ namespace Functions
      * See the section in the general documentation of this class for more
      * information.
      */
-    virtual typename VectorType::value_type
+    virtual Number
     value(const Point<dim> &p, const unsigned int component = 0) const override;
 
     /**
@@ -245,9 +243,9 @@ namespace Functions
      * information.
      */
     virtual void
-    value_list(const std::vector<Point<dim>> &               points,
-               std::vector<typename VectorType::value_type> &values,
-               const unsigned int component = 0) const override;
+    value_list(const std::vector<Point<dim>> &points,
+               std::vector<Number> &          values,
+               const unsigned int             component = 0) const override;
 
 
     /**
@@ -267,8 +265,7 @@ namespace Functions
      */
     virtual void
     vector_value_list(const std::vector<Point<dim>> &points,
-                      std::vector<Vector<typename VectorType::value_type>>
-                        &values) const override;
+                      std::vector<Vector<Number>> &  values) const override;
 
     /**
      * Return the gradient of all components of the function at the given
@@ -286,9 +283,9 @@ namespace Functions
      * information.
      */
     virtual void
-    vector_gradient(const Point<dim> &p,
-                    std::vector<Tensor<1, dim, typename VectorType::value_type>>
-                      &gradients) const override;
+    vector_gradient(
+      const Point<dim> &                   p,
+      std::vector<Tensor<1, dim, Number>> &gradients) const override;
 
     /**
      * Return the gradient of the specified component of the function at the
@@ -305,7 +302,7 @@ namespace Functions
      * See the section in the general documentation of this class for more
      * information.
      */
-    virtual Tensor<1, dim, typename VectorType::value_type>
+    virtual Tensor<1, dim, Number>
     gradient(const Point<dim> & p,
              const unsigned int component = 0) const override;
 
@@ -323,10 +320,9 @@ namespace Functions
      * information.
      */
     virtual void
-    vector_gradient_list(
-      const std::vector<Point<dim>> &p,
-      std::vector<std::vector<Tensor<1, dim, typename VectorType::value_type>>>
-        &gradients) const override;
+    vector_gradient_list(const std::vector<Point<dim>> &p,
+                         std::vector<std::vector<Tensor<1, dim, Number>>>
+                           &gradients) const override;
 
     /**
      * Return the gradient of the specified component of the function at all
@@ -342,10 +338,9 @@ namespace Functions
      * information.
      */
     virtual void
-    gradient_list(
-      const std::vector<Point<dim>> &                               p,
-      std::vector<Tensor<1, dim, typename VectorType::value_type>> &gradients,
-      const unsigned int component = 0) const override;
+    gradient_list(const std::vector<Point<dim>> &      p,
+                  std::vector<Tensor<1, dim, Number>> &gradients,
+                  const unsigned int component = 0) const override;
 
 
     /**
@@ -359,7 +354,7 @@ namespace Functions
      * See the section in the general documentation of this class for more
      * information.
      */
-    virtual typename VectorType::value_type
+    virtual Number
     laplacian(const Point<dim> & p,
               const unsigned int component = 0) const override;
 
@@ -376,9 +371,8 @@ namespace Functions
      * information.
      */
     virtual void
-    vector_laplacian(
-      const Point<dim> &                       p,
-      Vector<typename VectorType::value_type> &values) const override;
+    vector_laplacian(const Point<dim> &p,
+                     Vector<Number> &  values) const override;
 
     /**
      * Compute the Laplacian of one component at a set of points.
@@ -392,9 +386,9 @@ namespace Functions
      * information.
      */
     virtual void
-    laplacian_list(const std::vector<Point<dim>> &               points,
-                   std::vector<typename VectorType::value_type> &values,
-                   const unsigned int component = 0) const override;
+    laplacian_list(const std::vector<Point<dim>> &points,
+                   std::vector<Number> &          values,
+                   const unsigned int             component = 0) const override;
 
     /**
      * Compute the Laplacians of all components at a set of points.
@@ -409,8 +403,7 @@ namespace Functions
      */
     virtual void
     vector_laplacian_list(const std::vector<Point<dim>> &points,
-                          std::vector<Vector<typename VectorType::value_type>>
-                            &values) const override;
+                          std::vector<Vector<Number>> &  values) const override;
 
     /**
      * Given a set of points located in the domain (or, in the case of
@@ -453,13 +446,13 @@ namespace Functions
      * Pointer to the dof handler.
      */
     SmartPointer<const DoFHandler<dim, spacedim>,
-                 FEFieldFunction<dim, VectorType, spacedim>>
+                 FEFieldFunction<dim, Number, spacedim>>
       dh;
 
     /**
      * A reference to the actual data vector.
      */
-    const VectorType &data_vector;
+    const ReadVector<Number> &data_vector;
 
     /**
      * A reference to the mapping being used.

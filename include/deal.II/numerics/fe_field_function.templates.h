@@ -42,13 +42,12 @@ DEAL_II_NAMESPACE_OPEN
 
 namespace Functions
 {
-  template <int dim, typename VectorType, int spacedim>
-  FEFieldFunction<dim, VectorType, spacedim>::FEFieldFunction(
+  template <int dim, typename Number, int spacedim>
+  FEFieldFunction<dim, Number, spacedim>::FEFieldFunction(
     const DoFHandler<dim, spacedim> &mydh,
-    const VectorType &               myv,
+    const ReadVector<Number> &       myv,
     const Mapping<dim> &             mymapping)
-    : Function<dim, typename VectorType::value_type>(
-        mydh.get_fe(0).n_components())
+    : Function<dim, Number>(mydh.get_fe(0).n_components())
     , dh(&mydh, "FEFieldFunction")
     , data_vector(myv)
     , mapping(mymapping)
@@ -58,9 +57,9 @@ namespace Functions
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::set_active_cell(
+  FEFieldFunction<dim, Number, spacedim>::set_active_cell(
     const typename DoFHandler<dim, spacedim>::active_cell_iterator &newcell)
   {
     cell_hint.get() = newcell;
@@ -68,11 +67,11 @@ namespace Functions
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::vector_value(
-    const Point<dim> &                       p,
-    Vector<typename VectorType::value_type> &values) const
+  FEFieldFunction<dim, Number, spacedim>::vector_value(
+    const Point<dim> &p,
+    Vector<Number> &  values) const
   {
     Assert(values.size() == this->n_components,
            ExcDimensionMismatch(values.size(), this->n_components));
@@ -107,35 +106,32 @@ namespace Functions
     Quadrature<dim> quad = *qp;
     FEValues<dim>   fe_v(mapping, cell->get_fe(), quad, update_values);
     fe_v.reinit(cell);
-    std::vector<Vector<typename VectorType::value_type>> vvalues(
-      1, Vector<typename VectorType::value_type>(values.size()));
+    std::vector<Vector<Number>> vvalues(1, Vector<Number>(values.size()));
     fe_v.get_function_values(data_vector, vvalues);
     values = vvalues[0];
   }
 
 
 
-  template <int dim, typename VectorType, int spacedim>
-  typename VectorType::value_type
-  FEFieldFunction<dim, VectorType, spacedim>::value(
-    const Point<dim> & p,
-    const unsigned int comp) const
+  template <int dim, typename Number, int spacedim>
+  Number
+  FEFieldFunction<dim, Number, spacedim>::value(const Point<dim> & p,
+                                                const unsigned int comp) const
   {
-    Vector<typename VectorType::value_type> values(this->n_components);
+    Vector<Number> values(this->n_components);
     vector_value(p, values);
     return values(comp);
   }
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::vector_gradient(
-    const Point<dim> &                                            p,
-    std::vector<Tensor<1, dim, typename VectorType::value_type>> &gradients)
-    const
+  FEFieldFunction<dim, Number, spacedim>::vector_gradient(
+    const Point<dim> &                   p,
+    std::vector<Tensor<1, dim, Number>> &gradients) const
   {
-    using number = typename VectorType::value_type;
+    using number = Number;
     Assert(gradients.size() == this->n_components,
            ExcDimensionMismatch(gradients.size(), this->n_components));
     typename DoFHandler<dim, spacedim>::active_cell_iterator cell =
@@ -192,25 +188,24 @@ namespace Functions
 
 
 
-  template <int dim, typename VectorType, int spacedim>
-  Tensor<1, dim, typename VectorType::value_type>
-  FEFieldFunction<dim, VectorType, spacedim>::gradient(
+  template <int dim, typename Number, int spacedim>
+  Tensor<1, dim, Number>
+  FEFieldFunction<dim, Number, spacedim>::gradient(
     const Point<dim> & p,
     const unsigned int comp) const
   {
-    std::vector<Tensor<1, dim, typename VectorType::value_type>> grads(
-      this->n_components);
+    std::vector<Tensor<1, dim, Number>> grads(this->n_components);
     vector_gradient(p, grads);
     return grads[comp];
   }
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::vector_laplacian(
-    const Point<dim> &                       p,
-    Vector<typename VectorType::value_type> &values) const
+  FEFieldFunction<dim, Number, spacedim>::vector_laplacian(
+    const Point<dim> &p,
+    Vector<Number> &  values) const
   {
     Assert(values.size() == this->n_components,
            ExcDimensionMismatch(values.size(), this->n_components));
@@ -245,21 +240,20 @@ namespace Functions
     Quadrature<dim> quad = *qp;
     FEValues<dim>   fe_v(mapping, cell->get_fe(), quad, update_hessians);
     fe_v.reinit(cell);
-    std::vector<Vector<typename VectorType::value_type>> vvalues(
-      1, Vector<typename VectorType::value_type>(values.size()));
+    std::vector<Vector<Number>> vvalues(1, Vector<Number>(values.size()));
     fe_v.get_function_laplacians(data_vector, vvalues);
     values = vvalues[0];
   }
 
 
 
-  template <int dim, typename VectorType, int spacedim>
-  typename VectorType::value_type
-  FEFieldFunction<dim, VectorType, spacedim>::laplacian(
+  template <int dim, typename Number, int spacedim>
+  Number
+  FEFieldFunction<dim, Number, spacedim>::laplacian(
     const Point<dim> & p,
     const unsigned int comp) const
   {
-    Vector<typename VectorType::value_type> lap(this->n_components);
+    Vector<Number> lap(this->n_components);
     vector_laplacian(p, lap);
     return lap[comp];
   }
@@ -268,11 +262,11 @@ namespace Functions
   // Now the list versions
   // ==============================
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::vector_value_list(
-    const std::vector<Point<dim>> &                       points,
-    std::vector<Vector<typename VectorType::value_type>> &values) const
+  FEFieldFunction<dim, Number, spacedim>::vector_value_list(
+    const std::vector<Point<dim>> &points,
+    std::vector<Vector<Number>> &  values) const
   {
     Assert(points.size() == values.size(),
            ExcDimensionMismatch(points.size(), values.size()));
@@ -310,8 +304,8 @@ namespace Functions
         fe_v.reinit(cells[i], i, 0);
         const unsigned int nq = qpoints[i].size();
 
-        std::vector<Vector<typename VectorType::value_type>> vvalues(
-          nq, Vector<typename VectorType::value_type>(this->n_components));
+        std::vector<Vector<Number>> vvalues(nq,
+                                            Vector<Number>(this->n_components));
         fe_v.get_present_fe_values().get_function_values(data_vector, vvalues);
 
         for (unsigned int q = 0; q < nq; ++q)
@@ -321,12 +315,12 @@ namespace Functions
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::value_list(
-    const std::vector<Point<dim>> &               points,
-    std::vector<typename VectorType::value_type> &values,
-    const unsigned int                            component) const
+  FEFieldFunction<dim, Number, spacedim>::value_list(
+    const std::vector<Point<dim>> &points,
+    std::vector<Number> &          values,
+    const unsigned int             component) const
   {
     Assert(points.size() == values.size(),
            ExcDimensionMismatch(points.size(), values.size()));
@@ -335,9 +329,8 @@ namespace Functions
     // function. This requires a temporary object, but everything we
     // do here is so expensive that that really doesn't make any
     // difference any more.
-    std::vector<Vector<typename VectorType::value_type>> vvalues(
-      points.size(),
-      Vector<typename VectorType::value_type>(this->n_components));
+    std::vector<Vector<Number>> vvalues(points.size(),
+                                        Vector<Number>(this->n_components));
 
     vector_value_list(points, vvalues);
 
@@ -347,12 +340,11 @@ namespace Functions
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::vector_gradient_list(
-    const std::vector<Point<dim>> &points,
-    std::vector<std::vector<Tensor<1, dim, typename VectorType::value_type>>>
-      &values) const
+  FEFieldFunction<dim, Number, spacedim>::vector_gradient_list(
+    const std::vector<Point<dim>> &                   points,
+    std::vector<std::vector<Tensor<1, dim, Number>>> &values) const
   {
     Assert(points.size() == values.size(),
            ExcDimensionMismatch(points.size(), values.size()));
@@ -389,12 +381,9 @@ namespace Functions
 
         fe_v.reinit(cells[i], i, 0);
 
-        const unsigned int nq = qpoints[i].size();
-        std::vector<
-          std::vector<Tensor<1, dim, typename VectorType::value_type>>>
-          vgrads(nq,
-                 std::vector<Tensor<1, dim, typename VectorType::value_type>>(
-                   this->n_components));
+        const unsigned int                               nq = qpoints[i].size();
+        std::vector<std::vector<Tensor<1, dim, Number>>> vgrads(
+          nq, std::vector<Tensor<1, dim, Number>>(this->n_components));
         fe_v.get_present_fe_values().get_function_gradients(data_vector,
                                                             vgrads);
 
@@ -410,12 +399,12 @@ namespace Functions
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::gradient_list(
-    const std::vector<Point<dim>> &                               points,
-    std::vector<Tensor<1, dim, typename VectorType::value_type>> &values,
-    const unsigned int component) const
+  FEFieldFunction<dim, Number, spacedim>::gradient_list(
+    const std::vector<Point<dim>> &      points,
+    std::vector<Tensor<1, dim, Number>> &values,
+    const unsigned int                   component) const
   {
     Assert(points.size() == values.size(),
            ExcDimensionMismatch(points.size(), values.size()));
@@ -424,10 +413,8 @@ namespace Functions
     // function. This requires a temporary object, but everything we
     // do here is so expensive that that really doesn't make any
     // difference any more.
-    std::vector<std::vector<Tensor<1, dim, typename VectorType::value_type>>>
-      vvalues(points.size(),
-              std::vector<Tensor<1, dim, typename VectorType::value_type>>(
-                this->n_components));
+    std::vector<std::vector<Tensor<1, dim, Number>>> vvalues(
+      points.size(), std::vector<Tensor<1, dim, Number>>(this->n_components));
 
     vector_gradient_list(points, vvalues);
 
@@ -437,11 +424,11 @@ namespace Functions
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::vector_laplacian_list(
-    const std::vector<Point<dim>> &                       points,
-    std::vector<Vector<typename VectorType::value_type>> &values) const
+  FEFieldFunction<dim, Number, spacedim>::vector_laplacian_list(
+    const std::vector<Point<dim>> &points,
+    std::vector<Vector<Number>> &  values) const
   {
     Assert(points.size() == values.size(),
            ExcDimensionMismatch(points.size(), values.size()));
@@ -479,9 +466,9 @@ namespace Functions
 
         fe_v.reinit(cells[i], i, 0);
 
-        const unsigned int nq = qpoints[i].size();
-        std::vector<Vector<typename VectorType::value_type>> vvalues(
-          nq, Vector<typename VectorType::value_type>(this->n_components));
+        const unsigned int          nq = qpoints[i].size();
+        std::vector<Vector<Number>> vvalues(nq,
+                                            Vector<Number>(this->n_components));
         fe_v.get_present_fe_values().get_function_laplacians(data_vector,
                                                              vvalues);
 
@@ -492,12 +479,12 @@ namespace Functions
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   void
-  FEFieldFunction<dim, VectorType, spacedim>::laplacian_list(
-    const std::vector<Point<dim>> &               points,
-    std::vector<typename VectorType::value_type> &values,
-    const unsigned int                            component) const
+  FEFieldFunction<dim, Number, spacedim>::laplacian_list(
+    const std::vector<Point<dim>> &points,
+    std::vector<Number> &          values,
+    const unsigned int             component) const
   {
     Assert(points.size() == values.size(),
            ExcDimensionMismatch(points.size(), values.size()));
@@ -506,9 +493,8 @@ namespace Functions
     // function. This requires a temporary object, but everything we
     // do here is so expensive that that really doesn't make any
     // difference any more.
-    std::vector<Vector<typename VectorType::value_type>> vvalues(
-      points.size(),
-      Vector<typename VectorType::value_type>(this->n_components));
+    std::vector<Vector<Number>> vvalues(points.size(),
+                                        Vector<Number>(this->n_components));
 
     vector_laplacian_list(points, vvalues);
 
@@ -518,9 +504,9 @@ namespace Functions
 
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   unsigned int
-  FEFieldFunction<dim, VectorType, spacedim>::compute_point_locations(
+  FEFieldFunction<dim, Number, spacedim>::compute_point_locations(
     const std::vector<Point<dim>> &points,
     std::vector<typename DoFHandler<dim, spacedim>::active_cell_iterator>
       &                                     cells,
@@ -547,9 +533,9 @@ namespace Functions
   }
 
 
-  template <int dim, typename VectorType, int spacedim>
+  template <int dim, typename Number, int spacedim>
   std_cxx17::optional<Point<dim>>
-  FEFieldFunction<dim, VectorType, spacedim>::get_reference_coordinates(
+  FEFieldFunction<dim, Number, spacedim>::get_reference_coordinates(
     const typename DoFHandler<dim, spacedim>::active_cell_iterator &cell,
     const Point<dim> &                                              point) const
   {

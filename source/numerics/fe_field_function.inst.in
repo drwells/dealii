@@ -15,10 +15,12 @@
 
 
 
-for (VECTOR : VECTOR_TYPES; deal_II_dimension : DIMENSIONS)
+for (S : REAL_AND_COMPLEX_SCALARS; deal_II_dimension : DIMENSIONS)
   {
     namespace Functions
     \{
-      template class FEFieldFunction<deal_II_dimension, VECTOR>;
+#if deal_II_dimension <= deal_II_space_dimension
+      template class FEFieldFunction<deal_II_dimension, S>;
+#endif
     \}
   }

@@ -106,9 +106,13 @@ namespace internal
  *
  * @see
  * @ref GlossBlockLA "Block (linear algebra)"
+ *
+ * @deprecated This class is only used in the MeshWorker framework which will be
+ * removed in a future version of deal.II. If you need to use a similar class in
+ * your own code then use BlockLinearOperator.
  */
 template <typename MatrixType>
-class MatrixBlock : public Subscriptor
+class DEAL_II_DEPRECATED_EARLY MatrixBlock : public Subscriptor
 {
 public:
   /**
@@ -347,9 +351,13 @@ private:
  *
  * @relatesalso MatrixBlock
  * @ingroup vector_valued
+ *
+ * @deprecated This class is only used in the MeshWorker framework which will be
+ * removed in a future version of deal.II. If you need to use a similar class in
+ * your own code then use BlockLinearOperator.
  */
 template <typename MatrixType>
-class MatrixBlockVector : private AnyData
+class DEAL_II_DEPRECATED_EARLY MatrixBlockVector : private AnyData
 {
 public:
   /**
@@ -436,9 +444,13 @@ public:
  *
  * @relatesalso MatrixBlock
  * @ingroup vector_valued
+ *
+ * @deprecated This class is only used in the MeshWorker framework which will be
+ * removed in a future version of deal.II. If you need to use a similar class in
+ * your own code then use BlockLinearOperator.
  */
 template <typename MatrixType>
-class MGMatrixBlockVector : public Subscriptor
+class DEAL_II_DEPRECATED_EARLY MGMatrixBlockVector : public Subscriptor
 {
 public:
   /**

@@ -2404,105 +2404,6 @@ namespace GridTools
   }
 
 
-  /*
-   * Internally used in orthogonal_equality
-   *
-   * A lookup table to transform vertex matchings to orientation flags of
-   * the form (face_orientation, face_flip, face_rotation)
-   *
-   * See the comment on the next function as well as the detailed
-   * documentation of make_periodicity_constraints and
-   * collect_periodic_faces for details
-   */
-  template <int dim>
-  struct OrientationLookupTable
-  {};
-
-  template <>
-  struct OrientationLookupTable<1>
-  {
-    using MATCH_T =
-      std::array<unsigned int, GeometryInfo<1>::vertices_per_face>;
-    static inline std::bitset<3>
-    lookup(const MATCH_T &)
-    {
-      // The 1d case is trivial
-      return 1; // [true ,false,false]
-    }
-  };
-
-  template <>
-  struct OrientationLookupTable<2>
-  {
-    using MATCH_T =
-      std::array<unsigned int, GeometryInfo<2>::vertices_per_face>;
-    static inline std::bitset<3>
-    lookup(const MATCH_T &matching)
-    {
-      // In 2d matching faces (=lines) results in two cases: Either
-      // they are aligned or flipped. We store this "line_flip"
-      // property somewhat sloppy as "face_flip"
-      // (always: face_orientation = true, face_rotation = false)
-
-      static const MATCH_T m_tff = {{0, 1}};
-      if (matching == m_tff)
-        return 1; // [true ,false,false]
-      static const MATCH_T m_ttf = {{1, 0}};
-      if (matching == m_ttf)
-        return 3; // [true ,true ,false]
-      Assert(false, ExcInternalError());
-      // what follows is dead code, but it avoids warnings about the lack
-      // of a return value
-      return 0;
-    }
-  };
-
-  template <>
-  struct OrientationLookupTable<3>
-  {
-    using MATCH_T =
-      std::array<unsigned int, GeometryInfo<3>::vertices_per_face>;
-
-    static inline std::bitset<3>
-    lookup(const MATCH_T &matching)
-    {
-      // The full fledged 3d case. *Yay*
-      // See the documentation in include/deal.II/base/geometry_info.h
-      // as well as the actual implementation in source/grid/tria.cc
-      // for more details...
-
-      static const MATCH_T m_tff = {{0, 1, 2, 3}};
-      if (matching == m_tff)
-        return 1; // [true ,false,false]
-      static const MATCH_T m_tft = {{1, 3, 0, 2}};
-      if (matching == m_tft)
-        return 5; // [true ,false,true ]
-      static const MATCH_T m_ttf = {{3, 2, 1, 0}};
-      if (matching == m_ttf)
-        return 3; // [true ,true ,false]
-      static const MATCH_T m_ttt = {{2, 0, 3, 1}};
-      if (matching == m_ttt)
-        return 7; // [true ,true ,true ]
-      static const MATCH_T m_fff = {{0, 2, 1, 3}};
-      if (matching == m_fff)
-        return 0; // [false,false,false]
-      static const MATCH_T m_fft = {{2, 3, 0, 1}};
-      if (matching == m_fft)
-        return 4; // [false,false,true ]
-      static const MATCH_T m_ftf = {{3, 1, 2, 0}};
-      if (matching == m_ftf)
-        return 2; // [false,true ,false]
-      static const MATCH_T m_ftt = {{1, 0, 3, 2}};
-      if (matching == m_ftt)
-        return 6; // [false,true ,true ]
-      Assert(false, ExcInternalError());
-      // what follows is dead code, but it avoids warnings about the lack
-      // of a return value
-      return 0;
-    }
-  };
-
-
 
   template <typename FaceIterator>
   std::optional<std::bitset<3>>
@@ -2520,18 +2421,19 @@ namespace GridTools
 
     // Do a full matching of the face vertices:
 
-    std::array<unsigned int, GeometryInfo<dim>::vertices_per_face> matching;
+    std::array<unsigned int, GeometryInfo<dim>::vertices_per_face>
+      face1_vertices, face2_vertices;
 
     AssertDimension(face1->n_vertices(), face2->n_vertices());
 
-    std::set<unsigned int> face2_vertices;
+    std::set<unsigned int> face2_vertices_set;
     for (unsigned int i = 0; i < face1->n_vertices(); ++i)
-      face2_vertices.insert(i);
+      face2_vertices_set.insert(i);
 
     for (unsigned int i = 0; i < face1->n_vertices(); ++i)
       {
-        for (std::set<unsigned int>::iterator it = face2_vertices.begin();
-             it != face2_vertices.end();
+        for (auto it = face2_vertices_set.begin();
+             it != face2_vertices_set.end();
              ++it)
           {
             if (orthogonal_equality(face1->vertex(i),
@@ -2540,17 +2442,48 @@ namespace GridTools
                                     offset,
                                     matrix))
               {
-                matching[i] = *it;
-                face2_vertices.erase(it);
+                face1_vertices[i] = *it;
+                face2_vertices[i] = i;
+                face2_vertices_set.erase(it);
                 break; // jump out of the innermost loop
               }
           }
       }
 
     // And finally, a lookup to determine the ordering bitmask:
-    return face2_vertices.empty() ?
-             std::make_optional(OrientationLookupTable<dim>::lookup(matching)) :
-             std::nullopt;
+    if (face2_vertices_set.empty())
+      {
+        const auto combined_orientation =
+          face1->reference_cell().template get_combined_orientation(
+            make_array_view<const unsigned int>(face1_vertices.begin(),
+                                                face1_vertices.begin() +
+                                                  face1->n_vertices()),
+            make_array_view<const unsigned int>(face2_vertices.begin(),
+                                                face2_vertices.begin() +
+                                                  face2->n_vertices()));
+        std::bitset<3> orientation;
+        // The original version of this doesn't use orientation values in the
+        // same way as the rest of the library
+        if (dim == 2)
+          {
+            constexpr std::array<unsigned int, 2> translation{{3, 1}};
+            AssertIndexRange(combined_orientation, translation.size());
+            orientation =
+              translation[std::min<unsigned int>(combined_orientation, 1u)];
+          }
+        else
+          {
+            constexpr std::array<unsigned int, 8> translation{
+              {0, 1, 4, 7, 2, 3, 6, 5}};
+            AssertIndexRange(combined_orientation, translation.size());
+            orientation =
+              translation[std::min<unsigned int>(combined_orientation, 7u)];
+          }
+
+        return std::make_optional(orientation);
+      }
+    else
+      return std::nullopt;
   }
 } // namespace GridTools
 

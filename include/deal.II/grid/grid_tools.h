@@ -2420,9 +2420,8 @@ namespace GridTools
    * article.
    */
   template <typename FaceIterator>
-  bool
+  std::optional<std::bitset<3>>
   orthogonal_equality(
-    std::bitset<3>                                               &orientation,
     const FaceIterator                                           &face1,
     const FaceIterator                                           &face2,
     const unsigned int                                            direction,

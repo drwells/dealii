@@ -2462,10 +2462,17 @@ namespace GridTools
                                                 face2_vertices.begin() +
                                                   face2->n_vertices()));
         std::bitset<3> orientation;
-        // The original version of this doesn't use orientation values in the
-        // same way as the rest of the library
+        // The original version of this doesn't use the standardized orientation
+        // value so we have to do an additional translation step
         if (dim == 2)
           {
+            // In 2D, calls in set_periodicity_constraints() ultimately require
+            // calling FiniteElement::face_to_cell_index(), which in turn (for
+            // hypercubes) calls GeometryInfo<2>::child_cell_on_face(). The
+            // final function assumes that orientation in 2D is encoded solely
+            // in face_flip (the second bit) whereas the orientation bit is
+            // ignored. Hence, the backwards orientation is 1 + 2 and the
+            // standard orientation is 1 + 0.
             constexpr std::array<unsigned int, 2> translation{{3, 1}};
             AssertIndexRange(combined_orientation, translation.size());
             orientation =
@@ -2473,11 +2480,11 @@ namespace GridTools
           }
         else
           {
-            constexpr std::array<unsigned int, 8> translation{
-              {0, 1, 4, 7, 2, 3, 6, 5}};
-            AssertIndexRange(combined_orientation, translation.size());
-            orientation =
-              translation[std::min<unsigned int>(combined_orientation, 7u)];
+            // The bitset is unpacked as (orientation, flip, rotation) instead
+            // of the standard (orientation, rotation, flip).
+            const bool flip = orientation[2];
+            orientation[2] = orientation[1];
+            orientation[1] = flip;
           }
 
         return std::make_optional(orientation);

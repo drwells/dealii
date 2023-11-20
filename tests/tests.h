@@ -456,13 +456,66 @@ struct LimitConcurrency
 #ifdef DEAL_II_WITH_PETSC
 #  include <petscsys.h>
 
+#if DEAL_II_PETSC_VERSION_GTE(3, 20, 0)
+#include <petsclog.h>
+#endif
+
 namespace
 {
   void
   check_petsc_allocations()
   {
+    bool errors = false;
+    PetscErrorCode  ierr    = 0;
+#  if DEAL_II_PETSC_VERSION_GTE(3, 20, 0)
+    PetscLogHandler handler = nullptr;
+    ierr                    = PetscLogGetDefaultHandler(&handler);
+    AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+    PetscLogState state = nullptr;
+    ierr                = PetscLogHandlerGetState(handler, &state);
+    AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+    PetscInt n_stages = 0;
+    ierr = PetscLogStateGetNumStages(state, &n_stages);
+    AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+    for (PetscInt stage_n = 0; stage_n < n_stages; ++stage_n)
+      {
+        // TODO: might not work if a stage is not locally used
+        PetscInt n_classes = 0;
+
+        ierr = PetscLogStateGetNumClasses(state, &num_classes);
+        AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+        for (class_n = 0; class_n < num_classes; ++class_n)
+          {
+            PetscClassPerf *class_perf_info = nullptr;
+
+            ierr = PetscLogHandlerDefaultGetClassPerf(handler,
+                                                      stage_n,
+                                                      class_n,
+                                                      &class_perf_info);
+            AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+            if (class_perf_info->creations != class_perf_info->destructions)
+              {
+                PetscLogClassInfo class_reg_info = nullptr;
+
+                ierr =
+                  PetscLogStateClassGetInfo(state, class_n, &class_reg_info);
+                AssertThrow(ierr == 0, ExcPETScError(ierr));
+                std::cerr << "PETSc class " << class_reg_info.name
+                          << " was allocated "
+                          << class_perf_info->creations
+                             " times but deallocated "
+                          << class_perf_info->destructions << " times.\n";
+                errors = true;
+              }
+          }
+      }
+#  else
     PetscStageLog  stageLog;
-    PetscErrorCode ierr;
 
     ierr = PetscLogGetStageLog(&stageLog);
     AssertThrow(ierr == 0, ExcPETScError(ierr));
@@ -474,7 +527,6 @@ namespace
              stageLog->classLog->numClasses,
            dealii::ExcInternalError());
 
-    bool errors = false;
     for (int i = 0; i < stageLog->stageInfo->classLog->numClasses; ++i)
       {
         if (stageLog->stageInfo->classLog->classInfo[i].destructions !=
@@ -491,6 +543,7 @@ namespace
               << " destructions." << std::endl;
           }
       }
+#  endif
 
     if (errors)
       throw dealii::ExcMessage("PETSc memory leak");

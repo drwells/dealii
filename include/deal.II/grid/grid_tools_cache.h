@@ -72,18 +72,19 @@ namespace GridTools
      * If you provide the optional `mapping` argument, then this is used
      * whenever a mapping is required.
      *
-     * @param tria The triangulation for which to store information
-     * @param mapping The mapping to use when computing cached objects
+     * @param tria The triangulation for which to store information.
+     * @param mapping The Mapping to use when computing cached objects.
      */
     Cache(const Triangulation<dim, spacedim> &tria,
-          const Mapping<dim, spacedim>       &mapping =
-            (ReferenceCells::get_hypercube<dim>()
-#ifndef _MSC_VER
-               .template get_default_linear_mapping<dim, spacedim>()
-#else
-               .ReferenceCell::get_default_linear_mapping<dim, spacedim>()
-#endif
-               ));
+          const Mapping<dim, spacedim>       &mapping);
+
+    /**
+     * Constructor. Uses the default linear or multilinear mapping for the
+     * underlying ReferenceCell of @p tria.
+     *
+     * @param tria The triangulation for which to store information.
+     */
+    Cache(const Triangulation<dim, spacedim> &tria);
 
     /**
      * Destructor.

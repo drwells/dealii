@@ -34,6 +34,15 @@ namespace GridTools
       tria.signals.any_change.connect([&]() { mark_for_update(update_all); });
   }
 
+
+
+  template <int dim, int spacedim>
+  Cache<dim, spacedim>::Cache(const Triangulation<dim, spacedim> &tria)
+    : Cache(tria,
+            tria.get_reference_cells()[0]
+              .template get_default_linear_mapping<dim, spacedim>())
+  {}
+
   template <int dim, int spacedim>
   Cache<dim, spacedim>::~Cache()
   {

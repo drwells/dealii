@@ -1064,8 +1064,9 @@ namespace internal
 
             for (const auto line : accessor.line_indices())
               {
-                const bool line_orientation = line_orientations[line];
-                if (line_orientation)
+                const auto line_orientation = line_orientations[line];
+                if (line_orientation ==
+                    ReferenceCell::default_combined_face_orientation())
                   dof_operation.process_dofs(
                     accessor.get_dof_handler(),
                     0,

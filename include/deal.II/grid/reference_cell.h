@@ -598,11 +598,11 @@ public:
    * it may be different, see the respective discussion in the
    * documentation of the GeometryInfo class.
    */
-  bool
+  unsigned char
   standard_vs_true_line_orientation(const unsigned int  line,
                                     const unsigned int  face,
                                     const unsigned char face_orientation,
-                                    const bool          line_orientation) const;
+                                    const unsigned char line_orientation) const;
 
   /**
    * @}
@@ -3090,21 +3090,23 @@ ReferenceCell::n_face_orientations(const unsigned int face_no) const
 
 
 
-inline bool
+inline unsigned char
 ReferenceCell::standard_vs_true_line_orientation(
   const unsigned int  line,
   const unsigned int  face,
   const unsigned char combined_face_orientation,
-  const bool          line_orientation) const
+  const unsigned char line_orientation) const
 {
+  constexpr unsigned char D =
+    ReferenceCell::default_combined_face_orientation();
+  constexpr unsigned char R =
+    ReferenceCell::reversed_combined_line_orientation();
   if (*this == ReferenceCells::Hexahedron)
     {
-      static constexpr dealii::ndarray<bool, 2, 8> bool_table{
-        {{{true, true, false, true, false, false, true, false}},
-         {{true, true, true, false, false, false, false, true}}}};
+      static constexpr dealii::ndarray<bool, 2, 8> table{
+        {{{D, D, R, D, R, R, D, R}}, {{D, D, D, R, R, R, R, D}}}};
 
-      return (line_orientation ==
-              bool_table[line / 2][combined_face_orientation]);
+      return line_orientation == table[line / 2][combined_face_orientation];
     }
   else if (*this == ReferenceCells::Tetrahedron)
     {
@@ -3119,17 +3121,16 @@ ReferenceCell::standard_vs_true_line_orientation(
                "This function can only be called for following face-line "
                "combinations: (0,0), (0,1), (0,2), (1,1), (1,2), (2,1),"));
 
-      static constexpr dealii::ndarray<bool, 2, 6> bool_table{
-        {{{false, true, false, true, false, true}},
-         {{true, false, true, false, true, false}}}};
+      static constexpr dealii::ndarray<bool, 2, 6> table{
+        {{{R, D, R, D, R, D}}, {{D, R, D, R, D, R}}}};
 
-      return (line_orientation ==
-              bool_table[combined_line][combined_face_orientation]);
+      return line_orientation ==
+             table[combined_line][combined_face_orientation];
     }
   else
     // TODO: This might actually be wrong for some of the other
     // kinds of objects. We should check this
-    return true;
+    return ReferenceCell::default_combined_face_orientation();
 }
 
 

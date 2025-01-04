@@ -3057,8 +3057,10 @@ CellAccessor<dim, spacedim>::neighbor_child_on_subface(
               // (i.e., standard or non-standard).
               // we verify this with a XOR operation.
               const unsigned int neighbor_subface =
-                (!(this->line_orientation(face)) !=
-                 !(neighbor_cell->line_orientation(neighbor_face))) ?
+                (!(this->line_orientation(face) ==
+                   ReferenceCell::default_combined_face_orientation()) !=
+                 !(neighbor_cell->line_orientation(neighbor_face)) ==
+                 ReferenceCell::default_combined_face_orientation()) ?
                   (1 - subface) :
                   subface;
 

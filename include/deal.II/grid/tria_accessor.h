@@ -1016,7 +1016,7 @@ public:
    *
    * This function queries ReferenceCell::standard_vs_true_line_orientation().
    */
-  bool
+  unsigned char
   line_orientation(const unsigned int line) const;
   /**
    * @}
@@ -1820,7 +1820,8 @@ private:
    * <code>structdim==2 && dim==3</code>).
    */
   void
-  set_line_orientation(const unsigned int line, const bool orientation) const;
+  set_line_orientation(const unsigned int  line,
+                       const unsigned char orientation) const;
 
   /**
    * Set the combined face orientation (i.e., the integer that uniquely encodes
@@ -2177,9 +2178,9 @@ public:
   face_rotation(const unsigned int face);
 
   /**
-   * @brief Always return false
+   * @brief Always return ReferenceCell::reversed_combined_line_orientation()
    */
-  static bool
+  static unsigned char
   line_orientation(const unsigned int line);
 
   /**
@@ -2846,9 +2847,9 @@ public:
   face_rotation(const unsigned int face);
 
   /**
-   * @brief Always return false
+   * @brief Always return ReferenceCell::reversed_combined_line_orientation()
    */
-  static bool
+  static unsigned char
   line_orientation(const unsigned int line);
 
   /**
@@ -5099,10 +5100,7 @@ namespace internal
         // efficient
         std::array<unsigned char, 4> line_orientations = {};
         for (const unsigned int line : cell.line_indices())
-          line_orientations[line] =
-            cell.line_orientation(line) == true ?
-              ReferenceCell::default_combined_face_orientation() :
-              ReferenceCell::reversed_combined_line_orientation();
+          line_orientations[line] = cell.line_orientation(line);
         return line_orientations;
       }
 
@@ -5143,8 +5141,8 @@ namespace internal
                    ref_cell.standard_to_real_face_line(1, f, orientation),
                    ref_cell.standard_to_real_face_line(2, f, orientation),
                    ref_cell.standard_to_real_face_line(3, f, orientation)}};
-                const auto                quad = cell.quad(f);
-                const std::array<bool, 4> my_orientations{
+                const auto                         quad = cell.quad(f);
+                const std::array<unsigned char, 4> my_orientations{
                   {ref_cell.standard_vs_true_line_orientation(
                      0, f, orientation, quad->line_orientation(my_indices[0])),
                    ref_cell.standard_vs_true_line_orientation(
@@ -5169,8 +5167,8 @@ namespace internal
                 const std::array<unsigned int, 2> my_indices{
                   {ref_cell.standard_to_real_face_line(0, f, orientation),
                    ref_cell.standard_to_real_face_line(1, f, orientation)}};
-                const auto                quad = cell.quad(f);
-                const std::array<bool, 2> my_orientations{
+                const auto                         quad = cell.quad(f);
+                const std::array<unsigned char, 2> my_orientations{
                   {ref_cell.standard_vs_true_line_orientation(
                      0, f, orientation, quad->line_orientation(my_indices[0])),
                    ref_cell.standard_vs_true_line_orientation(
@@ -5329,11 +5327,7 @@ TriaAccessor<structdim, dim, spacedim>::vertex_index(
         this->reference_cell().standard_vertex_to_face_and_vertex_index(corner);
       const auto vertex_within_line_index =
         this->reference_cell().standard_to_real_face_vertex(
-          vertex_index,
-          line_index,
-          this->line_orientation(line_index) == true ?
-            ReferenceCell::default_combined_face_orientation() :
-            ReferenceCell::reversed_combined_line_orientation());
+          vertex_index, line_index, this->line_orientation(line_index));
 
       return this->line(line_index)->vertex_index(vertex_within_line_index);
     }
@@ -5476,7 +5470,8 @@ TriaAccessor<structdim, dim, spacedim>::face_orientation(
     // in 1d 'faces' are vertices and those are always consistently oriented
     return true;
   else if constexpr (structdim == 2)
-    return this->line_orientation(face);
+    return this->line_orientation(face) ==
+           ReferenceCell::default_combined_face_orientation();
   else
     return this->tria->levels[this->present_level]
       ->face_orientations.get_orientation(
@@ -5535,7 +5530,7 @@ TriaAccessor<structdim, dim, spacedim>::face_rotation(
 
 
 template <int structdim, int dim, int spacedim>
-inline bool
+inline unsigned char
 TriaAccessor<structdim, dim, spacedim>::line_orientation(
   const unsigned int line) const
 {
@@ -5545,7 +5540,7 @@ TriaAccessor<structdim, dim, spacedim>::line_orientation(
   (void)line;
 
   if constexpr (structdim == 1)
-    return true;
+    return ReferenceCell::default_combined_face_orientation();
   else if constexpr (structdim == 2 && dim == 2)
     // lines in 2d are faces
     {
@@ -5555,19 +5550,22 @@ TriaAccessor<structdim, dim, spacedim>::line_orientation(
                combined_orientation ==
                  ReferenceCell::reversed_combined_line_orientation(),
              ExcInternalError());
-      return combined_orientation ==
-                 ReferenceCell::default_combined_face_orientation() ?
-               true :
-               false;
+      return combined_orientation;
     }
   else if constexpr (structdim == 2 && dim == 3)
     {
-      // line orientations in 3d are stored in their own array
+      // line orientations in 3d are stored in their own array as bools: here
+      // 'true' is the default orientation and 'false' is the reversed one
+      // (which matches set_line_orientation())
       Assert(this->present_index * ReferenceCell::max_n_lines<2>() + line <
                this->tria->faces->quads_line_orientations.size(),
              ExcInternalError());
-      return this->tria->faces->quads_line_orientations
-        [this->present_index * ReferenceCell::max_n_lines<2>() + line];
+      return this->tria->faces
+                 ->quads_line_orientations[this->present_index *
+                                             ReferenceCell::max_n_lines<2>() +
+                                           line] ?
+               ReferenceCell::default_combined_face_orientation() :
+               ReferenceCell::reversed_combined_line_orientation();
     }
   else if constexpr (structdim == 3 && dim == 3)
     {
@@ -5599,8 +5597,8 @@ TriaAccessor<structdim, dim, spacedim>::line_orientation(
 template <int structdim, int dim, int spacedim>
 inline void
 TriaAccessor<structdim, dim, spacedim>::set_line_orientation(
-  const unsigned int line,
-  const bool         value) const
+  const unsigned int  line,
+  const unsigned char value) const
 {
   Assert(used(), TriaAccessorExceptions::ExcCellNotUsed());
   AssertIndexRange(line, this->n_lines());
@@ -5619,13 +5617,14 @@ TriaAccessor<structdim, dim, spacedim>::set_line_orientation(
   if constexpr (dim == 3)
     {
       // We set line orientations per face, not per cell, so this only works for
-      // faces in 3d
+      // faces in 3d.
       Assert(structdim == 2, ExcNotImplemented());
       Assert(this->present_index * ReferenceCell::max_n_lines<2>() + line <
                this->tria->faces->quads_line_orientations.size(),
              ExcInternalError());
       this->tria->faces->quads_line_orientations
-        [this->present_index * ReferenceCell::max_n_lines<2>() + line] = value;
+        [this->present_index * ReferenceCell::max_n_lines<2>() + line] =
+        value == ReferenceCell::default_combined_face_orientation();
     }
 }
 
@@ -6919,10 +6918,10 @@ TriaAccessor<0, dim, spacedim>::face_rotation(const unsigned int /*face*/)
 
 
 template <int dim, int spacedim>
-inline bool
+inline unsigned char
 TriaAccessor<0, dim, spacedim>::line_orientation(const unsigned int /*line*/)
 {
-  return false;
+  return ReferenceCell::reversed_combined_line_orientation();
 }
 
 
@@ -7367,10 +7366,10 @@ TriaAccessor<0, 1, spacedim>::face_rotation(const unsigned int /*face*/)
 
 
 template <int spacedim>
-inline bool
+inline unsigned char
 TriaAccessor<0, 1, spacedim>::line_orientation(const unsigned int /*line*/)
 {
-  return false;
+  return ReferenceCell::reversed_combined_line_orientation();
 }
 
 

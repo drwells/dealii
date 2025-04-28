@@ -8024,6 +8024,8 @@ namespace GridGenerator
        {{8, 7, 4}},
        {{8, 5, 7}},
        {{3, 7, 5}}}};
+    static const ndarray<unsigned int, 2, 3> vertex_ids_for_cells_2d_2 = {
+      {{{0, 1, 2}}, {{3, 2, 1}}}};
     const auto vertex_ids_for_cells_2d =
       make_array_view(vertex_ids_for_cells_2d_8);
 
@@ -8039,7 +8041,17 @@ namespace GridGenerator
        {{12, 13, 8, 10}}, {{13, 8, 10, 4}},  {{13, 10, 9, 5}},
        {{13, 9, 11, 7}},  {{13, 11, 8, 6}},  {{10, 12, 9, 1}},
        {{9, 12, 11, 3}},  {{11, 12, 8, 2}},  {{8, 12, 10, 0}}}};
-    const auto vertex_ids_for_cells_3d = make_array_view(vertex_ids_for_cells_3d_24);
+    static const ndarray<unsigned int 6, 4> vertex_ids_for_cells_3d_6 =
+      {{
+        {{0, 1, 3, 7}},
+        {{0, 1, 7, 5}},
+        {{0, 7, 3, 2}},
+        {{2, 6, 0, 7}},
+        {{4, 7, 5, 0}},
+        {{4, 6, 7, 0}},
+      }};
+    const auto vertex_ids_for_cells_3d =
+      make_array_view(vertex_ids_for_cells_3d_24);
 
     // Boundary-faces 2d:
     // After converting, each of the 4 quadrilateral faces is defined by faces
@@ -8047,14 +8059,19 @@ namespace GridGenerator
     // the original face index and the second is the new line.
     static const std::
       array<std::pair<unsigned int, std::array<unsigned int, 2>>, 8>
-               vertex_ids_for_boundary_faces_2d_8 = {{{0, {{0, 4}}},
-                                                      {0, {{4, 2}}},
-                                                      {1, {{1, 5}}},
-                                                      {1, {{5, 3}}},
-                                                      {2, {{0, 6}}},
-                                                      {2, {{6, 1}}},
-                                                      {3, {{2, 7}}},
-                                                      {3, {{7, 3}}}}};
+        vertex_ids_for_boundary_faces_2d_8 = {{{0, {{0, 4}}},
+                                               {0, {{4, 2}}},
+                                               {1, {{1, 5}}},
+                                               {1, {{5, 3}}},
+                                               {2, {{0, 6}}},
+                                               {2, {{6, 1}}},
+                                               {3, {{2, 7}}},
+                                               {3, {{7, 3}}}}};
+    // For 2 new Triangles the lines are identical to the original.
+    static const std::
+      array<std::pair<unsigned int, std::array<unsigned int, 2>>, 4>
+        vertex_ids_for_boundary_faces_2d_2 = {
+          {{0, {{0, 2}}}, {1, {{1, 3}}}, {2, {{0, 1}}}, {3, {{2, 3}}}}};
     const auto vertex_ids_for_boundary_faces_2d =
       make_array_view(vertex_ids_for_boundary_faces_2d_8);
 
@@ -8088,6 +8105,8 @@ namespace GridGenerator
        {{7, 4}},
        {{7, 8}},
        {{7, 5}}}};
+    static const ndarray<unsigned int, 1, 2> vertex_ids_for_inner_faces_2d_2 = {
+      {{{1, 2}}}};
     const auto vertex_ids_for_inner_faces_2d =
       make_array_view(vertex_ids_for_inner_faces_2d_8);
 

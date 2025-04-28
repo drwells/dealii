@@ -8015,7 +8015,7 @@ namespace GridGenerator
     // Cell definition 2d:
     // A quadrilateral element is converted to 8 simplices elements. Each
     // triangle is defined by 3 vertices.
-    static const ndarray<unsigned int, 8, 3> vertex_ids_for_cells_2d = {
+    static const ndarray<unsigned int, 8, 3> vertex_ids_for_cells_2d_8 = {
       {{{0, 6, 4}},
        {{8, 4, 6}},
        {{8, 6, 5}},
@@ -8024,11 +8024,13 @@ namespace GridGenerator
        {{8, 7, 4}},
        {{8, 5, 7}},
        {{3, 7, 5}}}};
+    const auto vertex_ids_for_cells_2d =
+      make_array_view(vertex_ids_for_cells_2d_8);
 
     // Cell definition 3d:
     // A hexahedron element is converted to 24 tetrahedron elements. Each
     // tetrahedron is defined by 4 vertices.
-    static const ndarray<unsigned int, 24, 4> vertex_ids_for_cells_3d = {
+    static const ndarray<unsigned int, 24, 4> vertex_ids_for_cells_3d_24 = {
       {{{0, 1, 12, 10}},  {{2, 3, 11, 12}},  {{7, 6, 11, 13}},
        {{5, 4, 13, 10}},  {{0, 2, 8, 12}},   {{4, 6, 13, 8}},
        {{5, 13, 7, 9}},   {{1, 9, 3, 12}},   {{0, 8, 4, 10}},
@@ -8037,6 +8039,7 @@ namespace GridGenerator
        {{12, 13, 8, 10}}, {{13, 8, 10, 4}},  {{13, 10, 9, 5}},
        {{13, 9, 11, 7}},  {{13, 11, 8, 6}},  {{10, 12, 9, 1}},
        {{9, 12, 11, 3}},  {{11, 12, 8, 2}},  {{8, 12, 10, 0}}}};
+    const auto vertex_ids_for_cells_3d = make_array_view(vertex_ids_for_cells_3d_24);
 
     // Boundary-faces 2d:
     // After converting, each of the 4 quadrilateral faces is defined by faces
@@ -8044,14 +8047,16 @@ namespace GridGenerator
     // the original face index and the second is the new line.
     static const std::
       array<std::pair<unsigned int, std::array<unsigned int, 2>>, 8>
-        vertex_ids_for_boundary_faces_2d = {{{0, {{0, 4}}},
-                                             {0, {{4, 2}}},
-                                             {1, {{1, 5}}},
-                                             {1, {{5, 3}}},
-                                             {2, {{0, 6}}},
-                                             {2, {{6, 1}}},
-                                             {3, {{2, 7}}},
-                                             {3, {{7, 3}}}}};
+               vertex_ids_for_boundary_faces_2d_8 = {{{0, {{0, 4}}},
+                                                      {0, {{4, 2}}},
+                                                      {1, {{1, 5}}},
+                                                      {1, {{5, 3}}},
+                                                      {2, {{0, 6}}},
+                                                      {2, {{6, 1}}},
+                                                      {3, {{2, 7}}},
+                                                      {3, {{7, 3}}}}};
+    const auto vertex_ids_for_boundary_faces_2d =
+      make_array_view(vertex_ids_for_boundary_faces_2d_8);
 
     // Boundary-faces 3d:
     // After converting, each of the 6 hexahedron faces corresponds to faces of
@@ -8059,7 +8064,7 @@ namespace GridGenerator
     // defined by 3 vertices.
     static const std::
       array<std::pair<unsigned int, std::array<unsigned int, 3>>, 24>
-        vertex_ids_for_boundary_faces_3d = {
+        vertex_ids_for_boundary_faces_3d_24 = {
           {{0, {{0, 4, 8}}},  {0, {{4, 8, 6}}},  {0, {{8, 6, 2}}},
            {0, {{0, 2, 8}}},  {1, {{1, 3, 9}}},  {1, {{3, 9, 7}}},
            {1, {{9, 7, 5}}},  {1, {{1, 9, 5}}},  {2, {{0, 1, 10}}},
@@ -8068,11 +8073,13 @@ namespace GridGenerator
            {3, {{2, 11, 6}}}, {4, {{0, 1, 12}}}, {4, {{1, 12, 3}}},
            {4, {{12, 3, 2}}}, {4, {{0, 12, 2}}}, {5, {{4, 5, 13}}},
            {5, {{5, 13, 7}}}, {5, {{13, 7, 6}}}, {5, {{4, 13, 6}}}}};
+    const auto vertex_ids_for_boundary_faces_3d =
+      make_array_view(vertex_ids_for_boundary_faces_3d_24);
 
     // Inner-faces 2d:
     // The converted triangulation based on simplices has 8 faces that do not
     // form the boundary, i.e. inner-faces, each defined by 2 vertices.
-    static const ndarray<unsigned int, 8, 2> vertex_ids_for_inner_faces_2d = {
+    static const ndarray<unsigned int, 8, 2> vertex_ids_for_inner_faces_2d_8 = {
       {{{6, 4}},
        {{6, 8}},
        {{6, 5}},
@@ -8081,46 +8088,56 @@ namespace GridGenerator
        {{7, 4}},
        {{7, 8}},
        {{7, 5}}}};
+    const auto vertex_ids_for_inner_faces_2d =
+      make_array_view(vertex_ids_for_inner_faces_2d_8);
 
     // Inner-faces 3d:
     // The converted triangulation based on simplices has 72 faces that do not
     // form the boundary, i.e. inner-faces, each defined by 3 vertices.
-    static const ndarray<unsigned int, 72, 3> vertex_ids_for_inner_faces_3d = {
-      {{{0, 12, 10}},  {{12, 1, 10}},  {{12, 1, 9}},  {{12, 3, 9}},
-       {{12, 2, 11}},  {{12, 3, 11}},  {{12, 0, 8}},  {{12, 2, 8}},
-       {{9, 13, 5}},   {{13, 7, 9}},   {{11, 7, 13}}, {{11, 6, 13}},
-       {{4, 8, 13}},   {{6, 8, 13}},   {{4, 13, 10}}, {{13, 5, 10}},
-       {{10, 9, 5}},   {{10, 9, 1}},   {{11, 9, 7}},  {{11, 9, 3}},
-       {{8, 11, 2}},   {{8, 11, 6}},   {{8, 10, 0}},  {{8, 10, 4}},
-       {{12, 3, 9}},   {{12, 9, 11}},  {{12, 3, 11}}, {{3, 9, 11}},
-       {{2, 12, 8}},   {{2, 12, 11}},  {{2, 11, 8}},  {{8, 12, 11}},
-       {{0, 12, 10}},  {{0, 12, 8}},   {{0, 8, 10}},  {{8, 10, 12}},
-       {{12, 1, 10}},  {{12, 1, 9}},   {{1, 10, 9}},  {{10, 9, 12}},
-       {{10, 8, 4}},   {{10, 8, 13}},  {{4, 13, 8}},  {{4, 13, 10}},
-       {{10, 9, 13}},  {{10, 9, 5}},   {{13, 5, 10}}, {{13, 5, 9}},
-       {{13, 7, 9}},   {{13, 7, 11}},  {{9, 11, 13}}, {{9, 11, 7}},
-       {{8, 11, 13}},  {{8, 11, 6}},   {{6, 13, 8}},  {{6, 13, 11}},
-       {{12, 13, 10}}, {{12, 13, 8}},  {{8, 10, 13}}, {{8, 10, 12}},
-       {{12, 13, 10}}, {{12, 13, 9}},  {{10, 9, 13}}, {{10, 9, 12}},
-       {{12, 13, 9}},  {{12, 13, 11}}, {{9, 11, 13}}, {{9, 11, 12}},
-       {{12, 13, 11}}, {{12, 13, 8}},  {{8, 11, 13}}, {{8, 11, 12}}}};
+    static const ndarray<unsigned int, 72, 3> vertex_ids_for_inner_faces_3d_24 =
+      {{{{0, 12, 10}},  {{12, 1, 10}},  {{12, 1, 9}},  {{12, 3, 9}},
+        {{12, 2, 11}},  {{12, 3, 11}},  {{12, 0, 8}},  {{12, 2, 8}},
+        {{9, 13, 5}},   {{13, 7, 9}},   {{11, 7, 13}}, {{11, 6, 13}},
+        {{4, 8, 13}},   {{6, 8, 13}},   {{4, 13, 10}}, {{13, 5, 10}},
+        {{10, 9, 5}},   {{10, 9, 1}},   {{11, 9, 7}},  {{11, 9, 3}},
+        {{8, 11, 2}},   {{8, 11, 6}},   {{8, 10, 0}},  {{8, 10, 4}},
+        {{12, 3, 9}},   {{12, 9, 11}},  {{12, 3, 11}}, {{3, 9, 11}},
+        {{2, 12, 8}},   {{2, 12, 11}},  {{2, 11, 8}},  {{8, 12, 11}},
+        {{0, 12, 10}},  {{0, 12, 8}},   {{0, 8, 10}},  {{8, 10, 12}},
+        {{12, 1, 10}},  {{12, 1, 9}},   {{1, 10, 9}},  {{10, 9, 12}},
+        {{10, 8, 4}},   {{10, 8, 13}},  {{4, 13, 8}},  {{4, 13, 10}},
+        {{10, 9, 13}},  {{10, 9, 5}},   {{13, 5, 10}}, {{13, 5, 9}},
+        {{13, 7, 9}},   {{13, 7, 11}},  {{9, 11, 13}}, {{9, 11, 7}},
+        {{8, 11, 13}},  {{8, 11, 6}},   {{6, 13, 8}},  {{6, 13, 11}},
+        {{12, 13, 10}}, {{12, 13, 8}},  {{8, 10, 13}}, {{8, 10, 12}},
+        {{12, 13, 10}}, {{12, 13, 9}},  {{10, 9, 13}}, {{10, 9, 12}},
+        {{12, 13, 9}},  {{12, 13, 11}}, {{9, 11, 13}}, {{9, 11, 12}},
+        {{12, 13, 11}}, {{12, 13, 8}},  {{8, 11, 13}}, {{8, 11, 12}}}};
+    const auto vertex_ids_for_inner_faces_3d =
+      make_array_view(vertex_ids_for_inner_faces_3d_24);
 
     // Inner-edges 3d:
     // The converted triangulation based on simplices has 60 edges that do not
     // coincide with the boundary, i.e. inner-edges, each defined by 2 vertices.
-    static const ndarray<unsigned int, 60, 2> vertex_ids_for_inner_edges_3d = {
-      {{{12, 10}}, {{12, 9}},  {{12, 11}}, {{12, 8}},  {{9, 13}},  {{11, 13}},
-       {{8, 13}},  {{10, 13}}, {{10, 9}},  {{9, 11}},  {{11, 8}},  {{8, 10}},
-       {{12, 9}},  {{12, 11}}, {{11, 9}},  {{12, 8}},  {{12, 11}}, {{11, 8}},
-       {{12, 8}},  {{12, 10}}, {{10, 8}},  {{12, 10}}, {{12, 9}},  {{9, 10}},
-       {{13, 10}}, {{13, 8}},  {{8, 10}},  {{13, 10}}, {{13, 9}},  {{9, 10}},
-       {{13, 11}}, {{13, 9}},  {{11, 9}},  {{13, 11}}, {{13, 8}},  {{11, 8}},
-       {{12, 13}}, {{8, 10}},  {{8, 13}},  {{10, 13}}, {{8, 12}},  {{10, 12}},
-       {{12, 13}}, {{10, 9}},  {{10, 13}}, {{9, 13}},  {{10, 12}}, {{9, 12}},
-       {{12, 13}}, {{9, 11}},  {{9, 13}},  {{11, 13}}, {{9, 12}},  {{11, 12}},
-       {{12, 13}}, {{11, 8}},  {{11, 13}}, {{8, 13}},  {{11, 12}}, {{8, 12}}}};
+    static const ndarray<unsigned int, 60, 2> vertex_ids_for_inner_edges_3d_24 =
+      {{{{12, 10}}, {{12, 9}},  {{12, 11}}, {{12, 8}},  {{9, 13}},  {{11, 13}},
+        {{8, 13}},  {{10, 13}}, {{10, 9}},  {{9, 11}},  {{11, 8}},  {{8, 10}},
+        {{12, 9}},  {{12, 11}}, {{11, 9}},  {{12, 8}},  {{12, 11}}, {{11, 8}},
+        {{12, 8}},  {{12, 10}}, {{10, 8}},  {{12, 10}}, {{12, 9}},  {{9, 10}},
+        {{13, 10}}, {{13, 8}},  {{8, 10}},  {{13, 10}}, {{13, 9}},  {{9, 10}},
+        {{13, 11}}, {{13, 9}},  {{11, 9}},  {{13, 11}}, {{13, 8}},  {{11, 8}},
+        {{12, 13}}, {{8, 10}},  {{8, 13}},  {{10, 13}}, {{8, 12}},  {{10, 12}},
+        {{12, 13}}, {{10, 9}},  {{10, 13}}, {{9, 13}},  {{10, 12}}, {{9, 12}},
+        {{12, 13}}, {{9, 11}},  {{9, 13}},  {{11, 13}}, {{9, 12}},  {{11, 12}},
+        {{12, 13}}, {{11, 8}},  {{11, 13}}, {{8, 13}},  {{11, 12}}, {{8, 12}}}};
+    const auto vertex_ids_for_inner_edges_3d =
+      make_array_view(vertex_ids_for_inner_edges_3d_24);
 
     // Boundary-edges 3d:
+    //
+    // All implemented conversions re-use the existing 12 lines of each
+    // hexahedron so those are not included in these tables.
+
     // For each of the 6 boundary-faces of the hexahedron, there are 8 edges (of
     // different tetrahedrons) that coincide with the boundary, i.e.
     // boundary-edges. Each boundary-edge is defined by 2 vertices. 4 of these
@@ -8130,13 +8147,15 @@ namespace GridGenerator
     // face, but the other 4 need to be copied from the input and thus do not
     // require a lookup table.
     static const ndarray<unsigned int, 6, 4, 2>
-      vertex_ids_for_new_boundary_edges_3d = {
+      vertex_ids_for_new_boundary_edges_3d_24 = {
         {{{{{4, 8}}, {{6, 8}}, {{0, 8}}, {{2, 8}}}},
          {{{{5, 9}}, {{7, 9}}, {{1, 9}}, {{3, 9}}}},
          {{{{4, 10}}, {{5, 10}}, {{0, 10}}, {{1, 10}}}},
          {{{{6, 11}}, {{7, 11}}, {{2, 11}}, {{3, 11}}}},
          {{{{2, 12}}, {{3, 12}}, {{0, 12}}, {{1, 12}}}},
          {{{{6, 13}}, {{7, 13}}, {{4, 13}}, {{5, 13}}}}}};
+    const auto vertex_ids_for_new_boundary_edges_3d =
+      make_array_view(vertex_ids_for_new_boundary_edges_3d_24);
 
     std::vector<Point<spacedim>> vertices;
     std::vector<CellData<dim>>   cells;

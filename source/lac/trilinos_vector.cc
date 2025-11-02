@@ -797,22 +797,13 @@ namespace TrilinosWrappers
       TrilinosScalar       *start_ptr = (*vector)[0];
       const TrilinosScalar *ptr       = start_ptr,
                            *eptr = start_ptr + vector->Map().NumMyElements();
-      unsigned int flag          = 0;
-      while (ptr != eptr)
-        {
-          if (*ptr < 0.0)
-            {
-              flag = 1;
-              break;
-            }
-          ++ptr;
-        }
+      const bool has_negative    = std::any_of(start_ptr,
+                                            start_ptr + locally_owned_size(),
+                                            [](const TrilinosScalar &v) {
+                                              return v < TrilinosScalar();
+                                            });
 
-      // in parallel, check that the vector
-      // is zero on _all_ processors.
-      const auto max_n_negative =
-        Utilities::MPI::max(flag, get_mpi_communicator());
-      return max_n_negative == 0;
+      return !Utilities::MPI::logical_or(has_negative);
     }
 
 

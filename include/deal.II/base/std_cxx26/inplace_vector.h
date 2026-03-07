@@ -213,6 +213,33 @@ namespace std_cxx26
     /** @} */
 
     /**
+     * Comparison.
+     */
+    constexpr bool
+    operator==(inplace_vector &other) const
+    {
+      return (size() == other.size()) &&
+             std::equal(begin(), end(), other.begin());
+    }
+
+    constexpr bool
+    operator!=(inplace_vector &other) const
+    {
+      return !(*this == other);
+    }
+
+    constexpr bool
+    operator<(const inplace_vector &other) const
+    {
+      return std::lexicographical_compare(begin(),
+                                          end(),
+                                          other.begin(),
+                                          other.end());
+    }
+
+    /** @} */
+
+    /**
      * Iterators.
      */
     /** @{ */

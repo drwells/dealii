@@ -329,6 +329,7 @@ namespace std_cxx26
     constexpr size_type
     size() const noexcept
     {
+      Assert(n_elements <= N, ExcInternalError());
       return n_elements;
     }
 
@@ -375,14 +376,14 @@ namespace std_cxx26
     reference
     operator[](size_type n)
     {
-      // AssertIndexRange(n, size());
+      AssertIndexRange(n, size());
       return elements[n];
     }
 
     const_reference
     operator[](size_type n) const
     {
-      // AssertIndexRange(n, size());
+      AssertIndexRange(n, size());
       return elements[n];
     }
 
@@ -405,28 +406,28 @@ namespace std_cxx26
     reference
     front()
     {
-      // Assert(!empty(), ExcEmptyObject());
+      Assert(!empty(), ExcEmptyObject());
       return elements[0];
     }
 
     const_reference
     front() const
     {
-      // Assert(!empty(), ExcEmptyObject());
+      Assert(!empty(), ExcEmptyObject());
       return elements[0];
     }
 
     reference
     back()
     {
-      // Assert(!empty(), ExcEmptyObject());
+      Assert(!empty(), ExcEmptyObject());
       return elements[size() - 1];
     }
 
     const_reference
     back() const
     {
-      // Assert(!empty(), ExcEmptyObject());
+      Assert(!empty(), ExcEmptyObject());
       return elements[size() - 1];
     }
     /** @} */
@@ -474,8 +475,8 @@ namespace std_cxx26
     void
     pop_back()
     {
-      // Assert(!empty(), ExcEmptyObject());
       internal_resize(size() - 1);
+      Assert(!empty(), ExcEmptyObject());
     }
 
     template <class... Args>
@@ -510,24 +511,24 @@ namespace std_cxx26
     reference
     unchecked_emplace_back(Args &&...args)
     {
-      // Assert(size() < capacity(), ExcCapacityExceeded());
       internal_resize(size() + 1, std::forward<Args>(args)...);
+      Assert(size() < capacity(), ExcCapacityExceeded());
       return back();
     }
 
     reference
     unchecked_push_back(const T &value)
     {
-      // Assert(size() < capacity(), ExcCapacityExceeded());
       internal_resize(size() + 1, value);
+      Assert(size() < capacity(), ExcCapacityExceeded());
       return back();
     }
 
     reference
     unchecked_push_back(T &&value)
     {
-      // Assert(size() < capacity(), ExcCapacityExceeded());
       internal_resize(size() + 1, std::forward(value));
+      Assert(size() < capacity(), ExcCapacityExceeded());
       return back();
     }
 
@@ -571,8 +572,10 @@ namespace std_cxx26
     insert(const_iterator position, InputIterator first, InputIterator last)
     {
       const auto index = position - cbegin();
+      AssertIndexRange(index, size());
       const auto n_new_elements =
         internal_append<InputIterator, true>(first, last);
+      Assert(position + n_new_elements <= end(), ExcInternalError());
       std::rotate(position, position + n_new_elements, end());
       return begin() + index;
     }
@@ -587,6 +590,8 @@ namespace std_cxx26
     erase(const_iterator position)
     {
       const auto index = position - cbegin();
+      AssertIndexRange(index, size());
+      Assert(begin() + index + 1 <= end(), ExcInternalError());
       std::rotate(begin() + index, begin() + index + 1, end());
       pop_back();
 
@@ -668,8 +673,8 @@ namespace std_cxx26
     internal_resize(const size_type n, Args &&...args) noexcept(!check)
     {
       static_assert(std::is_constructible_v<T, Args...>);
-      // We should always check the size unless we are clearing storage
-      // Assert(check || n == 0, ExcInternalError());
+      Assert(check || n == 0, ExcInternalError());
+      Assert(n <= capacity(), ExcCapacityExceeded());
       if constexpr (check)
         if (n > N)
           throw std::bad_alloc();
@@ -679,12 +684,14 @@ namespace std_cxx26
       if (n < size())
         for (size_type i = size(); i > n; --i)
           {
+            Assert(size() > 0, ExcInternalError());
             (end() - 1)->~T();
             --n_elements;
           }
       else
         for (size_type i = size(); i < n; ++i)
           {
+            AssertIndexRange(size(), capacity());
             new (end()) T(args...);
             ++n_elements;
           }
@@ -732,6 +739,7 @@ namespace std_cxx26
       size_type count = 0;
       while (first != last)
         {
+          AssertIndexRange(size(), capacity());
           if constexpr (check)
             if (size() == N)
               throw std::bad_alloc();

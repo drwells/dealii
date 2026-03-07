@@ -28,6 +28,16 @@
 #  include <utility>
 #endif
 
+// boost::serialization::make_array used to be in array.hpp, but was
+// moved to a different file in BOOST 1.64
+#include <boost/serialization/split_free.hpp>
+#include <boost/version.hpp>
+#if BOOST_VERSION >= 106400
+#  include <boost/serialization/array_wrapper.hpp>
+#else
+#  include <boost/serialization/array.hpp>
+#endif
+
 DEAL_II_NAMESPACE_OPEN
 
 namespace std_cxx26
@@ -738,6 +748,47 @@ namespace std_cxx26
 #else
   using std::inplace_vector;
 #endif
+
+  template <class Archive, typename T, std::size_t N>
+  inline void
+  serialize(Archive                         &ar,
+            std_cxx26::inplace_vector<T, N> &t,
+            const unsigned int               file_version)
+  {
+    boost::serialization::split_free(ar, t, file_version);
+  }
+
+  /**
+   * Write the data of this object to a stream for the purpose of
+   * serialization using the [BOOST serialization
+   * library](https://www.boost.org/doc/libs/1_74_0/libs/serialization/doc/index.html).
+   */
+  template <class Archive, typename T, std::size_t N>
+  inline void
+  save(Archive                              &ar,
+       const std_cxx26::inplace_vector<T, N> vec,
+       const unsigned int /*version*/)
+  {
+    const auto vec_size = vec.size();
+    ar        &vec_size;
+    if (vec_size > 0)
+      ar &boost::serialization::make_array(vec.data(), vec_size);
+  }
+
+  template <class Archive, typename T, std::size_t N>
+  inline void
+  load(Archive                        &ar,
+       std_cxx26::inplace_vector<T, N> vec,
+       const unsigned int /*version*/)
+  {
+    decltype(vec.size()) vec_size;
+    ar                  &vec_size;
+    vec.resize(vec_size);
+    if (vec_size > 0)
+      {
+        ar &boost::serialization::make_array(vec.data(), vec_size);
+      }
+  }
 } // namespace std_cxx26
 
 DEAL_II_NAMESPACE_CLOSE

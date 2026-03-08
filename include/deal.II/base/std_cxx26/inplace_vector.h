@@ -634,7 +634,7 @@ namespace std_cxx26
 
     void constexpr clear() noexcept
     {
-      // internal_resize(0); // TODO
+      internal_resize(0);
     }
 
     /** @} */

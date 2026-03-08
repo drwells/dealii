@@ -16,9 +16,13 @@
 
 #include <deal.II/base/config.h>
 
+
 #ifdef DEAL_II_HAVE_CXX26
 #  include <inplace_vector>
 #else
+#  include <deal.II/base/exception_macros.h>
+#  include <deal.II/base/exceptions.h>
+
 #  include <algorithm>
 #  include <array>
 #  include <initializer_list>

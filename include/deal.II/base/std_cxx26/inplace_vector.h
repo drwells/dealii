@@ -557,6 +557,7 @@ namespace std_cxx26
       // place
       internal_resize<true>(size() + 1, std::forward<Args>(args)...);
 
+      Assert(begin() < end(), ExcInternalError());
       Assert(begin() + index <= end() - 1, ExcInternalError());
       std::rotate(begin() + index, end() - 1, end());
 

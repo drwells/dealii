@@ -43,6 +43,10 @@ DEAL_II_NAMESPACE_OPEN
 namespace std_cxx26
 {
 #ifndef DEAL_II_HAVE_CXX26
+  DeclExceptionMsg(ExcCapacityExceeded,
+                   "The current operation requires more capacity than the "
+                   "container can provide.");
+
   /**
    * C++17-implementation of a subset of std::inplace_vector.
    *
@@ -126,8 +130,13 @@ namespace std_cxx26
       N == 0 || std::is_nothrow_move_constructible_v<T>)
       : n_elements(0)
     {
+#  if 0
       internal_append<iterator, false, true>(other.begin(), other.end());
       other.clear();
+#  else
+      n_elements = other.size();
+      std::copy(other.begin(), other.end(), begin());
+#  endif
     }
 
     constexpr inplace_vector(std::initializer_list<T> other)
@@ -143,7 +152,7 @@ namespace std_cxx26
 #  endif
       ~inplace_vector()
     {
-      clear();
+      // clear(); // TODO
     }
     /** @} */
 
@@ -175,7 +184,10 @@ namespace std_cxx26
       if (other.size() > N)
         throw std::bad_alloc();
 
-      internal_assign(other.begin(), other.end());
+      // internal_assign(other.begin(), other.end());
+      n_elements = other.size();
+      for (unsigned int i = 0; i < n_elements; ++i)
+        (*this)[i] = *(other.begin() + i);
 
       return *this;
     }
@@ -348,13 +360,13 @@ namespace std_cxx26
     void
     resize(size_type n)
     {
-      internal_resize(n);
+      internal_resize<true>(n);
     }
 
     void
     resize(size_type n, const T &value)
     {
-      internal_resize(n, value);
+      internal_resize<true>(n, value);
     }
 
     static constexpr void
@@ -464,35 +476,37 @@ namespace std_cxx26
     push_back(const T &value)
     {
       internal_resize<true>(size() + 1, value);
+      return back();
     }
 
     reference
     push_back(T &&value)
     {
-      internal_resize<true>(size() + 1, std::forward(value));
+      internal_resize<true>(size() + 1, std::forward<T>(value));
+      return back();
     }
 
     void
     pop_back()
     {
-      internal_resize(size() - 1);
       Assert(!empty(), ExcEmptyObject());
+      internal_resize<true>(size() - 1);
     }
 
     template <class... Args>
     pointer
     try_emplace_back(Args &&...args)
     {
-      if (size() == N)
+      if (size() == capacity())
         return nullptr;
-      internal_resize(size() + 1, std::forward<Args>(args)...);
+      internal_resize<true>(size() + 1, std::forward<Args>(args)...);
       return std::addressof(back());
     }
 
     pointer
     try_push_back(const T &value)
     {
-      if (size() == N)
+      if (size() == capacity())
         return nullptr;
       internal_resize<true>(size() + 1, value);
       return std::addressof(back());
@@ -501,9 +515,9 @@ namespace std_cxx26
     pointer
     try_push_back(T &&value)
     {
-      if (size() == N)
+      if (size() == capacity())
         return nullptr;
-      internal_resize<true>(size() + 1, std::forward(value));
+      internal_resize<true>(size() + 1, std::forward<T>(value));
       return std::addressof(back());
     }
 
@@ -511,24 +525,24 @@ namespace std_cxx26
     reference
     unchecked_emplace_back(Args &&...args)
     {
-      internal_resize(size() + 1, std::forward<Args>(args)...);
       Assert(size() < capacity(), ExcCapacityExceeded());
+      internal_resize<true>(size() + 1, std::forward<Args>(args)...);
       return back();
     }
 
     reference
     unchecked_push_back(const T &value)
     {
-      internal_resize(size() + 1, value);
       Assert(size() < capacity(), ExcCapacityExceeded());
+      internal_resize<true>(size() + 1, value);
       return back();
     }
 
     reference
     unchecked_push_back(T &&value)
     {
-      internal_resize(size() + 1, std::forward(value));
       Assert(size() < capacity(), ExcCapacityExceeded());
+      internal_resize<true>(size() + 1, std::forward<T>(value));
       return back();
     }
 
@@ -537,11 +551,13 @@ namespace std_cxx26
     emplace(const_iterator position, Args &&...args)
     {
       const auto index = position - cbegin();
+      AssertIndexRange(index, size());
       // Since args may reference *this we have to construct the new object
       // first: do that in the buffer and then rotate so it is in the correct
       // place
       internal_resize<true>(size() + 1, std::forward<Args>(args)...);
 
+      Assert(begin() + index <= end() - 1, ExcInternalError());
       std::rotate(begin() + index, end() - 1, end());
 
       return begin() + index;
@@ -601,16 +617,19 @@ namespace std_cxx26
     iterator
     erase(const_iterator first, const_iterator last)
     {
-      const auto index = first - begin();
-      std::rotate(first, last, end());
-      internal_resize(size() - (last - first));
+      const auto first_index = first - begin();
+      const auto last_index  = last - cbegin();
+      Assert(first_index <= last_index,
+             ExcMessage("The given range is not valid."));
+      std::rotate(begin() + first_index, begin() + last_index, end());
+      internal_resize<true>(size() - (last - first));
 
-      return begin() + index;
+      return begin() + first_index;
     }
 
     void constexpr clear() noexcept
     {
-      internal_resize(0);
+      // internal_resize(0); // TODO
     }
 
     /** @} */
@@ -703,9 +722,14 @@ namespace std_cxx26
      */
     template <typename InputIterator, bool check = false, bool move = false>
     void
-    internal_assign(InputIterator first, InputIterator last)
+    internal_assign(
+      InputIterator first,
+      InputIterator last) // noexcept(!check && (move ?
+                          // std::is_nothrow_move_constructible_v<T> :
+                          // std::is_nothrow_copy_assignable_v<T>))
     {
       static_assert(std::is_convertible_v<decltype(*first), T>);
+#  if 0
       size_type i = 0;
       while (i < size() && first != last)
         {
@@ -720,6 +744,11 @@ namespace std_cxx26
         resize(i);
       else
         internal_append<InputIterator, check, move>(first, last);
+#  else
+      Assert(last - first <= std::ptrdiff_t(capacity()), ExcCapacityExceeded());
+      n_elements = (last - first);
+      std::copy(first, last, begin());
+#  endif
     }
 
     /**
@@ -765,10 +794,10 @@ namespace std_cxx26
       std::array<T, N> elements;
     };
 
-    static constexpr bool use_smaller_type =
-      N <= std::numeric_limits<unsigned char>::max();
     using buffer_size_type =
-      std::conditional_t<use_smaller_type, unsigned char, unsigned short>;
+      std::conditional_t<N <= std::numeric_limits<unsigned char>::max(),
+                         unsigned char,
+                         unsigned short>;
     static_assert(
       N <= std::numeric_limits<unsigned short>::max(),
       "This class only supports objects of size <= the maximum size of an "

@@ -130,7 +130,7 @@ namespace std_cxx26
       N == 0 || std::is_nothrow_move_constructible_v<T>)
       : n_elements(0)
     {
-#  if 0
+#  if 1
       internal_append<iterator, false, true>(other.begin(), other.end());
       other.clear();
 #  else

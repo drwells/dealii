@@ -729,7 +729,7 @@ namespace std_cxx26
                           // std::is_nothrow_copy_assignable_v<T>))
     {
       static_assert(std::is_convertible_v<decltype(*first), T>);
-#  if 0
+#  if 1
       size_type i = 0;
       while (i < size() && first != last)
         {

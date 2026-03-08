@@ -1913,7 +1913,9 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
               if (dim == 3)
                 {
                   cells.emplace_back();
-                  cells.back().vertices = vertices_for_this_element;
+                  cells.back().vertices.assign(
+                    vertices_for_this_element.begin(),
+                    vertices_for_this_element.end());
                 }
               else
                 DEAL_II_ASSERT_UNREACHABLE();
@@ -1924,13 +1926,16 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
               if (dim == 2)
                 {
                   cells.emplace_back();
-                  cells.back().vertices = vertices_for_this_element;
+                  cells.back().vertices.assign(
+                    vertices_for_this_element.begin(),
+                    vertices_for_this_element.end());
                 }
               else
                 {
                   subcelldata.boundary_quads.emplace_back();
-                  subcelldata.boundary_quads.back().vertices =
-                    vertices_for_this_element;
+                  subcelldata.boundary_quads.back().vertices.assign(
+                    vertices_for_this_element.begin(),
+                    vertices_for_this_element.end());
                 }
             }
           else if (object_name == "edg")
@@ -1938,7 +1943,9 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
               if (dim == 1)
                 {
                   cells.emplace_back();
-                  cells.back().vertices = vertices_for_this_element;
+                  cells.back().vertices.assign(
+                    vertices_for_this_element.begin(),
+                    vertices_for_this_element.end());
                 }
               else
                 {
@@ -2116,27 +2123,26 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
                   // In 3d, we need to look things up in the boundary_quads
                   // structure (which also stores boundary triangles) as well as
                   // for the edges
-                  std::vector<unsigned int> face_vertex_indices(
-                    face->n_vertices());
+                  std_cxx26::inplace_vector<unsigned int, (1 << 2)>
+                    face_vertex_indices(face->n_vertices());
                   for (unsigned int v = 0; v < face->n_vertices(); ++v)
                     face_vertex_indices[v] = face->vertex_index(v);
                   std::sort(face_vertex_indices.begin(),
                             face_vertex_indices.end());
 
                   // See if we can find a face with these indices:
-                  const auto p =
-                    std::lower_bound(subcelldata.boundary_quads.begin(),
-                                     subcelldata.boundary_quads.end(),
-                                     face_vertex_indices,
-                                     [](const CellData<2> &a,
-                                        const std::vector<unsigned int>
-                                          &face_vertex_indices) -> bool {
-                                       return std::lexicographical_compare(
-                                         a.vertices.begin(),
-                                         a.vertices.end(),
-                                         face_vertex_indices.begin(),
-                                         face_vertex_indices.end());
-                                     });
+                  const auto p = std::lower_bound(
+                    subcelldata.boundary_quads.begin(),
+                    subcelldata.boundary_quads.end(),
+                    face_vertex_indices,
+                    [](const CellData<2> &a,
+                       const auto        &face_vertex_indices) -> bool {
+                      return std::lexicographical_compare(
+                        a.vertices.begin(),
+                        a.vertices.end(),
+                        face_vertex_indices.begin(),
+                        face_vertex_indices.end());
+                    });
 
                   if ((p != subcelldata.boundary_quads.end()) &&
                       (p->vertices == face_vertex_indices))

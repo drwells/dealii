@@ -19,7 +19,7 @@
 
 #include <deal.II/grid/reference_cell.h>
 
-#include <vector>
+#include <deal.II/base/std_cxx26/inplace_vector.h>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -80,7 +80,7 @@ struct CellData
    * calling ReferenceCell::n_vertices_to_type() on the number of vertices
    * described by this array.
    */
-  std::vector<unsigned int> vertices;
+  std_cxx26::inplace_vector<unsigned int, (1 << structdim)> vertices;
 
   /**
    * Material or boundary indicator of this cell.

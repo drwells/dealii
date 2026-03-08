@@ -3959,8 +3959,9 @@ namespace internal
 
         [[maybe_unused]] unsigned int counter = 0;
 
-        std::vector<unsigned int> key;
-        key.reserve(ReferenceCells::max_n_vertices<structdim>());
+        std_cxx26::inplace_vector<unsigned int,
+                                  ReferenceCells::max_n_vertices<structdim>()>
+          key;
 
         for (unsigned int o = 0; o < obj.n_objects(); ++o)
           {

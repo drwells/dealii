@@ -134,13 +134,8 @@ namespace std_cxx26
       N == 0 || std::is_nothrow_move_constructible_v<T>)
       : n_elements(0)
     {
-#  if 1
       internal_append<iterator, false, true>(other.begin(), other.end());
       other.clear();
-#  else
-      n_elements = other.size();
-      std::copy(other.begin(), other.end(), begin());
-#  endif
     }
 
     constexpr inplace_vector(std::initializer_list<T> other)
@@ -156,7 +151,7 @@ namespace std_cxx26
 #  endif
       ~inplace_vector()
     {
-      // clear(); // TODO
+      clear();
     }
     /** @} */
 
@@ -474,6 +469,7 @@ namespace std_cxx26
     emplace_back(Args &&...args)
     {
       internal_resize<true>(size() + 1, std::forward<Args>(args)...);
+      return back();
     }
 
     reference
@@ -530,7 +526,7 @@ namespace std_cxx26
     unchecked_emplace_back(Args &&...args)
     {
       Assert(size() < capacity(), ExcCapacityExceeded());
-      internal_resize<true>(size() + 1, std::forward<Args>(args)...);
+      internal_resize<false>(size() + 1, std::forward<Args>(args)...);
       return back();
     }
 
@@ -538,7 +534,7 @@ namespace std_cxx26
     unchecked_push_back(const T &value)
     {
       Assert(size() < capacity(), ExcCapacityExceeded());
-      internal_resize<true>(size() + 1, value);
+      internal_resize<false>(size() + 1, value);
       return back();
     }
 
@@ -546,7 +542,7 @@ namespace std_cxx26
     unchecked_push_back(T &&value)
     {
       Assert(size() < capacity(), ExcCapacityExceeded());
-      internal_resize<true>(size() + 1, std::forward<T>(value));
+      internal_resize<false>(size() + 1, std::forward<T>(value));
       return back();
     }
 
@@ -632,7 +628,7 @@ namespace std_cxx26
       return begin() + first_index;
     }
 
-    void constexpr clear() noexcept
+    constexpr void clear() noexcept
     {
       internal_resize(0);
     }
@@ -734,7 +730,6 @@ namespace std_cxx26
                           // std::is_nothrow_copy_assignable_v<T>))
     {
       static_assert(std::is_convertible_v<decltype(*first), T>);
-#  if 1
       size_type i = 0;
       while (i < size() && first != last)
         {
@@ -749,11 +744,6 @@ namespace std_cxx26
         resize(i);
       else
         internal_append<InputIterator, check, move>(first, last);
-#  else
-      Assert(last - first <= std::ptrdiff_t(capacity()), ExcCapacityExceeded());
-      n_elements = (last - first);
-      std::copy(first, last, begin());
-#  endif
     }
 
     /**

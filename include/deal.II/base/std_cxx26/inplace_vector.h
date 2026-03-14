@@ -173,6 +173,7 @@ namespace std_cxx26
                  std::is_nothrow_move_constructible_v<T>))
     {
       internal_assign<iterator, false, true>(other.begin(), other.end());
+      other.resize(0);
 
       return *this;
     }

@@ -629,7 +629,8 @@ namespace std_cxx26
       return begin() + first_index;
     }
 
-    constexpr void clear() noexcept
+    constexpr void
+    clear() noexcept
     {
       internal_resize(0);
     }

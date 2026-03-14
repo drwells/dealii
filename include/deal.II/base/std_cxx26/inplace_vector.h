@@ -724,11 +724,9 @@ namespace std_cxx26
      */
     template <typename InputIterator, bool check = false, bool move = false>
     void
-    internal_assign(
-      InputIterator first,
-      InputIterator last) // noexcept(!check && (move ?
-                          // std::is_nothrow_move_constructible_v<T> :
-                          // std::is_nothrow_copy_assignable_v<T>))
+    internal_assign(InputIterator first, InputIterator last) noexcept(
+      !check && (move ? std::is_nothrow_move_assignable_v<T> :
+                        std::is_nothrow_copy_assignable_v<T>))
     {
       static_assert(std::is_convertible_v<decltype(*first), T>);
       size_type i = 0;
@@ -753,7 +751,9 @@ namespace std_cxx26
      */
     template <typename InputIterator, bool check = false, bool move = false>
     constexpr size_type
-    internal_append(InputIterator first, InputIterator last)
+    internal_append(InputIterator first, InputIterator last) noexcept(
+      !check && (move ? std::is_nothrow_move_constructible_v<T> :
+                        std::is_nothrow_copy_constructible_v<T>))
     {
       static_assert(std::is_convertible_v<decltype(*first), T>);
 

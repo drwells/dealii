@@ -184,10 +184,7 @@ namespace std_cxx26
       if (other.size() > N)
         throw std::bad_alloc();
 
-      // internal_assign(other.begin(), other.end());
-      n_elements = other.size();
-      for (unsigned int i = 0; i < n_elements; ++i)
-        (*this)[i] = *(other.begin() + i);
+      internal_assign(other.begin(), other.end());
 
       return *this;
     }
@@ -201,7 +198,10 @@ namespace std_cxx26
     void
     assign(InputIterator first, InputIterator last)
     {
-      internal_assign(first, last);
+      if constexpr (std::is_integral_v<InputIterator>)
+        assign(static_cast<size_type>(first), last);
+      else
+        internal_assign(first, last);
     }
 
     void

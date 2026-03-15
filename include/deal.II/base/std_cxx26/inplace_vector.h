@@ -845,12 +845,9 @@ namespace std_cxx26
   {
     decltype(vec.size()) vec_size;
     ar                  &vec_size;
-    vec.clear();
+    vec.resize(vec_size);
     for (std::size_t i = 0; i < vec_size; ++i)
-    {
-      vec.emplace_back();
-      ar &vec.back();
-    }
+      ar &vec[i];
   }
 } // namespace std_cxx26
 

@@ -15,11 +15,10 @@
 
 #include <deal.II/base/config.h>
 
+#include <deal.II/base/std_cxx26/inplace_vector.h>
 #include <deal.II/base/types.h>
 
 #include <deal.II/grid/reference_cell.h>
-
-#include <deal.II/base/std_cxx26/inplace_vector.h>
 
 DEAL_II_NAMESPACE_OPEN
 

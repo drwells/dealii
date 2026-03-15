@@ -51,6 +51,20 @@ struct A
     ++n_dtors;
     deallog << "A::~A()" << std::endl;
   }
+
+  A&
+  operator=(const A&)
+  {
+    deallog << "A::operator=(const A&)" << std::endl;
+    return *this;
+  }
+
+  A&
+  operator=(A&&)
+  {
+    deallog << "A::operator=(A&&)" << std::endl;
+    return *this;
+  }
 };
 
 int A::n_ctors = 0;

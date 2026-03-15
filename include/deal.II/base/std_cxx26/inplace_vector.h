@@ -826,8 +826,8 @@ namespace std_cxx26
    */
   template <class Archive, typename T, std::size_t N>
   inline void
-  save(Archive                              &ar,
-       const std_cxx26::inplace_vector<T, N> vec,
+  save(Archive                               &ar,
+       const std_cxx26::inplace_vector<T, N> &vec,
        const unsigned int /*version*/)
   {
     const auto vec_size = vec.size();
@@ -838,8 +838,8 @@ namespace std_cxx26
 
   template <class Archive, typename T, std::size_t N>
   inline void
-  load(Archive                        &ar,
-       std_cxx26::inplace_vector<T, N> vec,
+  load(Archive                         &ar,
+       std_cxx26::inplace_vector<T, N> &vec,
        const unsigned int /*version*/)
   {
     decltype(vec.size()) vec_size;

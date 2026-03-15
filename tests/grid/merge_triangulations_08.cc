@@ -49,7 +49,7 @@ manifold_info(const Triangulation<dim> &tria, const std::string &case_name)
 
   deallog << "Face manifolds: ";
   for (const auto &cell : tria.active_cell_iterators())
-    for (const auto face : cell->face_iterators())
+    for (const auto &face : cell->face_iterators())
       deallog << face->manifold_id() << " ";
   deallog << std::endl << std::endl;
 }

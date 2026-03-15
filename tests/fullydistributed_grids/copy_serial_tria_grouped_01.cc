@@ -29,6 +29,7 @@
 #include <deal.II/grid/tria.h>
 #include <deal.II/grid/tria_description.h>
 
+#include <boost/archive/text_iarchive.hpp>
 #include <boost/archive/text_oarchive.hpp>
 
 #include "../grid/tests.h"
@@ -82,12 +83,23 @@ test(int n_refinements, MPI_Comm comm)
     deallog << oss.str() << std::endl;
   }
 
-  // 3b) serialize second TriangulationDescription::Description and print
+  // 3b) serialize second TriangulationDescription::Description and print.
+  // Also verify that the serialized object is correct.
   {
     std::ostringstream            oss;
     boost::archive::text_oarchive oa(oss, boost::archive::no_header);
     oa << construction_data_2;
-    deallog << oss.str() << std::endl;
+    const std::string serialization = oss.str();
+    deallog << serialization << std::endl;
+
+    decltype(construction_data_2) construction_data_copy;
+    std::istringstream iss(serialization);
+    boost::archive::text_iarchive ia(iss, boost::archive::no_header);
+    ia >> construction_data_copy;
+
+    construction_data_copy.comm = construction_data_2.comm;
+    AssertThrow(construction_data_2 == construction_data_copy,
+                ExcInternalError());
   }
 
   // 4) the result has to be identical

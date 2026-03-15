@@ -1,0 +1,34 @@
+
+DEAL:serialization::
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::operator=(const A&)
+DEAL:serialization:A::A::operator=(const A&)
+DEAL:serialization:A::A::operator=(const A&)
+DEAL:serialization:A::size = 58
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization:A::A::~A()
+DEAL:serialization::
+DEAL:serialization:int::size = 65
+DEAL:serialization::
+DEAL:serialization:vector<int>::size = 101

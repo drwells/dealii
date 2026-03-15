@@ -833,7 +833,8 @@ namespace std_cxx26
     const auto vec_size = vec.size();
     ar        &vec_size;
     if (vec_size > 0)
-      ar &boost::serialization::make_array(vec.data(), vec_size);
+      for (const auto &v : vec)
+        ar &v;
   }
 
   template <class Archive, typename T, std::size_t N>
@@ -844,11 +845,12 @@ namespace std_cxx26
   {
     decltype(vec.size()) vec_size;
     ar                  &vec_size;
-    vec.resize(vec_size);
-    if (vec_size > 0)
-      {
-        ar &boost::serialization::make_array(vec.data(), vec_size);
-      }
+    vec.clear();
+    for (std::size_t i = 0; i < vec_size; ++i)
+    {
+      vec.emplace_back();
+      ar &vec.back();
+    }
   }
 } // namespace std_cxx26
 

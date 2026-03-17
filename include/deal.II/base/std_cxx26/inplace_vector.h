@@ -796,7 +796,7 @@ namespace std_cxx26
                          unsigned char,
                          unsigned short>;
     static_assert(
-      N <= std::numeric_limits<unsigned short>::max(),
+      N <= std::numeric_limits<buffer_size_type>::max(),
       "This class only supports objects of size <= the maximum size of an "
       "unsigned short (typically 65535).");
 

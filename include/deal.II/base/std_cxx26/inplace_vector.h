@@ -694,9 +694,8 @@ namespace std_cxx26
     constexpr void
     internal_resize(const size_type n, Args &&...args) noexcept(!check)
     {
-      static_assert(std::is_constructible_v<T, Args...>);
-      Assert(check || n == 0, ExcInternalError());
       Assert(n <= capacity(), ExcCapacityExceeded());
+      static_assert(std::is_constructible_v<T, Args...>);
       if constexpr (check)
         if (n > N)
           throw std::bad_alloc();
@@ -714,7 +713,7 @@ namespace std_cxx26
         for (size_type i = size(); i < n; ++i)
           {
             AssertIndexRange(size(), capacity());
-            new (end()) T(args...);
+            new (end()) T(std::forward<Args>(args)...);
             ++n_elements;
           }
     }

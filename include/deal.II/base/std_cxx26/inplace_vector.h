@@ -294,13 +294,13 @@ namespace std_cxx26
     constexpr const_reverse_iterator
     rbegin() const noexcept
     {
-      return reverse_iterator(end());
+      return const_reverse_iterator(end());
     }
 
     constexpr const_reverse_iterator
     rend() const noexcept
     {
-      return reverse_iterator(begin());
+      return const_reverse_iterator(begin());
     }
 
     constexpr const_iterator
@@ -318,13 +318,13 @@ namespace std_cxx26
     constexpr const_reverse_iterator
     crbegin() const noexcept
     {
-      return reverse_iterator(cend());
+      return const_reverse_iterator(cend());
     }
 
     constexpr const_reverse_iterator
     crend() const noexcept
     {
-      return reverse_iterator(cbegin());
+      return const_reverse_iterator(cbegin());
     }
     /** @} */
 

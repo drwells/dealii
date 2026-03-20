@@ -24,77 +24,7 @@
 
 #include "../tests.h"
 
-// Struct for recording which constructor is called and counting total ctor/dtor
-// calls
-struct A
-{
-  static int n_ctors;
-  static int n_dtors;
-
-  A()
-  {
-    ++n_ctors;
-    deallog << "A::A()" << std::endl;
-  }
-
-  A(A &&)
-  {
-    ++n_ctors;
-    deallog << "A::A(A&&)" << std::endl;
-  }
-
-  A(const A &)
-  {
-    ++n_ctors;
-    deallog << "A::A(const A&)" << std::endl;
-  }
-
-  ~A()
-  {
-    ++n_dtors;
-    deallog << "A::~A()" << std::endl;
-  }
-
-  bool
-  operator==(const A&) const
-  {
-    return true;
-  }
-
-  A &
-  operator=(const A &)
-  {
-    deallog << "A::operator=(const A&)" << std::endl;
-    return *this;
-  }
-
-  A &
-  operator=(A &&)
-  {
-    deallog << "A::operator=(A&&)" << std::endl;
-    return *this;
-  }
-};
-
-int A::n_ctors = 0;
-int A::n_dtors = 0;
-
-template <class Archive>
-void
-serialize(Archive &ar, A &t, const unsigned int file_version)
-{
-  boost::serialization::split_free(ar, t, file_version);
-}
-
-template <class Archive>
-void
-save(Archive &, const A &, const unsigned int /*version*/)
-{}
-
-template <class Archive>
-void
-load(Archive &, A &, const unsigned int /*version*/)
-{}
+#include "inplace_vector_common.h"
 
 template <typename T>
 void

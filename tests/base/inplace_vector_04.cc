@@ -25,63 +25,6 @@
 
 #include "inplace_vector_common.h"
 
-// TODO refactor with accessors
-int A::n_ctors = 0;
-int A::n_dtors = 0;
-
-template <typename T>
-void
-print_counts()
-{
-  if constexpr (std::is_same_v<T, A>)
-    deallog << "ctors = " << A::n_ctors << " dtors = " << A::n_dtors
-            << std::endl;
-}
-
-template <typename T>
-void
-print(const T &t)
-{
-  deallog << t;
-}
-
-template <typename T>
-void
-print(const std::vector<T> &vec)
-{
-  deallog << "{";
-  if (vec.size() > 0)
-    {
-      print(vec[0]);
-      for (std::size_t i = 1; i < vec.size(); ++i)
-        {
-          deallog << ", ";
-          print(vec[i]);
-        }
-    }
-  deallog << "}";
-}
-
-template <typename T, std::size_t N>
-void
-print(const std_cxx26::inplace_vector<T, N> &vec)
-{
-  if constexpr (!std::is_same_v<T, A>)
-    {
-      if (vec.size() > 0)
-        {
-          print(vec[0]);
-          for (std::size_t i = 1; i < vec.size(); ++i)
-            {
-              deallog << ", ";
-              print(vec[i]);
-            }
-        }
-    }
-  else
-    deallog << "size : " << vec.size();
-}
-
 template <typename T>
 void
 test_emplace_pop_push()
@@ -146,11 +89,12 @@ test_emplace_pop_push()
     print(vec);
     deallog << std::endl;
     vec.pop_back();
+    AssertThrow(vec.size() == 2, ExcInternalError());
     print(vec);
     deallog << std::endl;
     vec.pop_back();
     print(vec);
-    AssertThrow(vec.size() == 0, ExcInternalError());
+    AssertThrow(vec.size() == 1, ExcInternalError());
     deallog << std::endl;
   }
   print_counts<T>();

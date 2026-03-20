@@ -75,17 +75,29 @@ struct A
   }
 
   bool
-  operator==(const A &) const
+  operator==(const A &) const noexcept
   {
     return true;
   }
 
   bool
-  operator!=(const A &) const
+  operator!=(const A &) const noexcept
+  {
+    return false;
+  }
+
+  bool
+  operator<(const A &) const noexcept
   {
     return false;
   }
 };
+
+inline void
+swap(A &, A &) noexcept
+{
+  // swapping is a no-op
+}
 
 template <class Archive>
 void

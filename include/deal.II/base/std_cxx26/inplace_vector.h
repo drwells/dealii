@@ -32,15 +32,7 @@
 #  include <utility>
 #endif
 
-// boost::serialization::make_array used to be in array.hpp, but was
-// moved to a different file in BOOST 1.64
 #include <boost/serialization/split_free.hpp>
-#include <boost/version.hpp>
-#if BOOST_VERSION >= 106400
-#  include <boost/serialization/array_wrapper.hpp>
-#else
-#  include <boost/serialization/array.hpp>
-#endif
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -842,7 +834,7 @@ namespace std_cxx26
        std_cxx26::inplace_vector<T, N> &vec,
        const unsigned int /*version*/)
   {
-    decltype(vec.size()) vec_size;
+    decltype(vec.size()) vec_size = 0;
     ar                  &vec_size;
     vec.resize(vec_size);
     for (std::size_t i = 0; i < vec_size; ++i)

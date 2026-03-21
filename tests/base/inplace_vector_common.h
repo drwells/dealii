@@ -17,6 +17,8 @@
 
 #include "../tests.h"
 
+#include <ostream>
+
 /**
  * Helper class for tracking object creation and destruction in inplace_vector.
  */
@@ -92,6 +94,13 @@ struct A
     return false;
   }
 };
+
+std::ostream&
+operator<<(std::ostream &out, const A&)
+{
+  out << "{}";
+  return out;
+}
 
 inline void
 swap(A &, A &) noexcept

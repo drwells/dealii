@@ -395,7 +395,8 @@ namespace std_cxx26
     at(size_type n)
     {
       if (!(n < size()))
-        throw std::out_of_range();
+        throw std::out_of_range("inplace_vector::at(): index " +
+                                std::to_string(n) + " out of range");
       return elements[n];
     }
 
@@ -403,7 +404,8 @@ namespace std_cxx26
     at(size_type n) const
     {
       if (!(n < size()))
-        throw std::out_of_range();
+        throw std::out_of_range("inplace_vector::at(): index " +
+                                std::to_string(n) + " out of range");
       return elements[n];
     }
 

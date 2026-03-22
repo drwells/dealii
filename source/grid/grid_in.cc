@@ -1896,7 +1896,7 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
       //
       // In any case, we adjust vertex indices right after reading them based on
       // the starting index read above
-      std::vector<unsigned int> vertices_for_this_element(
+      std_cxx26::inplace_vector<unsigned int, 8> vertices_for_this_element(
         n_vertices_per_element);
       for (unsigned int e = 0; e < n_elements; ++e)
         {
@@ -1950,8 +1950,9 @@ GridIn<dim, spacedim>::read_comsol_mphtxt(std::istream &in)
               else
                 {
                   subcelldata.boundary_lines.emplace_back();
-                  subcelldata.boundary_lines.back().vertices =
-                    vertices_for_this_element;
+                  subcelldata.boundary_lines.back().vertices.assign(
+                    vertices_for_this_element.begin(),
+                    vertices_for_this_element.end());
                 }
             }
           else if (object_name == "vtx")
@@ -2922,15 +2923,15 @@ GridIn<dim, spacedim>::read_msh(const std::string &fname)
     {{15, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {7, 5}, {6, 6}, {5, 7}}};
 
   // Vertex renumbering, by dealii type
-  const std::array<std::vector<unsigned int>, 8> gmsh_to_dealii = {
-    {{0},
-     {{0, 1}},
-     {{0, 1, 2}},
-     {{0, 1, 3, 2}},
-     {{0, 1, 2, 3}},
-     {{0, 1, 3, 2, 4}},
-     {{0, 1, 2, 3, 4, 5}},
-     {{0, 1, 3, 2, 4, 5, 7, 6}}}};
+  constexpr std::array<std_cxx26::inplace_vector<unsigned int, 8>, 8>
+    gmsh_to_dealii = {{{0},
+                       {{0, 1}},
+                       {{0, 1, 2}},
+                       {{0, 1, 3, 2}},
+                       {{0, 1, 2, 3}},
+                       {{0, 1, 3, 2, 4}},
+                       {{0, 1, 2, 3, 4, 5}},
+                       {{0, 1, 3, 2, 4, 5, 7, 6}}}};
 
   std::vector<Point<spacedim>>               vertices;
   std::vector<CellData<dim>>                 cells;
@@ -3202,15 +3203,15 @@ GridIn<dim, spacedim>::read_partitioned_msh(const std::string &file_prefix,
   const std::map<int, std::uint8_t> gmsh_to_dealii_type = {
     {15, 0}, {1, 1}, {2, 2}, {3, 3}, {4, 4}, {7, 5}, {6, 6}, {5, 7}};
 
-  const std::array<std::vector<unsigned int>, 8> gmsh_to_dealii = {
-    {{0},
-     {0, 1},
-     {0, 1, 2},
-     {0, 1, 3, 2},
-     {0, 1, 2, 3},
-     {0, 1, 3, 2, 4},
-     {0, 1, 2, 3, 4, 5},
-     {0, 1, 3, 2, 4, 5, 7, 6}}};
+  constexpr std::array<std_cxx26::inplace_vector<unsigned int, 8>, 8>
+    gmsh_to_dealii = {{{0},
+                       {0, 1},
+                       {0, 1, 2},
+                       {0, 1, 3, 2},
+                       {0, 1, 2, 3},
+                       {0, 1, 3, 2, 4},
+                       {0, 1, 2, 3, 4, 5},
+                       {0, 1, 3, 2, 4, 5, 7, 6}}};
 
 
   gmsh::initialize();

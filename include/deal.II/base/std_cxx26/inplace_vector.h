@@ -583,13 +583,23 @@ namespace std_cxx26
     iterator
     insert(const_iterator position, InputIterator first, InputIterator last)
     {
-      const auto index = position - cbegin();
-      AssertIndexRange(index, size());
-      const auto n_new_elements =
-        internal_append<InputIterator, true>(first, last);
-      Assert(position + n_new_elements <= end(), ExcInternalError());
-      std::rotate(position, position + n_new_elements, end());
-      return begin() + index;
+      if constexpr (std::is_integral_v<InputIterator>)
+        {
+          return insert(position,
+                        static_cast<size_type>(first),
+                        static_cast<T>(last));
+        }
+      else
+        {
+          // TODO we need a nicer way to check for valid iterators
+          const auto index = position - cbegin();
+          Assert(position == cend() || index < size(), ExcMessage("out of range"));
+          const auto n_new_elements =
+            internal_append<InputIterator, true>(first, last);
+          Assert(position + n_new_elements <= end(), ExcInternalError());
+          std::rotate(begin() + index, begin() + index + n_new_elements, end());
+          return begin() + index;
+        }
     }
 
     iterator

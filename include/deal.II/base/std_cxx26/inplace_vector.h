@@ -644,8 +644,11 @@ namespace std_cxx26
     friend void
     swap(inplace_vector &x,
          inplace_vector &y) noexcept(N == 0 ||
-                                     std::is_nothrow_swappable_v<T> &&
-                                       std::is_nothrow_move_constructible_v<T>);
+                                     (std::is_nothrow_swappable_v<T> &&
+                                      std::is_nothrow_move_constructible_v<T>))
+    {
+      x.swap(y);
+    }
 
     constexpr void
     clear() noexcept
@@ -822,15 +825,6 @@ namespace std_cxx26
      */
     buffer_size_type n_elements;
   };
-
-  template <typename T, std::size_t N>
-  void
-  swap(inplace_vector<T, N> &x, inplace_vector<T, N> &y) noexcept(
-    N == 0 ||
-    std::is_nothrow_swappable_v<T> && std::is_nothrow_move_constructible_v<T>)
-  {
-    x.swap(y);
-  }
 
 #else
   using std::inplace_vector;

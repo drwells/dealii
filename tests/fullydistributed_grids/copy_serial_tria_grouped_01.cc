@@ -93,7 +93,7 @@ test(int n_refinements, MPI_Comm comm)
     deallog << serialization << std::endl;
 
     decltype(construction_data_2) construction_data_copy;
-    std::istringstream iss(serialization);
+    std::istringstream            iss(serialization);
     boost::archive::text_iarchive ia(iss, boost::archive::no_header);
     ia >> construction_data_copy;
 

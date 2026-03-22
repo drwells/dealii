@@ -45,11 +45,17 @@ test_access()
     std_cxx26::inplace_vector<T, 8> vec(as.begin(), as.end());
 
     vec.emplace(vec.cbegin() + 1);
-    vec.emplace(vec.cbegin() + 1, as[0]);
-    if constexpr (std::is_same_v<T, std::vector<int>>)
-      vec.emplace(vec.cbegin() + 1, 5u, 42);
     print(vec);
     deallog << std::endl;
+    vec.emplace(vec.cbegin() + 1, as[2]);
+    print(vec);
+    deallog << std::endl;
+    if constexpr (std::is_same_v<T, std::vector<int>>)
+      {
+        vec.emplace(vec.cbegin() + 1, 5u, 42);
+        print(vec);
+        deallog << std::endl;
+      }
   }
 
   // insert value, insert move, and insert count and value
@@ -68,7 +74,7 @@ test_access()
     deallog << std::endl;
 
     auto copy2 = as[2];
-    vec.insert(vec.cend(), 4, copy);
+    vec.insert(vec.cend(), 3, copy2);
     if constexpr (std::is_same_v<T, std::vector<int>>)
       AssertThrow(copy2 == as[2], ExcInternalError());
     print(vec);
@@ -79,7 +85,7 @@ test_access()
   {
     std_cxx26::inplace_vector<T, 8> vec(as.begin(), as.end());
 
-    vec.insert(vec.cbegin() + 2, as.begin(), as.end());
+    vec.insert(vec.cbegin() + 1, as.rbegin(), as.rend());
     print(vec);
     deallog << std::endl;
   }
@@ -88,7 +94,7 @@ test_access()
   {
     std_cxx26::inplace_vector<T, 8> vec(as.begin(), as.end());
 
-    vec.insert(vec.cbegin() + 2, {as[0], as[1], as[2]});
+    vec.insert(vec.cbegin() + 1, {as[0], as[2], as[1]});
     print(vec);
     deallog << std::endl;
   }

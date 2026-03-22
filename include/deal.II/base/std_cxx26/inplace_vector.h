@@ -591,13 +591,14 @@ namespace std_cxx26
         }
       else
         {
+          const auto original_size = size();
           // TODO we need a nicer way to check for valid iterators
           const auto index = position - cbegin();
           Assert(position == cend() || index < size(), ExcMessage("out of range"));
           const auto n_new_elements =
             internal_append<InputIterator, true>(first, last);
           Assert(position + n_new_elements <= end(), ExcInternalError());
-          std::rotate(begin() + index, begin() + index + n_new_elements, end());
+          std::rotate(begin() + index, begin() + original_size, end());
           return begin() + index;
         }
     }
@@ -623,12 +624,15 @@ namespace std_cxx26
     iterator
     erase(const_iterator first, const_iterator last)
     {
+      const auto original_size = size();
+      const auto distance = std::distance(first, last);
       const auto first_index = first - begin();
       const auto last_index  = last - cbegin();
       Assert(first_index <= last_index,
              ExcMessage("The given range is not valid."));
       std::rotate(begin() + first_index, begin() + last_index, end());
-      internal_resize<true>(size() - (last - first));
+      internal_resize<true>(size() - distance);
+      Assert(size() + distance == original_size, ExcInternalError());
 
       return begin() + first_index;
     }

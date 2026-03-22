@@ -596,7 +596,7 @@ namespace std_cxx26
           const auto index = position - cbegin();
           Assert(position == cend() || index < size(), ExcMessage("out of range"));
           const auto n_new_elements =
-            internal_append<InputIterator, true>(first, last);
+            internal_append<InputIterator>(first, last);
           Assert(position + n_new_elements <= end(), ExcInternalError());
           std::rotate(begin() + index, begin() + original_size, end());
           return begin() + index;

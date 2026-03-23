@@ -110,8 +110,8 @@ namespace std_cxx26
       // If we have two integers (e.g., inplace_vector(42, 42)) then we should
       // convert to the correct types and call the other constructor
       if constexpr (std::is_integral_v<InputIterator>)
-        *this =
-          inplace_vector(static_cast<size_type>(first), static_cast<T>(last));
+        *this = inplace_vector(static_cast<size_type>(first),
+                               static_cast<const T &>(last));
       else
         internal_append<InputIterator, true, false>(first, last);
     }
@@ -191,7 +191,7 @@ namespace std_cxx26
     assign(InputIterator first, InputIterator last)
     {
       if constexpr (std::is_integral_v<InputIterator>)
-        assign(static_cast<size_type>(first), last);
+        assign(static_cast<size_type>(first), static_cast<const T &>(last));
       else
         internal_assign(first, last);
     }
@@ -587,7 +587,7 @@ namespace std_cxx26
         {
           return insert(position,
                         static_cast<size_type>(first),
-                        static_cast<T>(last));
+                        static_cast<const T &>(last));
         }
       else
         {

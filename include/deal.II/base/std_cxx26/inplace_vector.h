@@ -99,8 +99,8 @@ namespace std_cxx26
     {
       if (n > N)
         throw std::bad_alloc();
-      internal_append(SingleInputIterator(&value, 0),
-                      SingleInputIterator(&value, n));
+      internal_append(SingleInputIterator(std::addressof(value), 0),
+                      SingleInputIterator(std::addressof(value), n));
     }
 
     template <class InputIterator>
@@ -202,8 +202,8 @@ namespace std_cxx26
       if (n > N)
         throw std::bad_alloc();
 
-      internal_assign(SingleInputIterator(&value, 0),
-                      SingleInputIterator(&value, n));
+      internal_assign(SingleInputIterator(std::addressof(value), 0),
+                      SingleInputIterator(std::addressof(value), n));
     }
 
     void
@@ -575,8 +575,8 @@ namespace std_cxx26
     insert(const_iterator position, size_type n, const T &value)
     {
       return insert(position,
-                    SingleInputIterator(&value, 0),
-                    SingleInputIterator(&value, n));
+                    SingleInputIterator(std::addressof(value), 0),
+                    SingleInputIterator(std::addressof(value), n));
     }
 
     template <typename InputIterator>

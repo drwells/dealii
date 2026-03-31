@@ -32,6 +32,8 @@
 #  include <utility>
 #endif
 
+// TODO: once we require C++20 we can remove this and check if we have an input
+// or output via requires and testing for operator<<() or operator>>()
 #include <boost/serialization/split_free.hpp>
 
 DEAL_II_NAMESPACE_OPEN
@@ -869,7 +871,7 @@ namespace std_cxx26
     ar        &vec_size;
     if (vec_size > 0)
       for (const auto &v : vec)
-        ar &v;
+        ar << v;
   }
 
   template <class Archive, typename T, std::size_t N>
@@ -882,7 +884,7 @@ namespace std_cxx26
     ar                  &vec_size;
     vec.resize(vec_size);
     for (std::size_t i = 0; i < vec_size; ++i)
-      ar &vec[i];
+      ar >> vec[i];
   }
 } // namespace std_cxx26
 

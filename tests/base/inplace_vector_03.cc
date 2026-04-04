@@ -40,19 +40,81 @@ test_serialization()
       as[2] = {3, 5};
     }
 
-  std_cxx26::inplace_vector<T, 32> vec(3), vec2(3);
-  std::copy(as.begin(), as.end(), vec.begin());
-  std::ostringstream              out;
-  boost::archive::binary_oarchive oarchive(out);
-  oarchive << vec;
-  const auto serialization = out.str();
-  deallog << "size = " << serialization.size() << std::endl;
+  // test operator<< and operator>>
+  {
+    std_cxx26::inplace_vector<T, 32> vec, vec2;
+    vec.assign(as.begin(), as.end());
+    std::ostringstream              out;
+    boost::archive::binary_oarchive oarchive(out);
+    oarchive << vec;
+    const auto serialization = out.str();
+    deallog << "size = " << serialization.size() << std::endl;
 
-  std::istringstream              in(serialization);
-  boost::archive::binary_iarchive iarchive(in);
-  iarchive >> vec2;
+    std::istringstream              in(serialization);
+    boost::archive::binary_iarchive iarchive(in);
+    iarchive >> vec2;
 
-  AssertThrow(vec == vec2, ExcInternalError());
+    AssertThrow(vec == vec2, ExcInternalError());
+    print(vec2);
+    deallog << std::endl;
+  }
+
+  // test operator&
+  {
+    std_cxx26::inplace_vector<T, 32> vec, vec2;
+    vec.assign(as.begin(), as.end());
+    std::ostringstream              out;
+    boost::archive::binary_oarchive oarchive(out);
+    oarchive                       &vec;
+    const auto                      serialization = out.str();
+    deallog << "size = " << serialization.size() << std::endl;
+
+    std::istringstream              in(serialization);
+    boost::archive::binary_iarchive iarchive(in);
+    iarchive                       &vec2;
+
+    AssertThrow(vec == vec2, ExcInternalError());
+    print(vec2);
+    deallog << std::endl;
+  }
+
+  // test save() and load()
+  {
+    std_cxx26::inplace_vector<T, 32> vec, vec2;
+    vec.assign(as.begin(), as.end());
+    std::ostringstream              out;
+    boost::archive::binary_oarchive oarchive(out);
+    save(oarchive, vec, 42);
+    const auto serialization = out.str();
+    deallog << "size = " << serialization.size() << std::endl;
+
+    std::istringstream              in(serialization);
+    boost::archive::binary_iarchive iarchive(in);
+    load(iarchive, vec2, 42);
+
+    AssertThrow(vec == vec2, ExcInternalError());
+    print(vec2);
+    deallog << std::endl;
+  }
+
+  // test serialize()
+  {
+    std_cxx26::inplace_vector<T, 32> vec, vec2;
+    vec.assign(as.begin(), as.end());
+    std::ostringstream              out;
+    boost::archive::binary_oarchive oarchive(out);
+    serialize(oarchive, vec, 42);
+    const auto serialization = out.str();
+    deallog << "size = " << serialization.size() << std::endl;
+
+    std::istringstream              in(serialization);
+    boost::archive::binary_iarchive iarchive(in);
+    serialize(iarchive, vec2, 42);
+
+    AssertThrow(vec == vec2, ExcInternalError());
+    print(vec2);
+    deallog << std::endl;
+  }
 }
 
 int

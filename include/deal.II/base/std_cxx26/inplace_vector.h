@@ -54,7 +54,11 @@ namespace std_cxx26
    *    `unsigned short`, which is typically 65535.
    * 2. Since placement new() is not constexpr prior to C++26, the majority of
    *    the constructors and assignment operators are not constexpr.
-   * 3. The range constructor is not present sinces ranges were not available
+   * 3. Similarly, since std::lexicographical_compare() and std::equal() are not
+   *    constexpr prior to C++20,  the comparison operators are not constexpr.
+   * 4. Since operator<=>() is not available prior to C++20, this class
+   *    implements the full set of comparison operators.
+   * 5. The range constructor is not present sinces ranges were not available
    *    prior to C++20.
    *
    * See https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2024/p2747r2.html
@@ -216,33 +220,6 @@ namespace std_cxx26
 
       internal_assign(other.begin(), other.end());
     }
-    /** @} */
-
-    /**
-     * Comparison.
-     */
-    constexpr bool
-    operator==(inplace_vector &other) const
-    {
-      return (size() == other.size()) &&
-             std::equal(begin(), end(), other.begin());
-    }
-
-    constexpr bool
-    operator!=(inplace_vector &other) const
-    {
-      return !(*this == other);
-    }
-
-    constexpr bool
-    operator<(const inplace_vector &other) const
-    {
-      return std::lexicographical_compare(begin(),
-                                          end(),
-                                          other.begin(),
-                                          other.end());
-    }
-
     /** @} */
 
     /**
@@ -843,9 +820,55 @@ namespace std_cxx26
     buffer_size_type n_elements;
   };
 
-#else
-  using std::inplace_vector;
-#endif
+  /**
+   * Comparison operators.
+   */
+  template <typename T, std::size_t N>
+  bool
+  operator==(const inplace_vector<T, N> &a, const inplace_vector<T, N> &b)
+  {
+    return (a.size() == b.size()) &&
+           std::equal(a.begin(), a.end(), b.begin());
+  }
+
+  template <typename T, std::size_t N>
+  bool
+  operator!=(const inplace_vector<T, N> &a, const inplace_vector<T, N> &b)
+  {
+    return !(a == b);
+  }
+
+  template <typename T, std::size_t N>
+  bool operator<(const inplace_vector<T, N> &a, const inplace_vector<T, N> &b)
+  {
+    return std::lexicographical_compare(a.begin(),
+                                        a.end(),
+                                        b.begin(),
+                                        b.end());
+  }
+
+  template <typename T, std::size_t N>
+  bool
+  operator>(const inplace_vector<T, N> &a, const inplace_vector<T, N> &b)
+  {
+    return b < a;
+  }
+
+  template <typename T, std::size_t N>
+  bool
+  operator<=(const inplace_vector<T, N> &a, const inplace_vector<T, N> &b)
+  {
+    return !(b < a);
+  }
+
+  template <typename T, std::size_t N>
+  bool
+  operator>=(const inplace_vector<T, N> &a, const inplace_vector<T, N> &b)
+  {
+    return !(a < b);
+  }
+
+  /** @} */
 
   /**
    * Erase all values equal to @p value in @p vec.
@@ -873,53 +896,63 @@ namespace std_cxx26
     return count;
   }
 
-  /**
-   * Write the data of this object to a stream for the purpose of
-   * serialization using the [BOOST serialization
-   * library](https://www.boost.org/doc/libs/1_74_0/libs/serialization/doc/index.html).
-   */
-  template <class Archive, typename T, std::size_t N>
-  inline void
-  serialize(Archive                         &ar,
-            std_cxx26::inplace_vector<T, N> &t,
-            const unsigned int               file_version)
-  {
-    boost::serialization::split_free(ar, t, file_version);
-  }
-
-  /**
-   * Write the data of this object to a stream for the purpose of
-   * serialization using the [BOOST serialization
-   * library](https://www.boost.org/doc/libs/1_74_0/libs/serialization/doc/index.html).
-   */
-  template <class Archive, typename T, std::size_t N>
-  inline void
-  save(Archive                               &ar,
-       const std_cxx26::inplace_vector<T, N> &vec,
-       const unsigned int /*version*/)
-  {
-    const auto vec_size = vec.size();
-    ar        &vec_size;
-    if (vec_size > 0)
-      for (const auto &v : vec)
-        ar << v;
-  }
-
-  template <class Archive, typename T, std::size_t N>
-  inline void
-  load(Archive                         &ar,
-       std_cxx26::inplace_vector<T, N> &vec,
-       const unsigned int /*version*/)
-  {
-    decltype(vec.size()) vec_size = 0;
-    ar                  &vec_size;
-    vec.resize(vec_size);
-    for (std::size_t i = 0; i < vec_size; ++i)
-      ar >> vec[i];
-  }
+#else
+  using std::inplace_vector;
+#endif
 } // namespace std_cxx26
 
 DEAL_II_NAMESPACE_CLOSE
+
+namespace boost
+{
+  namespace serialization
+  {
+    /**
+     * Write the data of this object to a stream for the purpose of
+     * serialization using the [BOOST serialization
+     * library](https://www.boost.org/doc/libs/1_74_0/libs/serialization/doc/index.html).
+     */
+    template <class Archive, typename T, std::size_t N>
+    inline void
+    serialize(Archive                                 &ar,
+              dealii::std_cxx26::inplace_vector<T, N> &t,
+              const unsigned int                       file_version)
+    {
+      boost::serialization::split_free(ar, t, file_version);
+    }
+
+    /**
+     * Write the data of this object to a stream for the purpose of
+     * serialization using the [BOOST serialization
+     * library](https://www.boost.org/doc/libs/1_74_0/libs/serialization/doc/index.html).
+     */
+    template <class Archive, typename T, std::size_t N>
+    inline void
+    save(Archive                                       &ar,
+         const dealii::std_cxx26::inplace_vector<T, N> &vec,
+         const unsigned int /*version*/)
+    {
+      const auto vec_size = vec.size();
+      ar        &vec_size;
+      if (vec_size > 0)
+        for (const auto &v : vec)
+          ar << v;
+    }
+
+    template <class Archive, typename T, std::size_t N>
+    inline void
+    load(Archive                                 &ar,
+         dealii::std_cxx26::inplace_vector<T, N> &vec,
+         const unsigned int /*version*/)
+    {
+      decltype(vec.size()) vec_size = 0;
+      ar                  &vec_size;
+      vec.resize(vec_size);
+      for (std::size_t i = 0; i < vec_size; ++i)
+        ar >> vec[i];
+    }
+  } // namespace serialization
+} // namespace boost
 
 #ifndef DEAL_II_WITH_CXX26
 namespace std

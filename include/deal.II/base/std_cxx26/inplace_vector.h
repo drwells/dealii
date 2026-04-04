@@ -848,6 +848,32 @@ namespace std_cxx26
 #endif
 
   /**
+   * Erase all values equal to @p value in @p vec.
+   */
+  template <typename T, std::size_t N, typename U = T>
+  std::size_t
+  erase(std_cxx26::inplace_vector<T, N> &vec, const U &value)
+  {
+    auto       it    = std::remove(vec.begin(), vec.end(), value);
+    const auto count = std::distance(it, vec.end());
+    vec.erase(it, vec.end());
+    return count;
+  }
+
+  /**
+   * Erase all values which satisfy the predicate @pred in @p vec.
+   */
+  template <typename T, std::size_t N, typename Predicate>
+  std::size_t
+  erase_if(std_cxx26::inplace_vector<T, N> &vec, Predicate pred)
+  {
+    auto       it    = std::remove_if(vec.begin(), vec.end(), pred);
+    const auto count = std::distance(it, vec.end());
+    vec.erase(it, vec.end());
+    return count;
+  }
+
+  /**
    * Write the data of this object to a stream for the purpose of
    * serialization using the [BOOST serialization
    * library](https://www.boost.org/doc/libs/1_74_0/libs/serialization/doc/index.html).

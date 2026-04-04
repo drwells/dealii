@@ -15,9 +15,9 @@
 
 #include <deal.II/base/std_cxx26/inplace_vector.h>
 
-#include "../tests.h"
-
 #include <ostream>
+
+#include "../tests.h"
 
 /**
  * Helper class for tracking object creation and destruction in inplace_vector.
@@ -95,8 +95,8 @@ struct A
   }
 };
 
-std::ostream&
-operator<<(std::ostream &out, const A&)
+std::ostream &
+operator<<(std::ostream &out, const A &)
 {
   out << "{}";
   return out;

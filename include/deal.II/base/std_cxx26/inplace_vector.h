@@ -847,6 +847,11 @@ namespace std_cxx26
   using std::inplace_vector;
 #endif
 
+  /**
+   * Write the data of this object to a stream for the purpose of
+   * serialization using the [BOOST serialization
+   * library](https://www.boost.org/doc/libs/1_74_0/libs/serialization/doc/index.html).
+   */
   template <class Archive, typename T, std::size_t N>
   inline void
   serialize(Archive                         &ar,

@@ -921,4 +921,73 @@ namespace std_cxx26
 
 DEAL_II_NAMESPACE_CLOSE
 
+#ifndef DEAL_II_WITH_CXX26
+namespace std
+{
+  // When an inplace_vector is empty all of its operations are trivial.
+
+  template <typename T>
+  struct is_trivially_copy_constructible<
+    ::dealii::std_cxx26::inplace_vector<T, 0>> : std::true_type
+  {};
+
+  template <typename T>
+  struct is_trivially_move_constructible<
+    ::dealii::std_cxx26::inplace_vector<T, 0>> : std::true_type
+  {};
+
+  template <typename T>
+  struct is_trivially_copy_assignable<::dealii::std_cxx26::inplace_vector<T, 0>>
+    : std::true_type
+  {};
+
+  template <typename T>
+  struct is_trivially_move_assignable<::dealii::std_cxx26::inplace_vector<T, 0>>
+    : std::true_type
+  {};
+
+  template <typename T>
+  struct is_trivially_destructible<::dealii::std_cxx26::inplace_vector<T, 0>>
+    : std::true_type
+  {};
+
+  // Otherwise it inherits triviality from T.
+
+  template <typename T, std::size_t N>
+  struct is_trivially_copy_constructible<
+    ::dealii::std_cxx26::inplace_vector<T, N>>
+    : std::is_trivially_copy_constructible<T>
+  {};
+
+  template <typename T, std::size_t N>
+  struct is_trivially_move_constructible<
+    ::dealii::std_cxx26::inplace_vector<T, N>>
+    : std::is_trivially_move_constructible<T>
+  {};
+
+  template <typename T, std::size_t N>
+  struct is_trivially_copy_assignable<::dealii::std_cxx26::inplace_vector<T, N>>
+    : std::conditional_t<std::is_trivially_destructible_v<T> &&
+                           std::is_trivially_copy_constructible_v<T> &&
+                           std::is_trivially_copy_assignable_v<T>,
+                         std::true_type,
+                         std::false_type>
+  {};
+
+  template <typename T, std::size_t N>
+  struct is_trivially_move_assignable<::dealii::std_cxx26::inplace_vector<T, N>>
+    : std::conditional_t<std::is_trivially_destructible_v<T> &&
+                           std::is_trivially_move_constructible_v<T> &&
+                           std::is_trivially_move_assignable_v<T>,
+                         std::true_type,
+                         std::false_type>
+  {};
+
+  template <typename T, std::size_t N>
+  struct is_trivially_destructible<::dealii::std_cxx26::inplace_vector<T, N>>
+    : std::is_trivially_destructible<T>
+  {};
+} // namespace std
+#endif
+
 #endif

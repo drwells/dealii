@@ -24,6 +24,13 @@
  */
 struct A
 {
+  static bool &
+  logging()
+  {
+    static bool logging = true;
+    return logging;
+  }
+
   static int &
   n_ctors()
   {
@@ -41,30 +48,35 @@ struct A
   A()
   {
     ++n_ctors();
+    if (logging())
     deallog << "A::A()" << std::endl;
   }
 
   A(A &&)
   {
     ++n_ctors();
+    if (logging())
     deallog << "A::A(A&&)" << std::endl;
   }
 
   A(const A &)
   {
     ++n_ctors();
+    if (logging())
     deallog << "A::A(const A&)" << std::endl;
   }
 
   ~A()
   {
     ++n_dtors();
+    if (logging())
     deallog << "A::~A()" << std::endl;
   }
 
   A &
   operator=(const A &)
   {
+    if (logging())
     deallog << "A::operator=(const A&)" << std::endl;
     return *this;
   }
@@ -72,6 +84,7 @@ struct A
   A &
   operator=(A &&)
   {
+    if (logging())
     deallog << "A::operator=(A&&)" << std::endl;
     return *this;
   }

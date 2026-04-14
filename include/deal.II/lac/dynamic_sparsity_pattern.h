@@ -18,6 +18,7 @@
 
 #include <deal.II/base/enable_observer_pointer.h>
 #include <deal.II/base/index_set.h>
+#include <deal.II/base/thread_local_storage.h>
 #include <deal.II/base/utilities.h>
 
 #include <deal.II/lac/exceptions.h>
@@ -670,9 +671,28 @@ private:
   /**
    * A set that contains the valid rows.
    */
-
   IndexSet rowset;
 
+  /**
+   * Scratch data used for updating rows.
+   */
+  struct ScratchData
+  {
+    /**
+     * Scratch array of indices.
+     */
+    std::vector<size_type> indices;
+
+    /**
+     * Scratch array for sorting the input.
+     */
+    std::vector<size_type> sorted_input;
+  };
+
+  /**
+   * Keep one scratch object for each thread.
+   */
+  Threads::ThreadLocalStorage<ScratchData> scratch_data;
 
   /**
    * Store some data for each row describing which entries of this row are
@@ -700,9 +720,10 @@ private:
      */
     template <typename ForwardIterator>
     void
-    add_entries(ForwardIterator begin,
-                ForwardIterator end,
-                const bool      indices_are_sorted);
+    add_entries(ForwardIterator                           begin,
+                ForwardIterator                           end,
+                const bool                                indices_are_sorted,
+                Threads::ThreadLocalStorage<ScratchData> &scratch_data);
 
     /**
      * estimates memory consumption.
@@ -710,7 +731,6 @@ private:
     size_type
     memory_consumption() const;
   };
-
 
   /**
    * Actual data: store for each row the set of nonzero entries.
@@ -1030,7 +1050,7 @@ DynamicSparsityPattern::add_entries(const size_type row,
 
   const size_type rowindex =
     rowset.size() == 0 ? row : rowset.index_within_set(row);
-  lines[rowindex].add_entries(begin, end, indices_are_sorted);
+  lines[rowindex].add_entries(begin, end, indices_are_sorted, scratch_data);
 }
 
 

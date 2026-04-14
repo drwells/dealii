@@ -45,6 +45,9 @@
 #  include <hdf5.h>
 #endif
 
+#include <boost/archive/iterators/base64_from_binary.hpp>
+#include <boost/archive/iterators/binary_from_base64.hpp>
+#include <boost/archive/iterators/transform_width.hpp>
 #include <boost/iostreams/copy.hpp>
 #include <boost/iostreams/device/back_inserter.hpp>
 #include <boost/iostreams/filtering_stream.hpp>
@@ -129,9 +132,10 @@ namespace
    * result is then returned as a string object.
    */
   template <typename T>
-  std::string
+  void
   compress_array(const std::vector<T>               &data,
-                 const DataOutBase::CompressionLevel compression_level)
+                 const DataOutBase::CompressionLevel compression_level,
+                 std::ostringstream                 &output)
   {
 #  ifdef DEAL_II_WITH_ZLIB
     if (data.size() != 0)
@@ -174,22 +178,43 @@ namespace
           static_cast<std::uint32_t>(
             compressed_data_length)}; /* list of compressed sizes of blocks */
 
-        const auto *const header_start =
-          reinterpret_cast<const unsigned char *>(&compression_header[0]);
+        // Both the header and the data need padding
+        const std::array<std::string, 3> paddings{{"", "==", "="}};
 
-        return (Utilities::encode_base64(
-                  {header_start, header_start + 4 * sizeof(std::uint32_t)}) +
-                Utilities::encode_base64(compressed_data));
+        // Avoid creating an extra copies by writing to the stream (instead of
+        // using Utilties::encode_base64())
+
+        using namespace boost::archive::iterators;
+        using iterator =
+          base64_from_binary<transform_width<const unsigned char *, 6, 8>>;
+        {
+          auto char_begin = reinterpret_cast<const unsigned char *>(
+            std::begin(compression_header)),
+            char_end = reinterpret_cast<const unsigned char *>(
+                 std::end(compression_header));
+          auto begin = iterator(char_begin), end   = iterator(char_end);
+          for (auto it = begin; it != end; ++it)
+            output << *it;
+
+          output << paddings[(char_end - char_begin) % 3];
+        }
+
+        {
+          auto begin = iterator(compressed_data.data()),
+               end   = iterator(compressed_data.data() + compressed_data.size());
+          for (auto it = begin; it != end; ++it)
+            output << *it;
+
+          static_assert(sizeof(compressed_data[0]) == 1);
+          output << paddings[compressed_data.size() % 3];
+        }
       }
-    else
-      return {};
 #  else
     (void)data;
     (void)compression_level;
     Assert(false,
            ExcMessage("This function can only be called if cmake found "
                       "a working libz installation."));
-    return {};
 #  endif
   }
 
@@ -204,24 +229,24 @@ namespace
    * element.
    */
   template <typename T>
-  std::string
+  void
   vtu_stringize_array(const std::vector<T>               &data,
                       const DataOutBase::CompressionLevel compression_level,
-                      const int                           precision)
+                      const int                           precision,
+                      std::ostringstream                 &output)
   {
     if (deal_ii_with_zlib &&
         (compression_level != DataOutBase::CompressionLevel::plain_text))
       {
         // compress the data we have in memory
-        return compress_array(data, compression_level);
+        compress_array(data, compression_level, output);
       }
     else
       {
-        std::ostringstream stream;
-        stream.precision(precision);
+        const auto old_precision = output.precision(precision);
         for (const T &el : data)
-          stream << el << ' ';
-        return stream.str();
+          output << el << ' ';
+        output.precision(old_precision);
       }
   }
 
@@ -5452,8 +5477,11 @@ namespace DataOutBase
 
       unsigned int first_vertex_of_patch = 0;
 
+      std::vector<unsigned int> local_vertex_order;
       for (const auto &patch : patches)
         {
+          local_vertex_order.clear();
+
           // First treat a slight oddball case: For triangles and tetrahedra,
           // the case with n_subdivisions==2 is treated as if the cell was
           // output as a single, quadratic, cell rather than as one would
@@ -5518,9 +5546,6 @@ namespace DataOutBase
             {
               const unsigned int n_subdivisions         = patch.n_subdivisions;
               const unsigned int n_points_per_direction = n_subdivisions + 1;
-
-              std::vector<unsigned> local_vertex_order;
-
               // Output the current state of the local_vertex_order array,
               // then clear it:
               const auto flush_current_cell = [&flags,

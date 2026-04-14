@@ -128,8 +128,8 @@ namespace
 #  endif
 
   /**
-   * Do a zlib compression followed by a base64 encoding of the given data. The
-   * result is then returned as a string object.
+   * Do a zlib compression followed by a base64 encoding of the given data, and
+   * save the result to the provided output stream.
    */
   template <typename T>
   void
@@ -189,10 +189,10 @@ namespace
           base64_from_binary<transform_width<const unsigned char *, 6, 8>>;
         {
           auto char_begin = reinterpret_cast<const unsigned char *>(
-            std::begin(compression_header)),
-            char_end = reinterpret_cast<const unsigned char *>(
+                 std::begin(compression_header)),
+               char_end = reinterpret_cast<const unsigned char *>(
                  std::end(compression_header));
-          auto begin = iterator(char_begin), end   = iterator(char_end);
+          auto begin = iterator(char_begin), end = iterator(char_end);
           for (auto it = begin; it != end; ++it)
             output << *it;
 
@@ -201,7 +201,7 @@ namespace
 
         {
           auto begin = iterator(compressed_data.data()),
-               end   = iterator(compressed_data.data() + compressed_data.size());
+               end = iterator(compressed_data.data() + compressed_data.size());
           for (auto it = begin; it != end; ++it)
             output << *it;
 
@@ -5457,10 +5457,11 @@ namespace DataOutBase
             else
               node_coordinates_3d.emplace_back(0.0f);
         }
-      o << vtu_stringize_array(node_coordinates_3d,
-                               flags.compression_level,
-                               output_precision)
-        << '\n';
+      vtu_stringize_array(node_coordinates_3d,
+                          flags.compression_level,
+                          output_precision,
+                          o);
+      o << '\n';
       o << "    </DataArray>\n";
       o << "  </Points>\n\n";
 
@@ -5758,10 +5759,11 @@ namespace DataOutBase
       if (deal_ii_with_zlib && (flags.compression_level !=
                                 DataOutBase::CompressionLevel::plain_text))
         {
-          o << vtu_stringize_array(cells,
-                                   flags.compression_level,
-                                   output_precision)
-            << '\n';
+          vtu_stringize_array(cells,
+                              flags.compression_level,
+                              output_precision,
+                              o);
+          o << '\n';
         }
       o << "    </DataArray>\n";
 
@@ -5817,9 +5819,10 @@ namespace DataOutBase
               }
           }
 
-        o << vtu_stringize_array(offsets,
-                                 flags.compression_level,
-                                 output_precision);
+        vtu_stringize_array(offsets,
+                            flags.compression_level,
+                            output_precision,
+                            o);
         o << '\n';
         o << "    </DataArray>\n";
 
@@ -5833,15 +5836,17 @@ namespace DataOutBase
             for (unsigned int i = 0; i < cell_types.size(); ++i)
               cell_types_uint8_t[i] = static_cast<std::uint8_t>(cell_types[i]);
 
-            o << vtu_stringize_array(cell_types_uint8_t,
-                                     flags.compression_level,
-                                     output_precision);
+            vtu_stringize_array(cell_types_uint8_t,
+                                flags.compression_level,
+                                output_precision,
+                                o);
           }
         else
           {
-            o << vtu_stringize_array(cell_types,
-                                     flags.compression_level,
-                                     output_precision);
+            vtu_stringize_array(cell_types,
+                                flags.compression_level,
+                                output_precision,
+                                o);
           }
 
         o << '\n';
@@ -6003,9 +6008,7 @@ namespace DataOutBase
               }
           } // loop over nodes
 
-        o << vtu_stringize_array(data,
-                                 flags.compression_level,
-                                 output_precision);
+        vtu_stringize_array(data, flags.compression_level, output_precision, o);
         o << '\n';
         o << "    </DataArray>\n";
 
@@ -6032,9 +6035,7 @@ namespace DataOutBase
 
         const std::vector<float> data(data_vectors[data_set].begin(),
                                       data_vectors[data_set].end());
-        o << vtu_stringize_array(data,
-                                 flags.compression_level,
-                                 output_precision);
+        vtu_stringize_array(data, flags.compression_level, output_precision, o);
         o << '\n';
         o << "    </DataArray>\n";
 

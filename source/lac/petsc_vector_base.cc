@@ -1114,18 +1114,29 @@ namespace PETScWrappers
            internal::VectorReference::ExcWrongMode(action, last_action));
     Assert(!has_ghost_elements(), ExcGhostsPresent());
 
-    std::vector<PetscInt> petsc_indices(n_elements);
-    for (size_type i = 0; i < n_elements; ++i)
+    // avoid allocating memory by assigning a fixed number at a time.
+    const InsertMode          mode = (add_values ? ADD_VALUES : INSERT_VALUES);
+    std::ptrdiff_t            elements_remaining = n_elements;
+    size_type                 n_copied           = 0;
+    std::array<PetscInt, 128> petsc_indices;
+    if constexpr (running_in_debug_mode())
+      petsc_indices.fill(std::numeric_limits<PetscInt>::max());
+    while (elements_remaining > 0)
       {
-        const auto petsc_index = static_cast<PetscInt>(indices[i]);
-        AssertIntegerConversion(petsc_index, indices[i]);
-        petsc_indices[i] = petsc_index;
-      }
+        const auto buffer_size = elements_remaining % 128;
+        std::copy_n(indices + n_copied, buffer_size, petsc_indices.begin());
+        if constexpr (running_in_debug_mode())
+          for (size_type i = 0; i < buffer_size; ++i)
+            AssertIntegerConversion(petsc_indices[i], indices[n_copied + i]);
 
-    const InsertMode     mode = (add_values ? ADD_VALUES : INSERT_VALUES);
-    const PetscErrorCode ierr = VecSetValues(
-      vector, petsc_indices.size(), petsc_indices.data(), values, mode);
-    AssertThrow(ierr == 0, ExcPETScError(ierr));
+        const PetscErrorCode ierr = VecSetValues(
+          vector, buffer_size, petsc_indices.data(), values + n_copied, mode);
+        AssertThrow(ierr == 0, ExcPETScError(ierr));
+
+        elements_remaining -= buffer_size;
+        n_copied += buffer_size;
+      }
+    Assert(elements_remaining == 0, ExcInternalError());
 
     last_action = action;
   }

@@ -229,10 +229,10 @@ namespace Step83
       {nx + 2, nx + 3, 2 * nx + 2, 2 * nx + 3},
       {nx + 3, nx + 4, 2 * nx + 3, 2 * nx + 4}};
 
-    std::vector<CellData<dim>> cells((nx - 1) * (ny - 1), CellData<dim>());
+    std::vector<CellData<dim>> cells((nx - 1) * (ny - 1));
     for (unsigned int i = 0; i < cells.size(); ++i)
       {
-        cells[i].vertices    = cell_vertices[i];
+        cells[i].vertices.assign(cell_vertices[i].begin(), cell_vertices[i].end());
         cells[i].material_id = 0;
       }
 

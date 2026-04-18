@@ -584,6 +584,8 @@ namespace Step34
                                                        dof_handler,
                                                        support_points);
 
+    std::vector<Vector<double>> singular_cell_wind;
+
 
     // After doing so, we can start the integration loop over all cells, where
     // we first initialize the FEValues object and get the values of
@@ -675,14 +677,14 @@ namespace Step34
 
                 fe_v_singular.reinit(cell);
 
-                std::vector<Vector<double>> singular_cell_wind(
-                  singular_quadrature.size(), Vector<double>(dim));
-
                 const std::vector<Tensor<1, dim>> &singular_normals =
                   fe_v_singular.get_normal_vectors();
                 const std::vector<Point<dim>> &singular_q_points =
                   fe_v_singular.get_quadrature_points();
 
+                if (singular_cell_wind.size() != singular_quadrature.size())
+                  singular_cell_wind.resize(singular_quadrature.size(),
+                                            Vector<double>(dim));
                 wind.vector_value_list(singular_q_points, singular_cell_wind);
 
                 for (unsigned int q = 0; q < singular_quadrature.size(); ++q)

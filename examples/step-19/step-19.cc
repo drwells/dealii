@@ -294,7 +294,7 @@ namespace Step19
     // the inputs to Triangulation::create_triangulation() need to be
     // consistently oriented, which a function in namespace GridTools
     // does for us.
-    std::vector<CellData<dim>> cells((nx - 1) * (ny - 1), CellData<dim>());
+    std::vector<CellData<dim>> cells((nx - 1) * (ny - 1));
     for (unsigned int i = 0; i < cells.size(); ++i)
       {
         cells[i].vertices.assign(cell_vertices[i].begin(), cell_vertices[i].end());

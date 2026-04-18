@@ -1283,7 +1283,7 @@ namespace Step14
       // Again, we generate a C++ vector type from this, but this time by
       // looping over the cells (yes, this is boring). Additionally, we set
       // the material indicator to zero for all the cells:
-      std::vector<CellData<dim>> cells(n_cells, CellData<dim>());
+      std::vector<CellData<dim>> cells(n_cells);
       for (unsigned int i = 0; i < n_cells; ++i)
         {
           for (unsigned int j = 0; j < cell_vertices[i].size(); ++j)

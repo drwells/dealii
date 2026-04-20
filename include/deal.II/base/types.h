@@ -236,6 +236,16 @@ namespace numbers
   constexpr unsigned int invalid_unsigned_int = static_cast<unsigned int>(-1);
 
   /**
+   * Maximum level number in any Triangulation.
+   *
+   * @note This value matches the maximum level number of p4est: see also
+   * P4EST_MAXLEVEL and P8EST_MAXLEVEL.
+   *
+   * @note This is a constant so that CellId has a fixed binary representation.
+   */
+  constexpr unsigned int max_level_number = 30u;
+
+  /**
    * Representation of the largest number that can be put into a size_type.
    * This value is used throughout the library as a marker for an invalid
    * size_type value, such as an invalid array index, an invalid array size,

@@ -16410,6 +16410,14 @@ void Triangulation<dim, spacedim>::execute_coarsening_and_refinement()
   // the local part of the mesh and as such checking our flags is enough.
   Triangulation<dim, spacedim>::prepare_coarsening_and_refinement();
 
+  // verify we do not refine past the maximum level number. Since it is unlikely
+  // anyone will ever have a run this large in debug mode it is an AssertThrow()
+  if (this->n_levels() + 1 == numbers::max_level_number)
+    for (const auto &cell :
+         active_cell_iterators_on_level(numbers::max_level_number))
+      AssertThrow(!(cell->refine_flag_set()),
+                  ExcMessage("Fatal Error: maximum refinement level reached."));
+
   // verify a case with which we have had
   // some difficulty in the past (see the
   // deal.II/coarsening_* tests)

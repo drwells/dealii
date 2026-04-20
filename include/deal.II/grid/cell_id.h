@@ -18,14 +18,9 @@
 #include <deal.II/base/array_view.h>
 #include <deal.II/base/exceptions.h>
 
-#include <array>
 #include <cstdint>
-#include <iostream>
+#include <iosfwd>
 #include <vector>
-
-#ifdef DEAL_II_WITH_P4EST
-#  include <deal.II/distributed/p4est_wrappers.h>
-#endif
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -204,18 +199,6 @@ public:
 
 private:
   /**
-   * The number of the coarse cell within whose tree the cell
-   * represented by the current object is located.
-   */
-  types::coarse_cell_id coarse_cell_id;
-
-  /**
-   * The number of child indices stored in the child_indices array. This is
-   * equivalent to (level-1) of the current cell.
-   */
-  unsigned int n_child_indices;
-
-  /**
    * An array of integers that denotes which child to pick from one
    * refinement level to the next, starting with the coarse cell,
    * until we get to the cell represented by the current object.
@@ -224,12 +207,13 @@ private:
    * creation of this object. If the given dimensions ever become a limitation
    * the array can be extended.
    */
-#ifdef DEAL_II_WITH_P4EST
-  std::array<std::uint8_t, internal::p4est::functions<2>::max_level>
-    child_indices;
-#else
-  std::array<std::uint8_t, 30> child_indices;
-#endif
+  std_cxx26::inplace_vector<std::uint8_t, numbers::max_level_number> child_indices;
+
+  /**
+   * The number of the coarse cell within whose tree the cell
+   * represented by the current object is located.
+   */
+  types::coarse_cell_id coarse_cell_id;
 
   friend std::istream &
   operator>>(std::istream &is, CellId &cid);
@@ -237,25 +221,17 @@ private:
   operator<<(std::ostream &os, const CellId &cid);
 };
 
-
-
 /**
  * Write a CellId object into a stream.
  */
 inline std::ostream &
-operator<<(std::ostream &os, const CellId &cid)
-{
-  os << cid.coarse_cell_id << '_' << cid.n_child_indices << ':';
-  for (unsigned int i = 0; i < cid.n_child_indices; ++i)
-    // write the child indices. because they are between 0 and 2^dim-1, they all
-    // just have one digit, so we could write them as one character
-    // objects. it's probably clearer to write them as one-digit characters
-    // starting at '0'
-    os << static_cast<unsigned char>('0' + cid.child_indices[i]);
-  return os;
-}
+operator<<(std::ostream &os, const CellId &cid);
 
-
+/**
+ * Read a CellId object from a stream.
+ */
+std::istream &
+operator>>(std::istream &is, CellId &cid);
 
 /**
  * Serialization function
@@ -267,36 +243,6 @@ CellId::serialize(Archive &ar, const unsigned int /*version*/)
   ar &coarse_cell_id;
   ar &n_child_indices;
   ar &child_indices;
-}
-
-/**
- * Read a CellId object from a stream.
- */
-inline std::istream &
-operator>>(std::istream &is, CellId &cid)
-{
-  unsigned int cellid;
-  is >> cellid;
-  if (is.eof())
-    return is;
-
-  cid.coarse_cell_id = cellid;
-  char dummy;
-  is >> dummy;
-  Assert(dummy == '_', ExcMessage("invalid CellId"));
-  is >> cid.n_child_indices;
-  is >> dummy;
-  Assert(dummy == ':', ExcMessage("invalid CellId"));
-
-  unsigned char value;
-  for (unsigned int i = 0; i < cid.n_child_indices; ++i)
-    {
-      // read the one-digit child index (as an integer number) and
-      // convert it back into unsigned integer type
-      is >> value;
-      cid.child_indices[i] = value - '0';
-    }
-  return is;
 }
 
 

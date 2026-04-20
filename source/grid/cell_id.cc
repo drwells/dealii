@@ -15,6 +15,7 @@
 
 #include <limits>
 #include <sstream>
+#include <iostream>
 
 DEAL_II_NAMESPACE_OPEN
 
@@ -120,6 +121,23 @@ CellId::to_binary() const
   binary_representation[1] = (n_child_indices << 2);
   binary_representation[1] |= dim;
 
+  // some quick calculations
+  //
+  // 30 children in 3d: 30 * 3 = 90 bits
+  // 90 bits is 11.25 bytes (11 * 8 + 2)
+  //
+  // so we have 2 bits extra (enough to store 0, 1, 2, 3: the dimension)
+  //
+  // so that's exactly enough to store everything but the coarse cell
+  //
+  // then the coarse cell is technically 8 bytes! We can probably get away with
+  // 6 or 7 for now (no-one is going to use 2^56 cells any time soon). If we can
+  // jam it in 6 bytes then we have 18 bytes total: a funny number. We might as
+  // well use the full 8 bytes which leaves us at 20 bytes, or exactly 5 4-byte
+  // integers.
+  //
+  // conclusion: use 5 4-byte integers to serialize.
+
   // Each child requires 'dim' bits to store its index
   const unsigned int children_per_value =
     sizeof(binary_type::value_type) * 8 / dim;
@@ -156,6 +174,49 @@ CellId::to_string() const
   std::ostringstream ss;
   ss << *this;
   return ss.str();
+}
+
+
+
+inline std::istream &
+operator>>(std::istream &is, CellId &cid)
+{
+  unsigned int cellid;
+  is >> cellid;
+  if (is.eof())
+    return is;
+
+  cid.coarse_cell_id = cellid;
+  char dummy;
+  is >> dummy;
+  Assert(dummy == '_', ExcMessage("invalid CellId"));
+  is >> cid.n_child_indices;
+  is >> dummy;
+  Assert(dummy == ':', ExcMessage("invalid CellId"));
+
+  unsigned char value;
+  for (unsigned int i = 0; i < cid.n_child_indices; ++i)
+    {
+      // read the one-digit child index (as an integer number) and
+      // convert it back into unsigned integer type
+      is >> value;
+      cid.child_indices[i] = value - '0';
+    }
+  return is;
+}
+
+
+std::ostream &
+operator<<(std::ostream &os, const CellId &cid)
+{
+  os << cid.coarse_cell_id << '_' << cid.n_child_indices << ':';
+  for (unsigned int i = 0; i < cid.n_child_indices; ++i)
+    // write the child indices. because they are between 0 and 2^dim-1, they all
+    // just have one digit, so we could write them as one character
+    // objects. it's probably clearer to write them as one-digit characters
+    // starting at '0'
+    os << static_cast<unsigned char>('0' + cid.child_indices[i]);
+  return os;
 }
 
 

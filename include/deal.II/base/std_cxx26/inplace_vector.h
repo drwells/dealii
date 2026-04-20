@@ -23,13 +23,14 @@
 #  include <deal.II/base/exception_macros.h>
 #  include <deal.II/base/exceptions.h>
 
+// Since we re-use iterators from std::array, we can skip including utility and
+// iterator and instead rely on the implicit includes (which may be smaller than
+// the full public headers)
 #  include <algorithm>
 #  include <array>
 #  include <initializer_list>
-#  include <iterator>
 #  include <limits>
 #  include <type_traits>
-#  include <utility>
 #endif
 
 // TODO: once we require C++20 we can remove this and check if we have an input

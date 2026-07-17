@@ -232,10 +232,15 @@ MappingP1<dim, spacedim>::transform_quadrature_points(
 {
   Assert(cell->vertex(0) == data.affine_component, ExcInternalError());
   for (unsigned int i = 0; i < quadrature_points.size(); ++i)
-    quadrature_points[i] =
-      data.affine_component +
-      apply_transformation(data.contravariant,
-                           data.quadrature.point(offset + i));
+    {
+      Assert(data.update_each & update_contravariant_transformation,
+             typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+               "update_contravariant_transformation"));
+      quadrature_points[i] =
+        data.affine_component +
+        apply_transformation(data.contravariant,
+                             data.quadrature.point(offset + i));
+    }
 }
 
 
@@ -321,9 +326,14 @@ MappingP1<dim, spacedim>::maybe_update_jacobians(
   // same
   if (data.update_each & update_jacobians)
     if (cell_similarity != CellSimilarity::translation)
-      std::fill(output_data.jacobians.begin(),
-                output_data.jacobians.end(),
-                data.contravariant);
+      {
+        Assert(data.update_each & update_contravariant_transformation,
+               typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+                 "update_contravariant_transformation"));
+        std::fill(output_data.jacobians.begin(),
+                  output_data.jacobians.end(),
+                  data.contravariant);
+      }
 }
 
 
@@ -339,6 +349,9 @@ MappingP1<dim, spacedim>::maybe_update_inverse_jacobians(
   if (data.update_each & update_inverse_jacobians)
     if (cell_similarity != CellSimilarity::translation)
       {
+        Assert(data.update_each & update_covariant_transformation,
+               typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+                 "update_covariant_transformation"));
         const auto inverse = data.covariant.transpose();
         std::fill(output_data.inverse_jacobians.begin(),
                   output_data.inverse_jacobians.end(),
@@ -374,6 +387,9 @@ MappingP1<dim, spacedim>::fill_fe_values(
   if (data.update_each & update_JxW_values)
     if (cell_similarity != CellSimilarity::translation)
       {
+        Assert(data.update_each & update_volume_elements,
+               typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+                 "update_volume_elements"));
         for (unsigned int i = 0; i < output_data.JxW_values.size(); ++i)
           output_data.JxW_values[i] =
             data.volume_element * quadrature.weight(i);
@@ -394,6 +410,9 @@ MappingP1<dim, spacedim>::fill_fe_values(
                         "space dimension is one greater than the "
                         "dimensionality of the mesh cells."));
 
+      Assert(data.update_each & update_contravariant_transformation,
+             typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+               "update_contravariant_transformation"));
       Tensor<1, spacedim> normal;
       // avoid warnings by only computing cross products in supported dimensions
       if constexpr (dim == 1 && spacedim == 2)
@@ -581,6 +600,9 @@ MappingP1<dim, spacedim>::transform(
     {
       case mapping_covariant:
         {
+          Assert(data.update_each & update_covariant_transformation,
+                 typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+                   "update_covariant_transformation"));
           for (unsigned int i = 0; i < output.size(); ++i)
             output[i] = apply_transformation(data.covariant, input[i]);
           return;
@@ -588,6 +610,9 @@ MappingP1<dim, spacedim>::transform(
 
       case mapping_contravariant:
         {
+          Assert(data.update_each & update_contravariant_transformation,
+                 typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+                   "update_contravariant_transformation"));
           for (unsigned int i = 0; i < output.size(); ++i)
             output[i] = apply_transformation(data.contravariant, input[i]);
           return;
@@ -638,6 +663,10 @@ MappingP1<dim, spacedim>::transform(
     {
       case mapping_covariant:
         {
+          Assert(data.update_each & update_covariant_transformation,
+                 typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+                   "update_covariant_transformation"));
+
           for (unsigned int i = 0; i < output.size(); ++i)
             output[i] = apply_transformation(data.covariant, input[i]);
 
@@ -707,6 +736,9 @@ MappingP1<dim, spacedim>::transform(
           Assert(data.update_each & update_covariant_transformation,
                  typename FEValuesBase<dim>::ExcAccessToUninitializedField(
                    "update_covariant_transformation"));
+          Assert(data.update_each & update_contravariant_transformation,
+                 typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+                   "update_contravariant_transformation"));
 
           for (unsigned int i = 0; i < output.size(); ++i)
             {
@@ -720,6 +752,9 @@ MappingP1<dim, spacedim>::transform(
 
       case mapping_piola_gradient:
         {
+          Assert(data.update_each & update_covariant_transformation,
+                 typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+                   "update_covariant_transformation"));
           Assert(data.update_each & update_contravariant_transformation,
                  typename FEValuesBase<dim>::ExcAccessToUninitializedField(
                    "update_contravariant_transformation"));

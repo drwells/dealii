@@ -232,13 +232,19 @@ MappingP1<dim, spacedim>::maybe_update_normal_vectors(
   const InternalData               &data,
   std::vector<Tensor<1, spacedim>> &normal_vectors) const
 {
-  const Tensor<1, dim> ref_normal_vector =
-    ReferenceCells::get_simplex<dim>().unit_normal_vectors(face_no);
-  Tensor<1, spacedim> normal_vector =
-    apply_transformation(data.covariant, ref_normal_vector);
-  normal_vector /= normal_vector.norm();
+  if (data.update_each & update_normal_vectors)
+    {
+      const Tensor<1, dim> ref_normal_vector =
+        ReferenceCells::get_simplex<dim>().unit_normal_vectors(face_no);
+      Assert(data.update_each & update_covariant_transformation,
+             typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+               "update_covariant_transformation"));
+      Tensor<1, spacedim> normal_vector =
+        apply_transformation(data.covariant, ref_normal_vector);
+      normal_vector /= normal_vector.norm();
 
-  std::fill(normal_vectors.begin(), normal_vectors.end(), normal_vector);
+      std::fill(normal_vectors.begin(), normal_vectors.end(), normal_vector);
+    }
 }
 
 

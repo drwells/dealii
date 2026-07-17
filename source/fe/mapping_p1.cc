@@ -115,8 +115,20 @@ MappingP1<dim, spacedim>::requires_update_flags(const UpdateFlags in) const
   // Like MappingCartesian, this mapping is simple and has minimal update
   // interdependencies
   UpdateFlags out = in;
+  if (out & update_JxW_values)
+    out |= update_volume_elements;
   if (out & update_boundary_forms)
     out |= update_normal_vectors;
+  if (out & update_normal_vectors)
+    out |= update_covariant_transformation;
+  if (out & update_inverse_jacobians)
+    out |= update_covariant_transformation;
+  if (out & update_volume_elements)
+    out |= update_contravariant_transformation;
+  if (out & update_covariant_transformation)
+    out |= update_contravariant_transformation;
+  if (out & update_quadrature_points)
+    out |= update_contravariant_transformation;
 
   return out;
 }
@@ -200,9 +212,12 @@ MappingP1<dim, spacedim>::update_transformation(
   const InternalData                                         &data) const
 {
   data.affine_component = cell->vertex(0);
-  data.contravariant    = compute_linear_transformation<dim, spacedim>(cell);
-  data.covariant        = data.contravariant.covariant_form();
-  data.volume_element   = data.contravariant.determinant();
+  if (data.update_each & update_contravariant_transformation)
+    data.contravariant = compute_linear_transformation<dim, spacedim>(cell);
+  if (data.update_each & update_covariant_transformation)
+    data.covariant = data.contravariant.covariant_form();
+  if (data.update_each & update_volume_elements)
+    data.volume_element = data.contravariant.determinant();
 }
 
 

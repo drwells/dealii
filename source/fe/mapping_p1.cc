@@ -573,10 +573,22 @@ MappingP1<dim, spacedim>::transform(
         }
       case mapping_piola:
         {
-          auto transformation = data.contravariant;
-          Assert(data.volume_element > 0.0, ExcDivideByZero());
+          Assert(data.update_each & update_contravariant_transformation,
+                 typename FEValuesBase<dim>::ExcAccessToUninitializedField(
+                   "update_contravariant_transformation"));
+          auto   transformation = data.contravariant;
+          double volume_element = 0.0;
+          // Presently, no simplex elements actually require the Piola
+          // transformation. Avoid the extra computational cost of always
+          // computing the volume elements whenever we need the contravariant by
+          // computing it ourselves at this point if needed
+          if (data.update_each & update_volume_elements)
+            volume_element = data.volume_element;
+          else
+            volume_element = data.contravariant.determinant();
+          Assert(volume_element > 0.0, ExcDivideByZero());
           for (unsigned int d = 0; d < spacedim; ++d)
-            transformation[d] *= 1.0 / data.volume_element;
+            transformation[d] *= 1.0 / volume_element;
           for (unsigned int i = 0; i < output.size(); ++i)
             output[i] = apply_transformation(transformation, input[i]);
           return;
@@ -690,11 +702,17 @@ MappingP1<dim, spacedim>::transform(
           Assert(data.update_each & update_contravariant_transformation,
                  typename FEValuesBase<dim>::ExcAccessToUninitializedField(
                    "update_contravariant_transformation"));
+          double volume_element = 0.0;
+          // See the note in the other Piola transformation function
+          if (data.update_each & update_volume_elements)
+            volume_element = data.volume_element;
+          else
+            volume_element = data.contravariant.determinant();
 
           for (unsigned int i = 0; i < output.size(); ++i)
             output[i] = internal::apply_piola_gradient(data.covariant,
                                                        data.contravariant,
-                                                       data.volume_element,
+                                                       volume_element,
                                                        input[i]);
 
 
@@ -796,11 +814,17 @@ MappingP1<dim, spacedim>::transform(
           Assert(data.update_each & update_contravariant_transformation,
                  typename FEValuesBase<dim>::ExcAccessToUninitializedField(
                    "update_contravariant_transformation"));
+          double volume_element = 0.0;
+          // See the note in the other Piola transformation function
+          if (data.update_each & update_volume_elements)
+            volume_element = data.volume_element;
+          else
+            volume_element = data.contravariant.determinant();
 
           for (unsigned int i = 0; i < output.size(); ++i)
             output[i] = internal::apply_piola_hessian(data.covariant,
                                                       data.contravariant,
-                                                      data.volume_element,
+                                                      volume_element,
                                                       input[i]);
 
           return;

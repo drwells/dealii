@@ -94,6 +94,7 @@ test()
           fe_values_2.reinit(cell, face_no);
 
           deallog << "JxW" << std::endl;
+          double face_measure = 0.0;
           for (unsigned int qp_n = 0; qp_n < quadrature.size(); ++qp_n)
             {
               deallog << "  " << fe_values.JxW(qp_n) << std::endl;
@@ -101,6 +102,7 @@ test()
               Assert(std::abs((fe_values.JxW(qp_n) - fe_values_2.JxW(qp_n))) <
                        1e-12,
                      ExcInternalError());
+              face_measure += fe_values.JxW(qp_n);
             }
           deallog << std::endl;
 
@@ -235,6 +237,12 @@ test()
                             .norm() == 0)
                       << std::endl;
             }
+          deallog << std::endl;
+
+          Assert(std::abs(face_measure - cell->face(face_no)->measure()) <
+                   1e-12 * face_measure,
+                 ExcInternalError());
+          deallog << "  face measure = " << face_measure << std::endl;
           deallog << std::endl;
         }
     }

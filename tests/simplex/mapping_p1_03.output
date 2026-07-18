@@ -94,6 +94,8 @@ DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
 DEAL::
+DEAL::  face measure = 0.500000
+DEAL::
 DEAL::JxW
 DEAL::  0.125000
 DEAL::  0.125000
@@ -182,6 +184,8 @@ DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
 DEAL::
+DEAL::  face measure = 0.500000
+DEAL::
 DEAL::JxW
 DEAL::  0.176777
 DEAL::  0.176777
@@ -269,6 +273,8 @@ DEAL::
 DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
+DEAL::
+DEAL::  face measure = 0.707107
 DEAL::
 DEAL::
 DEAL::cell vertices
@@ -364,6 +370,8 @@ DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
 DEAL::
+DEAL::  face measure = 0.500000
+DEAL::
 DEAL::JxW
 DEAL::  0.125000
 DEAL::  0.125000
@@ -451,6 +459,8 @@ DEAL::
 DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
+DEAL::
+DEAL::  face measure = 0.500000
 DEAL::
 DEAL::JxW
 DEAL::  0.176777
@@ -540,6 +550,8 @@ DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
 DEAL::
+DEAL::  face measure = 0.707107
+DEAL::
 DEAL::
 DEAL::MappingP1<2, 3>
 DEAL::
@@ -628,6 +640,8 @@ DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
 DEAL::
+DEAL::  face measure = 1.58114
+DEAL::
 DEAL::JxW
 DEAL::  0.395285
 DEAL::  0.395285
@@ -708,6 +722,8 @@ DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
 DEAL::
+DEAL::  face measure = 1.58114
+DEAL::
 DEAL::JxW
 DEAL::  0.176777
 DEAL::  0.176777
@@ -787,6 +803,8 @@ DEAL::
 DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
+DEAL::
+DEAL::  face measure = 0.707107
 DEAL::
 DEAL::
 DEAL::cell vertices
@@ -874,6 +892,8 @@ DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
 DEAL::
+DEAL::  face measure = 1.58114
+DEAL::
 DEAL::JxW
 DEAL::  0.395285
 DEAL::  0.395285
@@ -954,6 +974,8 @@ DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
 DEAL::
+DEAL::  face measure = 1.58114
+DEAL::
 DEAL::JxW
 DEAL::  0.176777
 DEAL::  0.176777
@@ -1033,6 +1055,8 @@ DEAL::
 DEAL::Jacobian push forward 3rd derivatives
 DEAL::  all zero = 1
 DEAL::  all zero = 1
+DEAL::
+DEAL::  face measure = 0.707107
 DEAL::
 DEAL::
 DEAL::OK

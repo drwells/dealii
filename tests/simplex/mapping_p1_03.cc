@@ -113,9 +113,12 @@ test()
 
           for (unsigned int face_no : cell->face_indices())
             {
+              const unsigned int neighbor_of_neighbor_no =
+                cell->neighbor_of_neighbor(face_no);
+              double face_measure   = 0.0;
+              double face_measure_2 = 0.0;
               for (unsigned int subface_no = 0; subface_no < (dim == 2 ? 2 : 4);
                    ++subface_no)
-
                 {
                   fe_values.reinit(cell, face_no, subface_no);
                   fe_values_2.reinit(cell, face_no, subface_no);
@@ -128,7 +131,12 @@ test()
                       Assert(std::abs((fe_values.JxW(qp_n) -
                                        fe_values_2.JxW(qp_n))) < 1e-12,
                              ExcInternalError());
+                      face_measure += fe_values.JxW(qp_n);
                     }
+                  face_measure_2 += cell->neighbor(face_no)
+                                      ->face(neighbor_of_neighbor_no)
+                                      ->child(subface_no)
+                                      ->measure();
                   deallog << std::endl;
 
                   deallog << "quadrature points" << std::endl;
@@ -262,6 +270,15 @@ test()
                     }
                   deallog << std::endl;
                 }
+
+              Assert(std::abs(face_measure - cell->face(face_no)->measure()) <
+                       1e-12 * face_measure,
+                     ExcInternalError());
+              Assert(std::abs(face_measure - face_measure_2) <
+                       1e-12 * face_measure,
+                     ExcInternalError());
+              deallog << "  face measure = " << face_measure << std::endl;
+              deallog << std::endl;
             }
         }
     }

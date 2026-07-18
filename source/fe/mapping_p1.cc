@@ -34,13 +34,58 @@ namespace
   template <int dim, int spacedim>
   DerivativeForm<1, dim, spacedim>
   compute_linear_transformation(
-    const typename Triangulation<dim, spacedim>::cell_iterator &cell)
+    const std::array<Point<spacedim>, dim + 1> &mapping_support_points)
   {
     DerivativeForm<1, dim, spacedim> result;
     for (unsigned int j = 0; j < spacedim; ++j)
       for (unsigned int i = 1; i < dim + 1; ++i)
-        result[j][i - 1] = cell->vertex(i)[j] - cell->vertex(0)[j];
+        result[j][i - 1] =
+          mapping_support_points[i][j] - mapping_support_points[0][j];
     return result;
+  }
+
+  /**
+   * Compute the measure of a face (or subface). Rather than use
+   * cell->face(face_no)->measure(), instead use the vertices of the
+   * transformation to avoid the vertex lookup step.
+   */
+  template <int dim, int spacedim>
+  inline double
+  face_measure(const unsigned int                          face_no,
+               const std::array<Point<spacedim>, dim + 1> &vertices)
+  {
+    if constexpr (dim == 1)
+      {
+        return 1.0;
+      }
+    else
+      {
+        // Skip a second lookup of the vertices (in TriaAccessor::measure())
+        // by using the ones in the mapping
+        Assert(dim <= 3, ExcNotImplemented());
+        std::array<unsigned int, dim> face_vertices;
+        constexpr auto reference_cell = ReferenceCells::get_simplex<dim>();
+        for (unsigned int d = 0; d < dim; ++d)
+          face_vertices[d] = reference_cell.face_to_cell_vertices(
+            face_no, d, numbers::default_geometric_orientation);
+
+        if constexpr (dim == 2)
+          {
+            return (vertices[face_vertices[1]] - vertices[face_vertices[0]])
+              .norm();
+          }
+        else
+          {
+            const auto v01 =
+              vertices[face_vertices[1]] - vertices[face_vertices[0]];
+            const auto v02 =
+              vertices[face_vertices[2]] - vertices[face_vertices[0]];
+            return 0.5 * cross_product_3d(v01, v02).norm();
+          }
+      }
+
+    DEAL_II_ASSERT_UNREACHABLE();
+    return 0.0;
   }
 } // namespace
 
@@ -89,7 +134,7 @@ std::size_t
 MappingP1<dim, spacedim>::InternalData::memory_consumption() const
 {
   return (Mapping<dim, spacedim>::InternalDataBase::memory_consumption() +
-          MemoryConsumption::memory_consumption(affine_component) +
+          MemoryConsumption::memory_consumption(mapping_support_points) +
           MemoryConsumption::memory_consumption(contravariant) +
           MemoryConsumption::memory_consumption(covariant) +
           MemoryConsumption::memory_consumption(volume_element) +
@@ -220,9 +265,11 @@ MappingP1<dim, spacedim>::update_transformation(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const InternalData                                         &data) const
 {
-  data.affine_component = cell->vertex(0);
+  for (unsigned int d = 0; d < dim + 1; ++d)
+    data.mapping_support_points[d] = cell->vertex(d);
   if (data.update_each & update_contravariant_transformation)
-    data.contravariant = compute_linear_transformation<dim, spacedim>(cell);
+    data.contravariant =
+      compute_linear_transformation<dim, spacedim>(data.mapping_support_points);
   if (data.update_each & update_covariant_transformation)
     data.covariant = data.contravariant.covariant_form();
   if (data.update_each & update_volume_elements)
@@ -239,14 +286,14 @@ MappingP1<dim, spacedim>::transform_quadrature_points(
   const typename QProjector<dim>::DataSetDescriptor          &offset,
   std::vector<Point<spacedim>> &quadrature_points) const
 {
-  Assert(cell->vertex(0) == data.affine_component, ExcInternalError());
+  Assert(cell->vertex(0) == data.mapping_support_points[0], ExcInternalError());
   for (unsigned int i = 0; i < quadrature_points.size(); ++i)
     {
       Assert(data.update_each & update_contravariant_transformation,
              typename FEValuesBase<dim>::ExcAccessToUninitializedField(
                "update_contravariant_transformation"));
       quadrature_points[i] =
-        data.affine_component +
+        data.mapping_support_points[0] +
         apply_transformation(data.contravariant,
                              data.quadrature.point(offset + i));
     }
@@ -521,15 +568,21 @@ MappingP1<dim, spacedim>::fill_fe_face_values(
       // Since the quadrature weights presently sum to
       // cell->reference_cell().face_measure(face_no), we have to rescale so
       // they sum to the area of the face
-      const double J =
-        cell->face(face_no)->measure() / reference_cell.face_measure(face_no);
+      double measure = face_measure<dim>(face_no, data.mapping_support_points);
+      Assert(std::abs(measure - cell->face(face_no)->measure()) <
+               1e-12 * measure,
+             ExcInternalError());
+      measure /= reference_cell.face_measure(face_no);
+
       if (data.update_each & update_JxW_values)
         for (unsigned int i = 0; i < output_data.JxW_values.size(); ++i)
-          output_data.JxW_values[i] = J * data.quadrature.weight(i + offset);
+          output_data.JxW_values[i] =
+            measure * data.quadrature.weight(i + offset);
 
       if (data.update_each & update_boundary_forms)
         for (unsigned int i = 0; i < output_data.boundary_forms.size(); ++i)
-          output_data.boundary_forms[i] = J * output_data.normal_vectors[i];
+          output_data.boundary_forms[i] =
+            measure * output_data.normal_vectors[i];
     }
 
   maybe_update_jacobians(data, CellSimilarity::none, output_data);
@@ -557,7 +610,7 @@ MappingP1<dim, spacedim>::fill_fe_subface_values(
   update_transformation(cell, data);
   constexpr auto reference_cell      = ReferenceCells::get_simplex<dim>();
   constexpr auto face_reference_cell = ReferenceCells::get_simplex<dim - 1>();
-  // FEValues should check the ReferenceCell
+  // FEValues should have already checked the ReferenceCell
   Assert(reference_cell == cell->reference_cell(), ExcInternalError());
   const auto offset =
     QProjector<dim>::DataSetDescriptor::subface(reference_cell,
@@ -578,16 +631,22 @@ MappingP1<dim, spacedim>::fill_fe_subface_values(
   if (data.update_each & (update_JxW_values | update_boundary_forms))
     {
       // Same as fill_fe_face_values()
-      const double J = cell->face(face_no)->measure() /
-                       reference_cell.face_measure(face_no) /
-                       face_reference_cell.n_isotropic_children();
+      double measure = face_measure<dim>(face_no, data.mapping_support_points);
+      Assert(std::abs(measure - cell->face(face_no)->measure()) <
+               1e-12 * measure,
+             ExcInternalError());
+      measure /= (reference_cell.face_measure(face_no) *
+                  face_reference_cell.n_isotropic_children());
+
       if (data.update_each & update_JxW_values)
         for (unsigned int i = 0; i < output_data.JxW_values.size(); ++i)
-          output_data.JxW_values[i] = J * quadrature.weight(i);
+          output_data.JxW_values[i] =
+            measure * data.quadrature.weight(offset + i);
 
       if (data.update_each & update_boundary_forms)
         for (unsigned int i = 0; i < output_data.boundary_forms.size(); ++i)
-          output_data.boundary_forms[i] = J * output_data.normal_vectors[i];
+          output_data.boundary_forms[i] =
+            measure * output_data.normal_vectors[i];
     }
 
   maybe_update_jacobians(data, CellSimilarity::none, output_data);
@@ -913,10 +972,13 @@ MappingP1<dim, spacedim>::transform_unit_to_real_cell(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const Point<dim>                                           &p) const
 {
+  std::array<Point<spacedim>, dim + 1> support_points;
+  for (unsigned int d = 0; d < dim + 1; ++d)
+    support_points[d] = cell->vertex(d);
   const DerivativeForm<1, dim, spacedim> contravariant =
-    compute_linear_transformation<dim, spacedim>(cell);
+    compute_linear_transformation<dim, spacedim>(support_points);
   const Tensor<1, spacedim> sheared = apply_transformation(contravariant, p);
-  return cell->vertex(0) + sheared;
+  return support_points[0] + sheared;
 }
 
 
@@ -927,12 +989,14 @@ MappingP1<dim, spacedim>::transform_real_to_unit_cell(
   const typename Triangulation<dim, spacedim>::cell_iterator &cell,
   const Point<spacedim>                                      &p) const
 {
+  std::array<Point<spacedim>, dim + 1> support_points;
+  for (unsigned int d = 0; d < dim + 1; ++d)
+    support_points[d] = cell->vertex(d);
   const DerivativeForm<1, spacedim, dim> contravariant =
-    compute_linear_transformation<dim, spacedim>(cell)
+    compute_linear_transformation<dim, spacedim>(support_points)
       .covariant_form()
       .transpose();
-  const Tensor<1, spacedim> offset = cell->vertex(0);
-  return Point<dim>(apply_transformation(contravariant, p - offset));
+  return Point<dim>(apply_transformation(contravariant, p - support_points[0]));
 }
 
 
@@ -944,14 +1008,16 @@ MappingP1<dim, spacedim>::transform_points_real_to_unit_cell(
   const ArrayView<const Point<spacedim>>                     &real_points,
   const ArrayView<Point<dim>>                                &unit_points) const
 {
+  std::array<Point<spacedim>, dim + 1> support_points;
+  for (unsigned int d = 0; d < dim + 1; ++d)
+    support_points[d] = cell->vertex(d);
   const DerivativeForm<1, spacedim, dim> contravariant =
-    compute_linear_transformation<dim, spacedim>(cell)
+    compute_linear_transformation<dim, spacedim>(support_points)
       .covariant_form()
       .transpose();
-  const Tensor<1, spacedim> offset = cell->vertex(0);
   for (unsigned int i = 0; i < real_points.size(); ++i)
-    unit_points[i] =
-      Point<dim>(apply_transformation(contravariant, real_points[i] - offset));
+    unit_points[i] = Point<dim>(
+      apply_transformation(contravariant, real_points[i] - support_points[0]));
 }
 
 

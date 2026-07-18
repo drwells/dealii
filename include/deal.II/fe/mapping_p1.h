@@ -227,9 +227,10 @@ public:
     bool update_any_jacobian_derivatives;
 
     /**
-     * Affine component of the transformation.
+     * Mapping support points (i.e., the vertices of the cell). The first
+     * support point is the affine component of the transformation.
      */
-    mutable Tensor<1, spacedim> affine_component;
+    mutable std::array<Point<spacedim>, dim + 1> mapping_support_points;
 
     /**
      * Linear component of the transformation (the contravariant).

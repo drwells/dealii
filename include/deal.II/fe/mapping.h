@@ -658,8 +658,7 @@ public:
   {
   public:
     /**
-     * Constructor. Sets update_flags to @p update_default and @p first_cell
-     * to @p true.
+     * Constructor. Sets update_flags to @p update_default.
      */
     InternalDataBase();
 

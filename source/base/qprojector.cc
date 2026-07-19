@@ -123,7 +123,7 @@ namespace internal
        * applied to the second cell's face which yields the first cell's
        * face) so that we get identical quadrature points.
        *
-       * For more information see connectivity.h.
+       * For more information see the Connectivity class in tria.h.
        */
       template <int dim>
       void

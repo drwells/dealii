@@ -489,8 +489,11 @@ MappingP1<dim, spacedim>::fill_fe_face_values(
   const InternalData &data = static_cast<const InternalData &>(internal_data);
 
   update_transformation(cell, data);
+  constexpr auto reference_cell = ReferenceCells::get_simplex<dim>();
+  // FEValues should check the ReferenceCell
+  Assert(reference_cell == cell->reference_cell(), ExcInternalError());
   const auto offset =
-    QProjector<dim>::DataSetDescriptor::face(cell->reference_cell(),
+    QProjector<dim>::DataSetDescriptor::face(reference_cell,
                                              face_no,
                                              cell->combined_face_orientation(
                                                face_no),
@@ -508,8 +511,8 @@ MappingP1<dim, spacedim>::fill_fe_face_values(
       // Since the quadrature weights presently sum to
       // cell->reference_cell().face_measure(face_no), we have to rescale so
       // they sum to the area of the face
-      const double J = cell->face(face_no)->measure() /
-                       cell->reference_cell().face_measure(face_no);
+      const double J =
+        cell->face(face_no)->measure() / reference_cell.face_measure(face_no);
       if (data.update_each & update_JxW_values)
         for (unsigned int i = 0; i < output_data.JxW_values.size(); ++i)
           output_data.JxW_values[i] = J * data.quadrature.weight(i + offset);
@@ -542,8 +545,12 @@ MappingP1<dim, spacedim>::fill_fe_subface_values(
   const InternalData &data = static_cast<const InternalData &>(internal_data);
 
   update_transformation(cell, data);
+  constexpr auto reference_cell      = ReferenceCells::get_simplex<dim>();
+  constexpr auto face_reference_cell = ReferenceCells::get_simplex<dim - 1>();
+  // FEValues should check the ReferenceCell
+  Assert(reference_cell == cell->reference_cell(), ExcInternalError());
   const auto offset =
-    QProjector<dim>::DataSetDescriptor::subface(cell->reference_cell(),
+    QProjector<dim>::DataSetDescriptor::subface(reference_cell,
                                                 face_no,
                                                 subface_no,
                                                 cell->combined_face_orientation(
@@ -561,12 +568,9 @@ MappingP1<dim, spacedim>::fill_fe_subface_values(
   if (data.update_each & (update_JxW_values | update_boundary_forms))
     {
       // Same as fill_fe_face_values()
-      const double J =
-        cell->face(face_no)->measure() /
-        cell->face(face_no)->reference_cell().volume() /
-        // TODO: once we support 3d refinement this should be updated to the
-        // simplex version of GeometryInfo::subface_ratio()
-        (dim == 2 ? 2 : 4);
+      const double J = cell->face(face_no)->measure() /
+                       reference_cell.face_measure(face_no) /
+                       face_reference_cell.n_isotropic_children();
       if (data.update_each & update_JxW_values)
         for (unsigned int i = 0; i < output_data.JxW_values.size(); ++i)
           output_data.JxW_values[i] = J * quadrature.weight(i);

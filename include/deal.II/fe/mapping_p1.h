@@ -219,6 +219,14 @@ public:
     memory_consumption() const override;
 
     /**
+     * Whether or not any Jacobian derivatives should be updated. This
+     * simplifies some checks.
+     *
+     * @seealso MappingP1::maybe_update_jacobian_derivatives()
+     */
+    bool update_any_jacobian_derivatives;
+
+    /**
      * Affine component of the transformation.
      */
     mutable Tensor<1, spacedim> affine_component;

@@ -58,7 +58,8 @@ MappingP1<dim, spacedim>::InternalData::InternalData(
 template <int dim, int spacedim>
 MappingP1<dim, spacedim>::InternalData::InternalData(
   const Quadrature<dim> &quadrature)
-  : quadrature(quadrature)
+  : update_any_jacobian_derivatives(true)
+  , quadrature(quadrature)
 {}
 
 
@@ -71,6 +72,14 @@ MappingP1<dim, spacedim>::InternalData::reinit(
 {
   this->quadrature  = quadrature;
   this->update_each = update_flags;
+
+  update_any_jacobian_derivatives =
+    update_flags &
+    (update_jacobian_grads | update_jacobian_pushed_forward_grads |
+     update_jacobian_2nd_derivatives |
+     update_jacobian_pushed_forward_2nd_derivatives |
+     update_jacobian_3rd_derivatives |
+     update_jacobian_pushed_forward_3rd_derivatives);
 }
 
 
@@ -396,7 +405,8 @@ MappingP1<dim, spacedim>::fill_fe_values(
       }
 
   maybe_update_jacobians(data, cell_similarity, output_data);
-  maybe_update_jacobian_derivatives(data, cell_similarity, output_data);
+  if (data.update_any_jacobian_derivatives)
+    maybe_update_jacobian_derivatives(data, cell_similarity, output_data);
   maybe_update_inverse_jacobians(data, cell_similarity, output_data);
 
   if (data.update_each & update_normal_vectors)

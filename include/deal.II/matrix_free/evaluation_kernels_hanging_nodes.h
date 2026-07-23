@@ -25,14 +25,6 @@
 
 DEAL_II_NAMESPACE_OPEN
 
-#ifdef DEBUG
-#  define DEAL_II_ALWAYS_INLINE_RELEASE
-#else
-#  define DEAL_II_ALWAYS_INLINE_RELEASE DEAL_II_ALWAYS_INLINE
-#endif
-
-
-
 namespace internal
 {
   /**
@@ -1829,9 +1821,6 @@ namespace internal
 
 
 } // end of namespace internal
-
-#undef DEAL_II_ALWAYS_INLINE_RELEASE
-
 
 DEAL_II_NAMESPACE_CLOSE
 

@@ -961,7 +961,7 @@ public:
    *
    * @ingroup reordering
    */
-  types::geometric_orientation
+  inline DEAL_II_ALWAYS_INLINE_RELEASE types::geometric_orientation
   combined_face_orientation(const unsigned int face) const;
 
   /**
@@ -2156,7 +2156,7 @@ public:
    *
    * @ingroup reordering
    */
-  static types::geometric_orientation
+  static inline DEAL_II_ALWAYS_INLINE_RELEASE types::geometric_orientation
   combined_face_orientation(const unsigned int face);
 
   /**
@@ -2844,7 +2844,7 @@ public:
    *
    * @ingroup reordering
    */
-  static types::geometric_orientation
+  static inline DEAL_II_ALWAYS_INLINE_RELEASE types::geometric_orientation
   combined_face_orientation(const unsigned int face);
 
   /**
@@ -5378,7 +5378,7 @@ TriaAccessor<structdim, dim, spacedim>::quad_index(
 
 
 template <int structdim, int dim, int spacedim>
-inline types::geometric_orientation
+inline DEAL_II_ALWAYS_INLINE_RELEASE types::geometric_orientation
 TriaAccessor<structdim, dim, spacedim>::combined_face_orientation(
   const unsigned int face) const
 {
@@ -6807,7 +6807,7 @@ TriaAccessor<0, dim, spacedim>::measure() const
 
 
 template <int dim, int spacedim>
-inline types::geometric_orientation
+inline DEAL_II_ALWAYS_INLINE_RELEASE types::geometric_orientation
 TriaAccessor<0, dim, spacedim>::combined_face_orientation(
   const unsigned int /*face*/)
 {
@@ -7264,7 +7264,7 @@ TriaAccessor<0, 1, spacedim>::manifold_id() const
 
 
 template <int spacedim>
-inline types::geometric_orientation
+inline DEAL_II_ALWAYS_INLINE_RELEASE types::geometric_orientation
 TriaAccessor<0, 1, spacedim>::combined_face_orientation(
   const unsigned int /*face*/)
 {

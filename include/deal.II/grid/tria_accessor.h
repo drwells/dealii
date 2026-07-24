@@ -4947,6 +4947,7 @@ namespace internal
         const auto ref_cell = cell.reference_cell();
         if (ref_cell == ReferenceCells::Hexahedron)
           {
+            constexpr ReferenceCell ref_cell_ = ReferenceCells::Hexahedron;
             for (unsigned int f = 4; f < 6; ++f)
               {
                 const auto orientation = cell.combined_face_orientation(f);
@@ -4958,10 +4959,10 @@ namespace internal
                 // each other, as opposed to be interleaved with a
                 // line_index() call.
                 const std::array<unsigned int, 4> my_indices{
-                  {ref_cell.standard_to_real_face_line(0, f, orientation),
-                   ref_cell.standard_to_real_face_line(1, f, orientation),
-                   ref_cell.standard_to_real_face_line(2, f, orientation),
-                   ref_cell.standard_to_real_face_line(3, f, orientation)}};
+                  {ref_cell_.standard_to_real_face_line(0, f, orientation),
+                   ref_cell_.standard_to_real_face_line(1, f, orientation),
+                   ref_cell_.standard_to_real_face_line(2, f, orientation),
+                   ref_cell_.standard_to_real_face_line(3, f, orientation)}};
                 const auto quad = cell.quad(f);
                 for (unsigned int l = 0; l < 4; ++l)
                   line_indices[4 * (f - 4) + l] =
@@ -4975,8 +4976,8 @@ namespace internal
                     ->face_orientations.get_combined_orientation(cell.index(),
                                                                  f);
                 const std::array<unsigned int, 2> my_indices{
-                  {ref_cell.standard_to_real_face_line(0, f, orientation),
-                   ref_cell.standard_to_real_face_line(1, f, orientation)}};
+                  {ref_cell_.standard_to_real_face_line(0, f, orientation),
+                   ref_cell_.standard_to_real_face_line(1, f, orientation)}};
                 const auto quad      = cell.quad(f);
                 line_indices[8 + f]  = quad->line_index(my_indices[0]);
                 line_indices[10 + f] = quad->line_index(my_indices[1]);
@@ -4984,17 +4985,18 @@ namespace internal
           }
         else if (ref_cell == ReferenceCells::Tetrahedron)
           {
+            constexpr ReferenceCell     ref_cell_ = ReferenceCells::Tetrahedron;
             std::array<unsigned int, 3> orientations{
               {cell.combined_face_orientation(0),
                cell.combined_face_orientation(1),
                cell.combined_face_orientation(2)}};
             const std::array<unsigned int, 6> my_indices{
-              {ref_cell.standard_to_real_face_line(0, 0, orientations[0]),
-               ref_cell.standard_to_real_face_line(1, 0, orientations[0]),
-               ref_cell.standard_to_real_face_line(2, 0, orientations[0]),
-               ref_cell.standard_to_real_face_line(1, 1, orientations[1]),
-               ref_cell.standard_to_real_face_line(2, 1, orientations[1]),
-               ref_cell.standard_to_real_face_line(1, 2, orientations[2])}};
+              {ref_cell_.standard_to_real_face_line(0, 0, orientations[0]),
+               ref_cell_.standard_to_real_face_line(1, 0, orientations[0]),
+               ref_cell_.standard_to_real_face_line(2, 0, orientations[0]),
+               ref_cell_.standard_to_real_face_line(1, 1, orientations[1]),
+               ref_cell_.standard_to_real_face_line(2, 1, orientations[1]),
+               ref_cell_.standard_to_real_face_line(1, 2, orientations[2])}};
             line_indices[0] = cell.quad(0)->line_index(my_indices[0]);
             line_indices[1] = cell.quad(0)->line_index(my_indices[1]);
             line_indices[2] = cell.quad(0)->line_index(my_indices[2]);
@@ -5061,13 +5063,10 @@ namespace internal
         const auto ref_cell = cell.reference_cell();
         if (ref_cell == ReferenceCells::Hexahedron)
           {
+            constexpr ReferenceCell ref_cell_ = ReferenceCells::Hexahedron;
             for (unsigned int f = 4; f < 6; ++f)
               {
-                const auto orientation =
-                  cell.get_triangulation()
-                    .levels[cell.level()]
-                    ->face_orientations.get_combined_orientation(cell.index(),
-                                                                 f);
+                const auto orientation = cell.combined_face_orientation(f);
 
                 // It might seem superfluous to spell out the four indices and
                 // orientations that get later consumed by a for loop over
@@ -5076,28 +5075,28 @@ namespace internal
                 // when next to each other, as opposed to be interleaved with
                 // a line_index() call.
                 const std::array<unsigned int, 4> my_indices{
-                  {ref_cell.standard_to_real_face_line(0, f, orientation),
-                   ref_cell.standard_to_real_face_line(1, f, orientation),
-                   ref_cell.standard_to_real_face_line(2, f, orientation),
-                   ref_cell.standard_to_real_face_line(3, f, orientation)}};
+                  {ref_cell_.standard_to_real_face_line(0, f, orientation),
+                   ref_cell_.standard_to_real_face_line(1, f, orientation),
+                   ref_cell_.standard_to_real_face_line(2, f, orientation),
+                   ref_cell_.standard_to_real_face_line(3, f, orientation)}};
                 const auto quad = cell.quad(f);
                 const std::array<types::geometric_orientation, 4>
-                  my_orientations{{ref_cell.face_to_cell_line_orientation(
+                  my_orientations{{ref_cell_.face_to_cell_line_orientation(
                                      0,
                                      f,
                                      orientation,
                                      quad->line_orientation(my_indices[0])),
-                                   ref_cell.face_to_cell_line_orientation(
+                                   ref_cell_.face_to_cell_line_orientation(
                                      1,
                                      f,
                                      orientation,
                                      quad->line_orientation(my_indices[1])),
-                                   ref_cell.face_to_cell_line_orientation(
+                                   ref_cell_.face_to_cell_line_orientation(
                                      2,
                                      f,
                                      orientation,
                                      quad->line_orientation(my_indices[2])),
-                                   ref_cell.face_to_cell_line_orientation(
+                                   ref_cell_.face_to_cell_line_orientation(
                                      3,
                                      f,
                                      orientation,
@@ -5107,22 +5106,18 @@ namespace internal
               }
             for (unsigned int f = 0; f < 2; ++f)
               {
-                const auto orientation =
-                  cell.get_triangulation()
-                    .levels[cell.level()]
-                    ->face_orientations.get_combined_orientation(cell.index(),
-                                                                 f);
+                const auto orientation = cell.combined_face_orientation(f);
                 const std::array<unsigned int, 2> my_indices{
-                  {ref_cell.standard_to_real_face_line(0, f, orientation),
-                   ref_cell.standard_to_real_face_line(1, f, orientation)}};
+                  {ref_cell_.standard_to_real_face_line(0, f, orientation),
+                   ref_cell_.standard_to_real_face_line(1, f, orientation)}};
                 const auto quad = cell.quad(f);
                 const std::array<types::geometric_orientation, 2>
-                  my_orientations{{ref_cell.face_to_cell_line_orientation(
+                  my_orientations{{ref_cell_.face_to_cell_line_orientation(
                                      0,
                                      f,
                                      orientation,
                                      quad->line_orientation(my_indices[0])),
-                                   ref_cell.face_to_cell_line_orientation(
+                                   ref_cell_.face_to_cell_line_orientation(
                                      1,
                                      f,
                                      orientation,
@@ -5133,43 +5128,44 @@ namespace internal
           }
         else if (ref_cell == ReferenceCells::Tetrahedron)
           {
-            std::array<unsigned int, 3> orientations{
+            constexpr ReferenceCell ref_cell_ = ReferenceCells::Tetrahedron;
+            const std::array<types::geometric_orientation, 3> orientations{
               {cell.combined_face_orientation(0),
                cell.combined_face_orientation(1),
                cell.combined_face_orientation(2)}};
             const std::array<unsigned int, 6> my_indices{
-              {ref_cell.standard_to_real_face_line(0, 0, orientations[0]),
-               ref_cell.standard_to_real_face_line(1, 0, orientations[0]),
-               ref_cell.standard_to_real_face_line(2, 0, orientations[0]),
-               ref_cell.standard_to_real_face_line(1, 1, orientations[1]),
-               ref_cell.standard_to_real_face_line(2, 1, orientations[1]),
-               ref_cell.standard_to_real_face_line(1, 2, orientations[2])}};
-            line_orientations[0] = ref_cell.face_to_cell_line_orientation(
+              {ref_cell_.standard_to_real_face_line(0, 0, orientations[0]),
+               ref_cell_.standard_to_real_face_line(1, 0, orientations[0]),
+               ref_cell_.standard_to_real_face_line(2, 0, orientations[0]),
+               ref_cell_.standard_to_real_face_line(1, 1, orientations[1]),
+               ref_cell_.standard_to_real_face_line(2, 1, orientations[1]),
+               ref_cell_.standard_to_real_face_line(1, 2, orientations[2])}};
+            line_orientations[0] = ref_cell_.face_to_cell_line_orientation(
               0,
               0,
               orientations[0],
               cell.quad(0)->line_orientation(my_indices[0]));
-            line_orientations[1] = ref_cell.face_to_cell_line_orientation(
+            line_orientations[1] = ref_cell_.face_to_cell_line_orientation(
               1,
               0,
               orientations[0],
               cell.quad(0)->line_orientation(my_indices[1]));
-            line_orientations[2] = ref_cell.face_to_cell_line_orientation(
+            line_orientations[2] = ref_cell_.face_to_cell_line_orientation(
               2,
               0,
               orientations[0],
               cell.quad(0)->line_orientation(my_indices[2]));
-            line_orientations[3] = ref_cell.face_to_cell_line_orientation(
+            line_orientations[3] = ref_cell_.face_to_cell_line_orientation(
               1,
               1,
               orientations[1],
               cell.quad(1)->line_orientation(my_indices[3]));
-            line_orientations[4] = ref_cell.face_to_cell_line_orientation(
+            line_orientations[4] = ref_cell_.face_to_cell_line_orientation(
               2,
               1,
               orientations[1],
               cell.quad(1)->line_orientation(my_indices[4]));
-            line_orientations[5] = ref_cell.face_to_cell_line_orientation(
+            line_orientations[5] = ref_cell_.face_to_cell_line_orientation(
               1,
               2,
               orientations[2],

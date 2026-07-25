@@ -2491,19 +2491,23 @@ namespace internal
        * index. For example, if `structdim==0`, then we are looking to
        * get a DoF index on a vertex of the indicated cell.
        */
-      template <int dim, int spacedim, int structdim>
+      template <int  dim,
+                int  spacedim,
+                int  structdim,
+                bool hp_capability_enabled>
       static std::pair<unsigned int, unsigned int>
       process_object_range(const DoFHandler<dim, spacedim> &dof_handler,
                            const unsigned int               obj_level,
                            const unsigned int               obj_index,
                            const types::fe_index            fe_index,
-                           const std::integral_constant<int, structdim> &)
+                           const std::integral_constant<int, structdim> &,
+                           const std::bool_constant<hp_capability_enabled> &)
       {
         Assert(structdim == dim || obj_level == 0, ExcNotImplemented());
 
         // determine range of dofs in global data structure
         // 1) cell
-        if (structdim == dim)
+        if constexpr (structdim == dim)
           {
             const unsigned int ptr_0 =
               dof_handler.object_dof_ptr[obj_level][structdim][obj_index];
@@ -2514,7 +2518,9 @@ namespace internal
           }
 
         // 2) hp is not used -> fe_index == 0
-        if (dof_handler.hp_capability_enabled == false)
+        Assert(dof_handler.hp_capability_enabled == hp_capability_enabled,
+               ExcInternalError());
+        if constexpr (!hp_capability_enabled)
           {
             AssertDimension(fe_index,
                             (DoFHandler<dim, spacedim>::default_fe_index));
@@ -2579,23 +2585,33 @@ namespace internal
         return {ptr_0, ptr_1 - ptr_0};
       }
 
-      template <int dim, int spacedim, int structdim, bool level_dof_access>
+      template <int  dim,
+                int  spacedim,
+                int  structdim,
+                bool level_dof_access,
+                bool hp_capability_enabled>
       static std::pair<unsigned int, unsigned int>
       process_object_range(
         const dealii::DoFAccessor<structdim, dim, spacedim, level_dof_access>
-                              accessor,
-        const types::fe_index fe_index)
+                                                         accessor,
+        const std::bool_constant<hp_capability_enabled> &hp,
+        const types::fe_index                            fe_index)
       {
         return process_object_range(accessor.get_dof_handler(),
                                     accessor.level(),
                                     accessor.index(),
                                     fe_index,
-                                    std::integral_constant<int, structdim>());
+                                    std::integral_constant<int, structdim>(),
+                                    hp);
       }
 
-      template <int dim, int spacedim, int structdim>
+      template <int  dim,
+                int  spacedim,
+                int  structdim,
+                bool hp_capability_enabled>
       static std::pair<unsigned int, unsigned int>
       process_object_range(dealii::DoFInvalidAccessor<structdim, dim, spacedim>,
+                           const std::bool_constant<hp_capability_enabled> &,
                            const unsigned int)
       {
         DEAL_II_ASSERT_UNREACHABLE();
@@ -2613,9 +2629,10 @@ namespace internal
        * index. For example, if `structdim==0`, then we are looking to
        * get a DoF index on a vertex of the indicated cell.
        */
-      template <int dim,
-                int spacedim,
-                int structdim,
+      template <int  dim,
+                int  spacedim,
+                int  structdim,
+                bool hp_capability_enabled,
                 typename DoFProcessor,
                 typename DoFMapping>
       static DEAL_II_ALWAYS_INLINE void
@@ -2625,14 +2642,15 @@ namespace internal
                      const types::fe_index                         fe_index,
                      const DoFMapping                             &mapping,
                      const std::integral_constant<int, structdim> &dd,
+                     const std::bool_constant<hp_capability_enabled> &hp,
                      types::global_dof_index *&dof_indices_ptr,
                      const DoFProcessor       &process)
       {
         Assert(structdim == dim || obj_level == 0, ExcNotImplemented());
 
         // determine range of dofs in global data structure
-        const auto range =
-          process_object_range(dof_handler, obj_level, obj_index, fe_index, dd);
+        const auto range = process_object_range(
+          dof_handler, obj_level, obj_index, fe_index, dd, hp);
         if (range.second == 0)
           return;
 
@@ -2993,13 +3011,18 @@ namespace internal
        * Loop over all degrees of freedom of the object described by the
        * provided @p accessor and @p fe_index and count them.
        */
-      template <int dim, int spacedim, bool level_dof_access, int structdim>
+      template <int  dim,
+                int  spacedim,
+                int  structdim,
+                bool level_dof_access,
+                bool hp_capability_enabled>
       static unsigned int
       n_dof_indices(
         const dealii::DoFAccessor<structdim, dim, spacedim, level_dof_access>
-                             &accessor,
-        const types::fe_index fe_index_,
-        const bool            count_level_dofs)
+                                                        &accessor,
+        const std::bool_constant<hp_capability_enabled> &hp,
+        const types::fe_index                            fe_index_,
+        const bool                                       count_level_dofs)
       {
         // note: we cannot rely on the template parameter level_dof_access here,
         // since the function get_mg_dof_indices()/set_mg_dof_indices() can be
@@ -3050,23 +3073,26 @@ namespace internal
                                             0,
                                             accessor.vertex_index(vertex),
                                             fe_index,
-                                            std::integral_constant<int, 0>())
+                                            std::integral_constant<int, 0>(),
+                                            hp)
                          .second;
 
             // 2) LINE dofs
             if (structdim == 2 || structdim == 3)
               for (const auto line : accessor.line_indices())
                 index +=
-                  process_object_range(*accessor.line(line), fe_index).second;
+                  process_object_range(*accessor.line(line), hp, fe_index)
+                    .second;
 
             // 3) FACE dofs
             if (structdim == 3)
               for (const auto face : accessor.face_indices())
                 index +=
-                  process_object_range(*accessor.quad(face), fe_index).second;
+                  process_object_range(*accessor.quad(face), hp, fe_index)
+                    .second;
 
             // 4) INNER dofs
-            index += process_object_range(accessor, fe_index).second;
+            index += process_object_range(accessor, hp, fe_index).second;
 
             return index;
           }
@@ -3255,7 +3281,18 @@ namespace internal
 
         if (dof_indices_ptr != nullptr)
           {
-            AssertDimension(n_dof_indices(accessor, fe_index, count_level_dofs),
+            unsigned int n_dofs = numbers::invalid_unsigned_int;
+            if (accessor.get_dof_handler().hp_capability_enabled)
+              n_dofs = n_dof_indices(accessor,
+                                     std::bool_constant<true>(),
+                                     fe_index,
+                                     count_level_dofs);
+            else
+              n_dofs = n_dof_indices(accessor,
+                                     std::bool_constant<false>(),
+                                     fe_index,
+                                     count_level_dofs);
+            AssertDimension(n_dofs,
                             dof_indices_ptr - get_array_ptr(const_dof_indices));
           }
 
@@ -3275,8 +3312,11 @@ namespace internal
       /**
        * An internal struct encapsulating the task of getting (vertex)
        * DoF indices.
+       *
+       * @note For performance reasons these objects are templated on whether or
+       * not the underlying DoFHandler is running in hp-mode.
        */
-      template <int dim, int spacedim>
+      template <int dim, int spacedim, bool hp_capability_enabled>
       struct DoFIndexProcessor
       {
         /**
@@ -3300,6 +3340,7 @@ namespace internal
               return d;
             },
             std::integral_constant<int, 0>(),
+            std::bool_constant<hp_capability_enabled>(),
             dof_indices_ptr,
             dof_processor);
         }
@@ -3325,6 +3366,7 @@ namespace internal
             fe_index,
             mapping,
             std::integral_constant<int, std::min(structdim, dim)>(),
+            std::bool_constant<hp_capability_enabled>(),
             dof_indices_ptr,
             dof_processor);
         }
@@ -3410,13 +3452,26 @@ namespace internal
         std::vector<types::global_dof_index> &dof_indices,
         const types::fe_index                 fe_index)
       {
-        process_dof_indices(
-          accessor,
-          dof_indices,
-          fe_index,
-          DoFIndexProcessor<dim, spacedim>(),
-          [](auto stored_index, auto dof_ptr) { *dof_ptr = stored_index; },
-          false);
+        if (accessor.get_dof_handler().hp_capability_enabled)
+          {
+            process_dof_indices(
+              accessor,
+              dof_indices,
+              fe_index,
+              DoFIndexProcessor<dim, spacedim, true>(),
+              [](auto stored_index, auto dof_ptr) { *dof_ptr = stored_index; },
+              false);
+          }
+        else
+          {
+            process_dof_indices(
+              accessor,
+              dof_indices,
+              fe_index,
+              DoFIndexProcessor<dim, spacedim, false>(),
+              [](auto stored_index, auto dof_ptr) { *dof_ptr = stored_index; },
+              false);
+          }
       }
 
 
@@ -3440,13 +3495,26 @@ namespace internal
             "This function is intended to be used for DoFCellAccessor, i.e., "
             "dimension == structdim."));
 
-        process_dof_indices(
-          accessor,
-          dof_indices,
-          fe_index,
-          DoFIndexProcessor<dim, spacedim>(),
-          [](auto &stored_index, auto dof_ptr) { stored_index = *dof_ptr; },
-          false);
+        if (accessor.get_dof_handler().hp_capability_enabled)
+          {
+            process_dof_indices(
+              accessor,
+              dof_indices,
+              fe_index,
+              DoFIndexProcessor<dim, spacedim, true>(),
+              [](auto &stored_index, auto dof_ptr) { stored_index = *dof_ptr; },
+              false);
+          }
+        else
+          {
+            process_dof_indices(
+              accessor,
+              dof_indices,
+              fe_index,
+              DoFIndexProcessor<dim, spacedim, false>(),
+              [](auto &stored_index, auto dof_ptr) { stored_index = *dof_ptr; },
+              false);
+          }
       }
 
 
@@ -3462,6 +3530,8 @@ namespace internal
       {
         Assert((fe_index == DoFHandler<dim, spacedim>::default_fe_index),
                ExcMessage("MG DoF indices cannot be queried in hp case"));
+        Assert(accessor.get_dof_handler().hp_capability_enabled == false,
+               ExcInternalError());
         process_dof_indices(
           accessor,
           dof_indices,
@@ -3484,6 +3554,8 @@ namespace internal
       {
         Assert((fe_index == DoFHandler<dim, spacedim>::default_fe_index),
                ExcMessage("MG DoF indices cannot be queried in hp case"));
+        Assert(accessor.get_dof_handler().hp_capability_enabled == false,
+               ExcInternalError());
 
         // Note: this function is as general as `get_mg_dof_indices()`. This
         // assert is placed here since it is currently only used by the

@@ -1682,6 +1682,23 @@ namespace internal
           // distribute dofs on all cells excluding artificial ones
           types::global_dof_index next_free_dof = 0;
 
+          const auto operation = [&next_free_dof](auto &stored_index, auto) {
+            if (stored_index == numbers::invalid_dof_index)
+              {
+                stored_index = next_free_dof;
+                Assert(next_free_dof !=
+                         std::numeric_limits<types::global_dof_index>::max(),
+                       ExcMessage(
+                         "You have reached the maximal number of degrees of "
+                         "freedom that can be stored in the chosen data "
+                         "type. In practice, this can only happen if you "
+                         "are using 32-bit data types. You will have to "
+                         "re-compile deal.II with the "
+                         "`DEAL_II_WITH_64BIT_INDICES' flag set to `ON'."));
+                ++next_free_dof;
+              }
+          };
+
           for (auto cell : dof_handler.active_cell_iterators())
             if (!cell->is_artificial() &&
                 ((subdomain_id == numbers::invalid_subdomain_id) ||
@@ -1690,30 +1707,30 @@ namespace internal
                 // feed the process_dof_indices function with an empty type
                 // `std::tuple<>`, as we do not want to retrieve any DoF
                 // indices here and rather modify the stored ones
-                DoFAccessorImplementation::Implementation::process_dof_indices(
-                  *cell,
-                  std::make_tuple(),
-                  cell->active_fe_index(),
-                  DoFAccessorImplementation::Implementation::
-                    DoFIndexProcessor<dim, spacedim>(),
-                  [&next_free_dof](auto &stored_index, auto) {
-                    if (stored_index == numbers::invalid_dof_index)
-                      {
-                        stored_index = next_free_dof;
-                        Assert(
-                          next_free_dof !=
-                            std::numeric_limits<types::global_dof_index>::max(),
-                          ExcMessage(
-                            "You have reached the maximal number of degrees of "
-                            "freedom that can be stored in the chosen data "
-                            "type. In practice, this can only happen if you "
-                            "are using 32-bit data types. You will have to "
-                            "re-compile deal.II with the "
-                            "`DEAL_II_WITH_64BIT_INDICES' flag set to `ON'."));
-                        ++next_free_dof;
-                      }
-                  },
-                  false);
+                if (dof_handler.hp_capability_enabled)
+                  {
+                    DoFAccessorImplementation::Implementation::
+                      process_dof_indices(
+                        *cell,
+                        std::make_tuple(),
+                        cell->active_fe_index(),
+                        DoFAccessorImplementation::Implementation::
+                          DoFIndexProcessor<dim, spacedim, true>(),
+                        operation,
+                        false);
+                  }
+                else
+                  {
+                    DoFAccessorImplementation::Implementation::
+                      process_dof_indices(
+                        *cell,
+                        std::make_tuple(),
+                        cell->active_fe_index(),
+                        DoFAccessorImplementation::Implementation::
+                          DoFIndexProcessor<dim, spacedim, false>(),
+                        operation,
+                        false);
+                  }
               }
 
           return next_free_dof;
@@ -3561,8 +3578,8 @@ namespace internal
             return data;
           };
 
-          const auto unpack = [&cell_marked](const auto &cell,
-                                             const auto &dofs) {
+          const auto unpack = [&cell_marked, &dof_handler](const auto &cell,
+                                                           const auto &dofs) {
             Assert(cell->get_fe().n_dofs_per_cell() == dofs.size(),
                    ExcInternalError());
 
@@ -3572,21 +3589,15 @@ namespace internal
             // indices to speed things up against get_dof_indices +
             // set_dof_indices
             bool complete = true;
-            DoFAccessorImplementation::Implementation::process_dof_indices(
-              *cell,
-              dofs,
-              cell->active_fe_index(),
-              DoFAccessorImplementation::Implementation::
-                DoFIndexProcessor<dim, spacedim>(),
-
-              // Intel ICC 18 and earlier for some reason believe that
-              // numbers::invalid_dof_index is not a valid object
-              // inside the lambda function. Fix this by creating a
-              // local variable initialized by the global one.
-              //
-              // Intel ICC 19 and earlier have trouble with our Assert
-              // macros inside the lambda function. We disable the macro
-              // for these compilers.
+            // Intel ICC 18 and earlier for some reason believe that
+            // numbers::invalid_dof_index is not a valid object
+            // inside the lambda function. Fix this by creating a
+            // local variable initialized by the global one.
+            //
+            // Intel ICC 19 and earlier have trouble with our Assert
+            // macros inside the lambda function. We disable the macro
+            // for these compilers.
+            const auto operation =
               [&complete, invalid_dof_index = numbers::invalid_dof_index](
                 auto &stored_index, const auto received_index) {
                 if (*received_index != invalid_dof_index)
@@ -3600,8 +3611,26 @@ namespace internal
                   }
                 else
                   complete = false;
-              },
-              false);
+              };
+
+            if (dof_handler.has_hp_capabilities())
+              DoFAccessorImplementation::Implementation::process_dof_indices(
+                *cell,
+                dofs,
+                cell->active_fe_index(),
+                DoFAccessorImplementation::Implementation::
+                  DoFIndexProcessor<dim, spacedim, true>(),
+                operation,
+                false);
+            else
+              DoFAccessorImplementation::Implementation::process_dof_indices(
+                *cell,
+                dofs,
+                cell->active_fe_index(),
+                DoFAccessorImplementation::Implementation::
+                  DoFIndexProcessor<dim, spacedim, false>(),
+                operation,
+                false);
 
             if (!complete)
               {
@@ -4091,24 +4120,37 @@ namespace internal
         // locally owned cell and a ghost cell. In any case, it is
         // sufficient to kill them only from the ghost side cell, so loop
         // only over ghost cells
+
+        const auto operation = [&owned_dofs](auto &stored_index, auto) {
+          // delete a DoF index if it has not already been
+          // deleted (e.g., by visiting a neighboring cell, if
+          // it is on the boundary), and if we don't own it
+          if (stored_index != numbers::invalid_dof_index &&
+              (!owned_dofs.is_element(stored_index)))
+            stored_index = numbers::invalid_dof_index;
+        };
+
         for (auto cell : dof_handler->active_cell_iterators())
           if (cell->is_ghost())
             {
-              DoFAccessorImplementation::Implementation::process_dof_indices(
-                *cell,
-                std::make_tuple(),
-                cell->active_fe_index(),
-                DoFAccessorImplementation::Implementation::
-                  DoFIndexProcessor<dim, spacedim>(),
-                [&owned_dofs](auto &stored_index, auto) {
-                  // delete a DoF index if it has not already been
-                  // deleted (e.g., by visiting a neighboring cell, if
-                  // it is on the boundary), and if we don't own it
-                  if (stored_index != numbers::invalid_dof_index &&
-                      (!owned_dofs.is_element(stored_index)))
-                    stored_index = numbers::invalid_dof_index;
-                },
-                false);
+              if (dof_handler->has_hp_capabilities())
+                DoFAccessorImplementation::Implementation::process_dof_indices(
+                  *cell,
+                  std::make_tuple(),
+                  cell->active_fe_index(),
+                  DoFAccessorImplementation::Implementation::
+                    DoFIndexProcessor<dim, spacedim, true>(),
+                  operation,
+                  false);
+              else
+                DoFAccessorImplementation::Implementation::process_dof_indices(
+                  *cell,
+                  std::make_tuple(),
+                  cell->active_fe_index(),
+                  DoFAccessorImplementation::Implementation::
+                    DoFIndexProcessor<dim, spacedim, false>(),
+                  operation,
+                  false);
             }
 
 

@@ -262,13 +262,22 @@ namespace internal
       Implementation::dof_index_vector_type &dof_indices,
       const unsigned int                     fe_index)
     {
-      Implementation::process_dof_indices(
-        accessor,
-        dof_indices,
-        fe_index,
-        Implementation::DoFIndexProcessor<dim, spacedim>(),
-        [](auto stored_index, auto dof_ptr) { *dof_ptr = stored_index; },
-        false);
+      if (accessor.get_dof_handler().has_hp_capabilities())
+        Implementation::process_dof_indices(
+          accessor,
+          dof_indices,
+          fe_index,
+          Implementation::DoFIndexProcessor<dim, spacedim, true>(),
+          [](auto stored_index, auto dof_ptr) { *dof_ptr = stored_index; },
+          false);
+      else
+        Implementation::process_dof_indices(
+          accessor,
+          dof_indices,
+          fe_index,
+          Implementation::DoFIndexProcessor<dim, spacedim, false>(),
+          [](auto stored_index, auto dof_ptr) { *dof_ptr = stored_index; },
+          false);
     }
   } // namespace DoFAccessorImplementation
 } // namespace internal

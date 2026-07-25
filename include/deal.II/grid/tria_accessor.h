@@ -4997,12 +4997,14 @@ namespace internal
                ref_cell_.standard_to_real_face_line(1, 1, orientations[1]),
                ref_cell_.standard_to_real_face_line(2, 1, orientations[1]),
                ref_cell_.standard_to_real_face_line(1, 2, orientations[2])}};
-            line_indices[0] = cell.quad(0)->line_index(my_indices[0]);
-            line_indices[1] = cell.quad(0)->line_index(my_indices[1]);
-            line_indices[2] = cell.quad(0)->line_index(my_indices[2]);
-            line_indices[3] = cell.quad(1)->line_index(my_indices[3]);
-            line_indices[4] = cell.quad(1)->line_index(my_indices[4]);
-            line_indices[5] = cell.quad(2)->line_index(my_indices[5]);
+            const std::array<decltype(cell.quad(0)), 3> quads{
+              {cell.quad(0), cell.quad(1), cell.quad(2)}};
+            line_indices[0] = quads[0]->line_index(my_indices[0]);
+            line_indices[1] = quads[0]->line_index(my_indices[1]);
+            line_indices[2] = quads[0]->line_index(my_indices[2]);
+            line_indices[3] = quads[1]->line_index(my_indices[3]);
+            line_indices[4] = quads[1]->line_index(my_indices[4]);
+            line_indices[5] = quads[2]->line_index(my_indices[5]);
           }
         else
           // For other shapes (wedges, pyramids), we do not currently
@@ -5140,36 +5142,23 @@ namespace internal
                ref_cell_.standard_to_real_face_line(1, 1, orientations[1]),
                ref_cell_.standard_to_real_face_line(2, 1, orientations[1]),
                ref_cell_.standard_to_real_face_line(1, 2, orientations[2])}};
+            const std::array<decltype(cell.quad(0)), 3> quads{
+              {cell.quad(0), cell.quad(1), cell.quad(2)}};
             line_orientations[0] = ref_cell_.face_to_cell_line_orientation(
-              0,
-              0,
-              orientations[0],
-              cell.quad(0)->line_orientation(my_indices[0]));
+              0, 0, orientations[0], quads[0]->line_orientation(my_indices[0]));
             line_orientations[1] = ref_cell_.face_to_cell_line_orientation(
               1,
               0,
               orientations[0],
               cell.quad(0)->line_orientation(my_indices[1]));
             line_orientations[2] = ref_cell_.face_to_cell_line_orientation(
-              2,
-              0,
-              orientations[0],
-              cell.quad(0)->line_orientation(my_indices[2]));
+              2, 0, orientations[0], quads[0]->line_orientation(my_indices[2]));
             line_orientations[3] = ref_cell_.face_to_cell_line_orientation(
-              1,
-              1,
-              orientations[1],
-              cell.quad(1)->line_orientation(my_indices[3]));
+              1, 1, orientations[1], quads[1]->line_orientation(my_indices[3]));
             line_orientations[4] = ref_cell_.face_to_cell_line_orientation(
-              2,
-              1,
-              orientations[1],
-              cell.quad(1)->line_orientation(my_indices[4]));
+              2, 1, orientations[1], quads[1]->line_orientation(my_indices[4]));
             line_orientations[5] = ref_cell_.face_to_cell_line_orientation(
-              1,
-              2,
-              orientations[2],
-              cell.quad(2)->line_orientation(my_indices[5]));
+              1, 2, orientations[2], quads[2]->line_orientation(my_indices[5]));
           }
         else
           // For other shapes (wedges, pyramids), we do not currently implement

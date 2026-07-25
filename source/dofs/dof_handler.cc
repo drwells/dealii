@@ -381,15 +381,16 @@ namespace internal
 
         // lines
         if (dim == 2 || dim == 3)
-          reserve_subentities(dof_handler,
-                              1,
-                              dof_handler.tria->n_raw_lines(),
-                              [&](const auto &cell, const auto &process) {
-                                for (const auto line_index :
-                                     cell->line_indices())
-                                  process(fe.n_dofs_per_line(),
-                                          cell->line(line_index)->index());
-                              });
+          reserve_subentities(
+            dof_handler,
+            1,
+            dof_handler.tria->n_raw_lines(),
+            [&](const auto &cell, const auto &process) {
+              const auto line_indices = internal::TriaAccessorImplementation::
+                Implementation::get_line_indices_of_cell(*cell);
+              for (const auto &line_no : cell->line_indices())
+                process(fe.n_dofs_per_line(), line_indices[line_no]);
+            });
 
         // quads
         if (dim == 3)

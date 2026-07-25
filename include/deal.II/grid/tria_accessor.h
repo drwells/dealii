@@ -5018,12 +5018,18 @@ namespace internal
 
 
       /**
-       * A helper function to provide faster access to
-       * cell->line_orientation(), 1d specialization
+       * Helper function for extracting all indices and orientations at the same
+       * time. Whenever we need line orientations we also need indices and
+       * consolidating the two functions eliminates identical index
+       * calculations.
+       *
+       * @note This function is not used in 1d.
        */
       template <int dim, int spacedim>
-      static std::array<types::geometric_orientation, 1>
-      get_line_orientations_of_cell(const TriaAccessor<1, dim, spacedim> &)
+      static std::pair<std::array<unsigned int, 1>,
+                       std::array<types::geometric_orientation, 1>>
+      get_line_indices_and_orientations_of_cell(
+        const TriaAccessor<1, dim, spacedim> &)
       {
         DEAL_II_ASSERT_UNREACHABLE();
         return {};
@@ -5032,32 +5038,45 @@ namespace internal
 
 
       /**
-       * A helper function to provide faster access to
-       * cell->line_orientation(), 2d specialization
+       * Helper function for extracting all indices and orientations at the same
+       * time. Whenever we need line orientations we also need indices and
+       * consolidating the two functions eliminates identical index
+       * calculations.
        */
       template <int dim, int spacedim>
-      static std::array<types::geometric_orientation, 4>
-      get_line_orientations_of_cell(const TriaAccessor<2, dim, spacedim> &cell)
+      static std::pair<std::array<unsigned int, 4>,
+                       std::array<types::geometric_orientation, 4>>
+      get_line_indices_and_orientations_of_cell(
+        const TriaAccessor<2, dim, spacedim> &cell)
       {
         // For 2d cells the access cell->line_orientation() is already
         // efficient
         std::array<types::geometric_orientation, 4> line_orientations = {};
+        std::array<unsigned int, 4>                 line_indices      = {};
         for (const unsigned int line : cell.line_indices())
-          line_orientations[line] = cell.line_orientation(line);
-        return line_orientations;
+          {
+            line_orientations[line] = cell.line_orientation(line);
+            line_indices[line]      = cell.line_index(line);
+          }
+        return std::make_pair(line_indices, line_orientations);
       }
 
 
 
       /**
-       * A helper function to provide faster access to
-       * cell->line_orientation(), 3d specialization
+       * Helper function for extracting all indices and orientations at the same
+       * time. Whenever we need line orientations we also need indices and
+       * consolidating the two functions eliminates identical index
+       * calculations.
        */
       template <int dim, int spacedim>
-      static std::array<types::geometric_orientation, 12>
-      get_line_orientations_of_cell(const TriaAccessor<3, dim, spacedim> &cell)
+      static std::pair<std::array<unsigned int, 12>,
+                       std::array<types::geometric_orientation, 12>>
+      get_line_indices_and_orientations_of_cell(
+        const TriaAccessor<3, dim, spacedim> &cell)
       {
         std::array<types::geometric_orientation, 12> line_orientations = {};
+        std::array<unsigned int, 12>                 line_indices      = {};
 
         // For hexahedra, the classical access via quads -> lines is too
         // inefficient. Unroll this code here to allow the compiler to inline
@@ -5082,6 +5101,9 @@ namespace internal
                    ref_cell_.standard_to_real_face_line(2, f, orientation),
                    ref_cell_.standard_to_real_face_line(3, f, orientation)}};
                 const auto quad = cell.quad(f);
+                for (unsigned int l = 0; l < 4; ++l)
+                  line_indices[4 * (f - 4) + l] =
+                    quad->line_index(my_indices[l]);
                 const std::array<types::geometric_orientation, 4>
                   my_orientations{{ref_cell_.face_to_cell_line_orientation(
                                      0,
@@ -5112,7 +5134,9 @@ namespace internal
                 const std::array<unsigned int, 2> my_indices{
                   {ref_cell_.standard_to_real_face_line(0, f, orientation),
                    ref_cell_.standard_to_real_face_line(1, f, orientation)}};
-                const auto quad = cell.quad(f);
+                const auto quad      = cell.quad(f);
+                line_indices[8 + f]  = quad->line_index(my_indices[0]);
+                line_indices[10 + f] = quad->line_index(my_indices[1]);
                 const std::array<types::geometric_orientation, 2>
                   my_orientations{{ref_cell_.face_to_cell_line_orientation(
                                      0,
@@ -5151,6 +5175,12 @@ namespace internal
               0,
               orientations[0],
               cell.quad(0)->line_orientation(my_indices[1]));
+            line_indices[0]      = quads[0]->line_index(my_indices[0]);
+            line_indices[1]      = quads[0]->line_index(my_indices[1]);
+            line_indices[2]      = quads[0]->line_index(my_indices[2]);
+            line_indices[3]      = quads[1]->line_index(my_indices[3]);
+            line_indices[4]      = quads[1]->line_index(my_indices[4]);
+            line_indices[5]      = quads[2]->line_index(my_indices[5]);
             line_orientations[2] = ref_cell_.face_to_cell_line_orientation(
               2, 0, orientations[0], quads[0]->line_orientation(my_indices[2]));
             line_orientations[3] = ref_cell_.face_to_cell_line_orientation(
@@ -5164,9 +5194,12 @@ namespace internal
           // For other shapes (wedges, pyramids), we do not currently implement
           // an optimized function
           for (unsigned int l = 0; l < std::min(12U, cell.n_lines()); ++l)
-            line_orientations[l] = cell.line_orientation(l);
+            {
+              line_indices[l]      = cell.line_index(l);
+              line_orientations[l] = cell.line_orientation(l);
+            }
 
-        return line_orientations;
+        return std::make_pair(line_indices, line_orientations);
       }
     };
   } // namespace TriaAccessorImplementation

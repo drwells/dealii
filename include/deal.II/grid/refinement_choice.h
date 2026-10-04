@@ -134,10 +134,17 @@ public:
   operator~() const;
 
   /**
-   * Return the internal line for tetrahedral refinement. .
+   * Return whether or not the refinement is anisotropic.
    */
-    unsigned int
-    new_tetrahedron_line() const;
+  constexpr bool
+  is_anisotropic() const;
+
+  /**
+   * Return the internal line for tetrahedral refinement. This function may only
+   * be called on Cut49, Cut57, and Cut68.
+   */
+  constexpr unsigned int
+  new_tetrahedron_line() const;
 
 private:
   /**
@@ -246,8 +253,8 @@ namespace RefinementChoices
    * Do not refine the cell (the default).
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    None = internal::make_refinement_choice_from_int<dim>(0);
+  constexpr RefinementChoice<dim> None =
+    internal::make_refinement_choice_from_int<dim>(0);
 
   /**
    * Refine a quadrilateral or hexahedron by cutting in the $x$ direction.
@@ -256,8 +263,8 @@ namespace RefinementChoices
    * RefinementChoices::Isotropic.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    CutX = internal::make_refinement_choice_from_int<dim>(1);
+  constexpr RefinementChoice<dim> CutX =
+    internal::make_refinement_choice_from_int<dim>(1);
 
   /**
    * Refine a quadrilateral or hexahedron by cutting in the $y$ direction.
@@ -265,8 +272,8 @@ namespace RefinementChoices
    * @note This may only be used in 2d or 3d.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    CutY = internal::make_refinement_choice_from_int<dim>(2);
+  constexpr RefinementChoice<dim> CutY =
+    internal::make_refinement_choice_from_int<dim>(2);
 
   /**
    * Refine a hexahedron by cutting in the $x$ and $y$ directions.
@@ -275,29 +282,29 @@ namespace RefinementChoices
    * RefinementChoices::Isotropic.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    CutXY = internal::make_refinement_choice_from_int<dim>(3);
+  constexpr RefinementChoice<dim> CutXY =
+    internal::make_refinement_choice_from_int<dim>(3);
 
   /**
    * Refine a hexahedron by cutting in the $z$ direction.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    CutZ = internal::make_refinement_choice_from_int<dim>(4);
+  constexpr RefinementChoice<dim> CutZ =
+    internal::make_refinement_choice_from_int<dim>(4);
 
   /**
    * Refine a hexahedron by cutting in the $x$ and $z$ directions.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    CutXZ = internal::make_refinement_choice_from_int<dim>(5);
+  constexpr RefinementChoice<dim> CutXZ =
+    internal::make_refinement_choice_from_int<dim>(5);
 
   /**
    * Refine a hexahedron by cutting in the $y$ and $z$ directions.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    CutYZ = internal::make_refinement_choice_from_int<dim>(6);
+  constexpr RefinementChoice<dim> CutYZ =
+    internal::make_refinement_choice_from_int<dim>(6);
 
   /**
    * Refine a cell isotropically.
@@ -308,32 +315,32 @@ namespace RefinementChoices
    * creates cells with the best aspect ratios.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    Isotropic = internal::make_refinement_choice_from_int<dim>(7);
+  constexpr RefinementChoice<dim> Isotropic =
+    internal::make_refinement_choice_from_int<dim>(7);
 
   /**
    * Refine a Tetrahedron isotropically, with the internal line placed between
    * the fourth and ninth vertices.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    Cut49 = internal::make_refinement_choice_from_int<dim>(15);
+  constexpr RefinementChoice<dim> Cut49 =
+    internal::make_refinement_choice_from_int<dim>(15);
 
   /**
    * Refine a Tetrahedron isotropically, with the internal line placed between
    * the fifth and seventh vertices.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    Cut57 = internal::make_refinement_choice_from_int<dim>(23);
+  constexpr RefinementChoice<dim> Cut57 =
+    internal::make_refinement_choice_from_int<dim>(23);
 
   /**
    * Refine a Tetrahedron isotropically, with the internal line placed between
    * the sixth and eighth vertices.
    */
   template <int dim>
-  constexpr RefinementChoice<dim>
-    Cut68 = internal::make_refinement_choice_from_int<dim>(31);
+  constexpr RefinementChoice<dim> Cut68 =
+    internal::make_refinement_choice_from_int<dim>(31);
 } // namespace RefinementChoices
 
 
@@ -632,6 +639,50 @@ RefinementChoice<dim>::operator~() const
 
   DEAL_II_ASSERT_UNREACHABLE();
   return RefinementChoices::None<dim>;
+}
+
+
+
+template <int dim>
+inline constexpr bool
+RefinementChoice<dim>::is_anisotropic() const
+{
+  if constexpr (dim == 1)
+    return false;
+  else if constexpr (dim == 2)
+    return !(*this == RefinementChoices::None<2> ||
+           *this == RefinementChoices::Isotropic<2>);
+  else if constexpr (dim == 3)
+    return !(*this == RefinementChoices::None<3> ||
+             this->kind >= RefinementChoices::Isotropic<3>.kind);
+  else
+    {
+      DEAL_II_ASSERT_UNREACHABLE();
+      return false;
+    }
+}
+
+
+
+template <int dim>
+inline constexpr unsigned int
+RefinementChoice<dim>::new_tetrahedron_line() const
+{
+  AssertDimension(dim, 3);
+  switch (*this)
+    {
+      case RefinementChoices::Cut49<3>:
+        return 2;
+      case RefinementChoices::Cut57<3>:
+        return 1;
+      case RefinementChoices::Cut68<3>:
+        return 0;
+      default:
+        DEAL_II_NOT_IMPLEMENTED();
+    }
+
+  DEAL_II_ASSERT_UNREACHABLE();
+  return numbers::invalid_unsigned_int;
 }
 
 

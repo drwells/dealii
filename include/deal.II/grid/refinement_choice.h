@@ -184,6 +184,18 @@ public:
   is_anisotropic() const;
 
   /**
+   * Return the RefinementChoice corresponding to cutting a hypercube along the
+   * axis @p i. For example, if <code>i == 0</code> and <code>dim == 3</code>
+   * then the returned value is RefinementChoices::CutX<3>. Since 1d cells
+   * can only be refined in one way, in 1d this function returns
+   * RefinementChoices::Isotropic<1>.
+   *
+   * This is the equivalent of RefinementCase::cut_axis().
+   */
+  static constexpr RefinementChoice<dim>
+  cut_axis(const unsigned int i);
+
+  /**
    * Return the internal line for tetrahedral refinement. This function may only
    * be called on Cut49, Cut57, and Cut68.
    */
@@ -557,6 +569,20 @@ RefinementChoice<dim>::is_anisotropic() const
   return !(*this == RefinementChoices::None<dim> ||
            *this == RefinementChoices::Isotropic<dim> ||
            this->is_tetrahedral());
+}
+
+
+
+template <int dim>
+inline constexpr RefinementChoice<dim>
+RefinementChoice<dim>::cut_axis(const unsigned int i)
+{
+  // Since there are no axes in 0d this also prevents calling this function
+  // in that case.
+  AssertIndexRange(i, dim);
+  // As with RefinementCase, cutting along an axis sets the bit corresponding to
+  // that axis.
+  return RefinementChoice<dim>(static_cast<std::uint8_t>(1u << i));
 }
 
 

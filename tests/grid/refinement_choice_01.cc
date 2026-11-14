@@ -106,6 +106,21 @@ main()
   for (const auto &choice : get_tetrahedron_choices())
     test(choice, get_tetrahedron_choices());
 
+  // Check cut_axis():
+  for (unsigned int i = 0; i < 1; ++i)
+    deallog << "1d cut_axis(" << i
+            << ") = " << RefinementChoice<1>::cut_axis(i).to_string()
+            << std::endl;
+  for (unsigned int i = 0; i < 2; ++i)
+    deallog << "2d cut_axis(" << i
+            << ") = " << RefinementChoice<2>::cut_axis(i).to_string()
+            << std::endl;
+  for (unsigned int i = 0; i < 3; ++i)
+    deallog << "3d cut_axis(" << i
+            << ") = " << RefinementChoice<3>::cut_axis(i).to_string()
+            << std::endl;
+  static_assert(RefinementChoice<3>::cut_axis(2) == RefinementChoices::CutZ<3>);
+
   // Check that the integer values match those of RefinementCase.
   static_assert(int(RefinementChoices::Isotropic<1>) == 1);
   static_assert(int(RefinementChoices::Isotropic<2>) == 3);

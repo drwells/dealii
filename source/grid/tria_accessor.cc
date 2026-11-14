@@ -2210,6 +2210,51 @@ CellAccessor<dim, spacedim>::set_direction_flag(
 
 
 template <int dim, int spacedim>
+std::uint8_t
+CellAccessor<dim, spacedim>::best_tetrahedral_refine_choice() const
+{
+  Assert(this->reference_cell() == ReferenceCells::Tetrahedron,
+         ExcMessage("This function only makes sense for tetrahedra."));
+  if constexpr (dim == 3)
+    {
+      // There are three possibilities for the new interior line: (6,8), (5,7),
+      // and (4,9), where vertices 4 - 9 are the midpoints of lines 0 - 5. Pick
+      // the shortest line to guarantee the best possible aspect ratios.
+      constexpr dealii::ndarray<unsigned int, 3, 2> new_line_lines = {
+        {{{2, 4}}, //
+         {{1, 3}}, //
+         {{0, 5}}}};
+      constexpr std::array<IsotropicRefinementChoice, 3> choices = {
+        {IsotropicRefinementChoice::cut_tet_68,
+         IsotropicRefinementChoice::cut_tet_57,
+         IsotropicRefinementChoice::cut_tet_49}};
+
+      unsigned int chosen_line  = 0;
+      double       min_distance = std::numeric_limits<double>::infinity();
+      for (unsigned int i = 0; i < new_line_lines.size(); ++i)
+        {
+          // Use the same points that Triangulation will use when refining the
+          // lines
+          const double current_distance =
+            this->line(new_line_lines[i][0])
+              ->center(true)
+              .distance(this->line(new_line_lines[i][1])->center(true));
+          if (current_distance < min_distance)
+            {
+              chosen_line  = i;
+              min_distance = current_distance;
+            }
+        }
+      return static_cast<std::uint8_t>(choices[chosen_line]);
+    }
+
+  DEAL_II_ASSERT_UNREACHABLE();
+  return 0;
+}
+
+
+
+template <int dim, int spacedim>
 void
 CellAccessor<dim, spacedim>::set_parent(const unsigned int parent_index)
 {

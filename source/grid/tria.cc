@@ -7277,49 +7277,28 @@ namespace internal
                                                   {{5, 7}}, //
                                                   {{4, 9}}}};
 
-                          // choose line to cut either by refinement case or by
-                          // shortest distance between edge midpoints
-                          std::uint8_t refinement_choice =
+                          // CellAccessor::set_refine_flag() and
+                          // CellAccessor::set_refine_choice() guarantee that
+                          // one of the three choices has been made.
+                          const std::uint8_t refinement_choice =
                             cell->refine_choice();
                           if (refinement_choice ==
-                              static_cast<char>(IsotropicRefinementChoice::
-                                                  isotropic_refinement))
-                            {
-                              const auto &vertices =
-                                triangulation.get_vertices();
-                              double min_distance =
-                                std::numeric_limits<double>::infinity();
-                              for (unsigned int i = 0;
-                                   i < new_line_vertices.size();
-                                   ++i)
-                                {
-                                  const double current_distance =
-                                    vertices[vertex_indices
-                                               [new_line_vertices[i][0]]]
-                                      .distance(
-                                        vertices[vertex_indices
-                                                   [new_line_vertices[i][1]]]);
-                                  if (current_distance < min_distance)
-                                    {
-                                      chosen_line_tetrahedron = i;
-                                      min_distance = current_distance;
-                                    }
-                                }
-                            }
-                          else if (refinement_choice ==
-                                   static_cast<char>(
-                                     IsotropicRefinementChoice::cut_tet_68))
+                              static_cast<std::uint8_t>(
+                                IsotropicRefinementChoice::cut_tet_68))
                             chosen_line_tetrahedron = 0;
                           else if (refinement_choice ==
-                                   static_cast<char>(
+                                   static_cast<std::uint8_t>(
                                      IsotropicRefinementChoice::cut_tet_57))
                             chosen_line_tetrahedron = 1;
                           else if (refinement_choice ==
-                                   static_cast<char>(
+                                   static_cast<std::uint8_t>(
                                      IsotropicRefinementChoice::cut_tet_49))
                             chosen_line_tetrahedron = 2;
                           else
-                            DEAL_II_NOT_IMPLEMENTED();
+                            Assert(false,
+                                   ExcMessage(
+                                     "A tetrahedron was flagged for refinement "
+                                     "without a valid refinement choice."));
 
                           cell->set_refinement_case(
                             RefinementCase<dim>(chosen_line_tetrahedron + 1));

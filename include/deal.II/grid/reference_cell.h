@@ -2629,7 +2629,7 @@ ReferenceCell<dim>::get_isotropic_refinement_choice(
     }
 
   DEAL_II_NOT_IMPLEMENTED();
-  return IsotropicRefinementChoice::isotropic_refinement;
+  return IsotropicRefinementChoice::cut_tet_68;
 }
 
 

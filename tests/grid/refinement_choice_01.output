@@ -369,3 +369,15 @@ DEAL::Tet: Cut49 (8 children, index 0) Cut57 (8 children, index 1) Cut68 (8 chil
 DEAL::Pyramid: Isotropic (10 children, index 0)
 DEAL::Wedge: Isotropic (8 children, index 0)
 DEAL::Hex: CutX (2 children, index 0) CutY (2 children, index 1) CutXY (4 children, index 2) CutZ (2 children, index 3) CutXZ (4 children, index 4) CutYZ (4 children, index 5) Isotropic (8 children, index 6)
+DEAL::1d Line unflagged: None
+DEAL::1d Line isotropic flag: Isotropic
+DEAL::2d Quad cut_x flag: CutX
+DEAL::3d Hex cut_xz flag: CutXZ
+DEAL::3d Hex cleared flag: None
+DEAL::3d Hex refined with cut_xz: CutXZ, face 0: CutY, face 4: CutX, child 0: None
+DEAL::2d Tri isotropic flag: Isotropic
+DEAL::3d Tet unflagged: None
+DEAL::3d Tet flag, then choice cut_tet_57: Cut57
+DEAL::3d Tet choice cut_tet_49, then flag: Cut49
+DEAL::3d Tet flag only (shortest new line): Cut68
+DEAL::3d Tet refined with cut_tet_57: Cut57, face 0: Isotropic

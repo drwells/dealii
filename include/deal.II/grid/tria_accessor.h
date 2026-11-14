@@ -1051,6 +1051,16 @@ public:
   refinement_case() const;
 
   /**
+   * Return the RefinementChoice with which this object (e.g., a cell or a
+   * face) has been refined, or RefinementChoices::None if it is not refined.
+   * Unlike refinement_case(), this function returns the specific refinement
+   * of a tetrahedron (i.e., one of RefinementChoices::Cut49,
+   * RefinementChoices::Cut57, or RefinementChoices::Cut68).
+   */
+  RefinementChoice<structdim>
+  refinement_choice() const;
+
+  /**
    * Index of the @p ith child. The level of the child is one higher than that
    * of the present cell, if the children of a cell are accessed. The children
    * of faces have no level. If the child does not exist, -1 is returned.
@@ -2195,6 +2205,12 @@ public:
   refinement_case();
 
   /**
+   * Always return RefinementChoices::None.
+   */
+  static RefinementChoice<0>
+  refinement_choice();
+
+  /**
    * @brief Returns -1
    */
   static int
@@ -2881,6 +2897,12 @@ public:
    */
   static RefinementCase<0>
   refinement_case();
+
+  /**
+   * Always return RefinementChoices::None.
+   */
+  static RefinementChoice<0>
+  refinement_choice();
 
   /**
    * @brief Returns -1
@@ -3602,6 +3624,25 @@ public:
    */
   RefinementCase<dim>
   refine_flag_set() const;
+
+  /**
+   * Return the RefinementChoice this cell was flagged to be refined with, or
+   * RefinementChoices::None if the cell is not flagged for refinement. Like
+   * refine_flag_set(), the return value can be used to check whether this
+   * cell is flagged for refinement: e.g.,
+   * @code
+   * if (cell->refinement_choice_set())
+   *   {
+   *     // yes, this cell is marked for refinement.
+   *   }
+   * @endcode
+   *
+   * Unlike refine_flag_set(), this function returns the specific refinement
+   * of a tetrahedron (i.e., one of RefinementChoices::Cut49,
+   * RefinementChoices::Cut57, or RefinementChoices::Cut68).
+   */
+  RefinementChoice<dim>
+  refinement_choice_set() const;
 
   /**
    * Flag the cell pointed to for refinement. This function is only allowed
@@ -5714,6 +5755,18 @@ TriaAccessor<structdim, dim, spacedim>::refinement_case() const
 
 
 template <int structdim, int dim, int spacedim>
+inline RefinementChoice<structdim>
+TriaAccessor<structdim, dim, spacedim>::refinement_choice() const
+{
+  // Triangulation stores the refinement of a tetrahedron (one of Cut68, Cut57,
+  // or Cut49) as a RefinementCase with the value 1, 2, or 3.
+  return internal::refinement_choice_from_legacy_refinement_case(
+    this->reference_cell(), refinement_case());
+}
+
+
+
+template <int structdim, int dim, int spacedim>
 inline TriaIterator<TriaAccessor<structdim, dim, spacedim>>
 TriaAccessor<structdim, dim, spacedim>::child(const unsigned int i) const
 
@@ -6927,6 +6980,15 @@ TriaAccessor<0, dim, spacedim>::refinement_case()
 
 
 template <int dim, int spacedim>
+inline RefinementChoice<0>
+TriaAccessor<0, dim, spacedim>::refinement_choice()
+{
+  return RefinementChoices::None<0>;
+}
+
+
+
+template <int dim, int spacedim>
 inline int
 TriaAccessor<0, dim, spacedim>::child_index(const unsigned int)
 {
@@ -7378,6 +7440,15 @@ TriaAccessor<0, 1, spacedim>::refinement_case()
   return {RefinementPossibilities<0>::no_refinement};
 }
 
+
+
+template <int spacedim>
+inline RefinementChoice<0>
+TriaAccessor<0, 1, spacedim>::refinement_choice()
+{
+  return RefinementChoices::None<0>;
+}
+
 template <int spacedim>
 inline int
 TriaAccessor<0, 1, spacedim>::child_index(const unsigned int)
@@ -7681,6 +7752,33 @@ CellAccessor<dim, spacedim>::refine_flag_set() const
     ExcRefineCellNotActive());
   return RefinementCase<dim>(
     this->tria->levels[this->level()]->refine_flags[this->present_index]);
+}
+
+
+
+template <int dim, int spacedim>
+inline RefinementChoice<dim>
+CellAccessor<dim, spacedim>::refinement_choice_set() const
+{
+  const RefinementCase<dim> refinement_case = refine_flag_set();
+  if (refinement_case == RefinementCase<dim>::no_refinement)
+    return RefinementChoices::None<dim>;
+
+  // Tetrahedra store their specific refinement separately.
+  // CellAccessor::set_refine_flag() guarantees that it has been set.
+  if (this->tria->levels[this->level()]->refine_choice.size() != 0 &&
+      this->reference_cell() == ReferenceCells::Tetrahedron)
+    {
+      const RefinementChoice<dim> choice =
+        this->tria->levels[this->level()]->refine_choice[this->present_index];
+      Assert(choice != RefinementChoices::None<dim>, ExcInternalError());
+      return choice;
+    }
+
+  const RefinementChoice<dim> choice(refinement_case);
+  Assert(this->reference_cell().is_compatible_refinement_choice(choice),
+         ExcInternalError());
+  return choice;
 }
 
 

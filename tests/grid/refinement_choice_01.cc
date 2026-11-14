@@ -12,8 +12,10 @@
 
 #include <deal.II/base/geometry_info.h>
 
+#include <deal.II/grid/grid_generator.h>
 #include <deal.II/grid/reference_cell.h>
 #include <deal.II/grid/refinement_choice.h>
+#include <deal.II/grid/tria.h>
 
 #include <algorithm>
 #include <vector>
@@ -119,6 +121,90 @@ test_reference_cell(const ReferenceCell<dim> &reference_cell)
   deallog << std::endl;
 }
 
+// Check CellAccessor::refinement_choice_set() and
+// TriaAccessor::refinement_choice() for a single-cell Triangulation
+template <int dim>
+void
+print_flag(const Triangulation<dim> &tria, const std::string &description)
+{
+  deallog << dim << "d " << tria.begin_active()->reference_cell().to_string()
+          << " " << description << ": "
+          << tria.begin_active()->refinement_choice_set().to_string()
+          << std::endl;
+}
+
+void
+test_cell_refinement_choice()
+{
+  {
+    Triangulation<1> tria;
+    GridGenerator::hyper_cube(tria);
+    print_flag(tria, "unflagged");
+    tria.begin_active()->set_refine_flag();
+    print_flag(tria, "isotropic flag");
+  }
+  {
+    Triangulation<2> tria;
+    GridGenerator::hyper_cube(tria);
+    tria.begin_active()->set_refine_flag(RefinementCase<2>::cut_x);
+    print_flag(tria, "cut_x flag");
+  }
+  {
+    Triangulation<3> tria;
+    GridGenerator::hyper_cube(tria);
+    tria.begin_active()->set_refine_flag(RefinementCase<3>::cut_xz);
+    print_flag(tria, "cut_xz flag");
+    tria.begin_active()->clear_refine_flag();
+    print_flag(tria, "cleared flag");
+    tria.begin_active()->set_refine_flag(RefinementCase<3>::cut_xz);
+    tria.execute_coarsening_and_refinement();
+    deallog << "3d Hex refined with cut_xz: "
+            << tria.begin(0)->refinement_choice().to_string() << ", face 0: "
+            << tria.begin(0)->face(0)->refinement_choice().to_string()
+            << ", face 4: "
+            << tria.begin(0)->face(4)->refinement_choice().to_string()
+            << ", child 0: "
+            << tria.begin(0)->child(0)->refinement_choice().to_string()
+            << std::endl;
+  }
+  {
+    Triangulation<2> tria;
+    GridGenerator::reference_cell(tria, ReferenceCells::Triangle);
+    tria.begin_active()->set_refine_flag();
+    print_flag(tria, "isotropic flag");
+  }
+  {
+    Triangulation<3> tria;
+    GridGenerator::reference_cell(tria, ReferenceCells::Tetrahedron);
+    const auto cell = tria.begin_active();
+    print_flag(tria, "unflagged");
+    cell->set_refine_flag();
+    cell->set_refine_choice(
+      static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_57));
+    print_flag(tria, "flag, then choice cut_tet_57");
+    cell->clear_refine_flag();
+    cell->clear_refine_choice();
+    cell->set_refine_choice(
+      static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_49));
+    cell->set_refine_flag();
+    print_flag(tria, "choice cut_tet_49, then flag");
+    cell->clear_refine_flag();
+    cell->clear_refine_choice();
+    cell->set_refine_flag();
+    print_flag(tria, "flag only (shortest new line)");
+    cell->clear_refine_flag();
+    cell->clear_refine_choice();
+    cell->set_refine_flag();
+    cell->set_refine_choice(
+      static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_57));
+    tria.execute_coarsening_and_refinement();
+    deallog << "3d Tet refined with cut_tet_57: "
+            << tria.begin(0)->refinement_choice().to_string() << ", face 0: "
+            << tria.begin(0)->face(0)->refinement_choice().to_string()
+            << std::endl;
+  }
+}
+
 int
 main()
 {
@@ -197,6 +283,8 @@ main()
   test_reference_cell(ReferenceCells::Pyramid);
   test_reference_cell(ReferenceCells::Wedge);
   test_reference_cell(ReferenceCells::Hexahedron);
+
+  test_cell_refinement_choice();
 
   // Check that the integer values match those of RefinementCase.
   static_assert(int(RefinementChoices::Isotropic<1>) == 1);

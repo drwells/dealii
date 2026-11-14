@@ -114,7 +114,8 @@ test_reference_cell(const ReferenceCell<dim> &reference_cell)
   deallog << reference_cell.to_string() << ":";
   for (const auto &choice : reference_cell.refinement_choices())
     deallog << " " << choice.to_string() << " ("
-            << reference_cell.n_children(choice) << ")";
+            << reference_cell.n_children(choice) << " children, index "
+            << reference_cell.refinement_choice_index(choice) << ")";
   deallog << std::endl;
 }
 

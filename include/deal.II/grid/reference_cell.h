@@ -440,6 +440,18 @@ public:
   refinement_choices() const;
 
   /**
+   * Return an array index, starting at zero, for @p refinement_choice. This
+   * is the position of @p refinement_choice in the array returned by
+   * refinement_choices() and is useful for storing data which depends on how
+   * a cell is refined (e.g., prolongation and restriction matrices).
+   *
+   * @p refinement_choice must be compatible with the current cell (see
+   * is_compatible_refinement_choice()) and may not be RefinementChoices::None.
+   */
+  unsigned int
+  refinement_choice_index(const RefinementChoice<dim> &refinement_choice) const;
+
+  /**
    * Return an ArrayView of the possible refinements (e.g.,
    * `RefinementPossibilities<2>::cut_x`) of the current ReferenceCell. This
    * ArrayView will not include `RefinementPossibilities<dim>::no_refinement`:
@@ -3056,6 +3068,28 @@ ReferenceCell<dim>::refinement_choices() const
 
   DEAL_II_NOT_IMPLEMENTED();
   return ArrayView<const RefinementChoice<dim>>();
+}
+
+
+
+template <int dim>
+inline unsigned int
+ReferenceCell<dim>::refinement_choice_index(
+  const RefinementChoice<dim> &refinement_choice) const
+{
+  Assert(refinement_choice != RefinementChoices::None<dim>,
+         ExcMessage("RefinementChoices::None does not have an index."));
+  Assert(is_compatible_refinement_choice(refinement_choice),
+         ExcMessage("The given RefinementChoice is not valid for this "
+                    "ReferenceCell."));
+
+  const auto choices = refinement_choices();
+  for (unsigned int i = 0; i < choices.size(); ++i)
+    if (choices[i] == refinement_choice)
+      return i;
+
+  DEAL_II_ASSERT_UNREACHABLE();
+  return numbers::invalid_unsigned_int;
 }
 
 

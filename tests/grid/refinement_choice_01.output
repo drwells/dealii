@@ -361,11 +361,11 @@ DEAL::3d None RefinementCase = 0 round trip = None
 DEAL::3d Cut49 RefinementCase = 7 round trip = Isotropic
 DEAL::3d Cut57 RefinementCase = 7 round trip = Isotropic
 DEAL::3d Cut68 RefinementCase = 7 round trip = Isotropic
-DEAL::Vertex: Isotropic (1)
-DEAL::Line: Isotropic (2)
-DEAL::Tri: Isotropic (4)
-DEAL::Quad: CutX (2) CutY (2) Isotropic (4)
-DEAL::Tet: Cut49 (8) Cut57 (8) Cut68 (8)
-DEAL::Pyramid: Isotropic (10)
-DEAL::Wedge: Isotropic (8)
-DEAL::Hex: CutX (2) CutY (2) CutXY (4) CutZ (2) CutXZ (4) CutYZ (4) Isotropic (8)
+DEAL::Vertex: Isotropic (1 children, index 0)
+DEAL::Line: Isotropic (2 children, index 0)
+DEAL::Tri: Isotropic (4 children, index 0)
+DEAL::Quad: CutX (2 children, index 0) CutY (2 children, index 1) Isotropic (4 children, index 2)
+DEAL::Tet: Cut49 (8 children, index 0) Cut57 (8 children, index 1) Cut68 (8 children, index 2)
+DEAL::Pyramid: Isotropic (10 children, index 0)
+DEAL::Wedge: Isotropic (8 children, index 0)
+DEAL::Hex: CutX (2 children, index 0) CutY (2 children, index 1) CutXY (4 children, index 2) CutZ (2 children, index 3) CutXZ (4 children, index 4) CutYZ (4 children, index 5) Isotropic (8 children, index 6)

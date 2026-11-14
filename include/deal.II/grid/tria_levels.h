@@ -19,6 +19,7 @@
 #include <deal.II/base/point.h>
 
 #include <deal.II/grid/reference_cell.h>
+#include <deal.II/grid/refinement_choice.h>
 #include <deal.II/grid/tria_objects.h>
 #include <deal.II/grid/tria_objects_orientations.h>
 
@@ -191,11 +192,12 @@ namespace internal
       std::vector<std::uint8_t> refine_flags;
 
       /**
-       * @p IsotropicRefinementChoices direction for the tetrahedral cells to be
-       * refined with
-       * or choose the optimal way @p ReferenceCell::isotropic_refinement.
+       * The RefinementChoice with which each tetrahedral cell will be refined.
+       * RefinementChoices::None indicates that no choice has been made yet.
+       * This vector is only allocated if the Triangulation contains
+       * tetrahedra.
        */
-      std::vector<std::uint8_t> refine_choice;
+      std::vector<RefinementChoice<dim>> refine_choice;
 
       /**
        * Same meaning as the one above, but specifies whether a cell must be

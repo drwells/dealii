@@ -4241,7 +4241,7 @@ private:
    * children with the best aspect ratios, i.e., the one whose new interior
    * line is shortest.
    */
-  std::uint8_t
+  RefinementChoice<dim>
   best_tetrahedral_refine_choice() const;
 
   friend class Triangulation<dim, spacedim>;
@@ -7699,17 +7699,10 @@ CellAccessor<dim, spacedim>::set_refine_flag(
   // Tetrahedra additionally need to know how they will be refined. If no
   // choice has been made yet then pick the one with the best aspect ratios.
   if (refinement_case != RefinementCase<dim>::no_refinement &&
-      this->tria->levels[this->level()]->refine_choice.size() != 0)
-    {
-      const std::uint8_t choice = refine_choice();
-      if (choice !=
-            static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_68) &&
-          choice !=
-            static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_57) &&
-          choice !=
-            static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_49))
-        set_refine_choice();
-    }
+      this->tria->levels[this->level()]->refine_choice.size() != 0 &&
+      this->tria->levels[this->level()]->refine_choice[this->present_index] ==
+        RefinementChoices::None<dim>)
+    set_refine_choice();
 }
 
 
@@ -7730,8 +7723,10 @@ CellAccessor<dim, spacedim>::refine_choice() const
 {
   Assert(this->used(), TriaAccessorExceptions::ExcCellNotUsed());
   if (this->tria->levels[this->level()]->refine_choice.size() == 0)
-    return 0U;
-  return this->tria->levels[this->level()]->refine_choice[this->present_index];
+    return static_cast<std::uint8_t>(
+      static_cast<IsotropicRefinementChoice>(RefinementChoices::None<dim>));
+  return static_cast<std::uint8_t>(static_cast<IsotropicRefinementChoice>(
+    this->tria->levels[this->level()]->refine_choice[this->present_index]));
 }
 
 
@@ -7751,7 +7746,8 @@ CellAccessor<dim, spacedim>::set_refine_choice(
           refinement_choice ==
             static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_49))
         this->tria->levels[this->level()]->refine_choice[this->present_index] =
-          refinement_choice;
+          RefinementChoice<dim>(
+            static_cast<IsotropicRefinementChoice>(refinement_choice));
       else
         this->tria->levels[this->level()]->refine_choice[this->present_index] =
           best_tetrahedral_refine_choice();
@@ -7776,9 +7772,9 @@ inline void
 CellAccessor<dim, spacedim>::clear_refine_choice() const
 {
   Assert(this->used() && this->is_active(), ExcRefineCellNotActive());
-  // Zero indicates that no choice has been made yet.
   if (this->tria->levels[this->level()]->refine_choice.size() != 0)
-    this->tria->levels[this->level()]->refine_choice[this->present_index] = 0;
+    this->tria->levels[this->level()]->refine_choice[this->present_index] =
+      RefinementChoices::None<dim>;
 }
 
 

@@ -30,6 +30,39 @@ DEAL_II_NAMESPACE_OPEN
 template <int dim>
 class RefinementChoice;
 
+
+
+/**
+ * Enum of different choices for istropic refinement.
+ * There are 3 different ways to refine a tetrahedral, here we save the
+ * different possibilities. It is different to RefinementPossibilities are these
+ * are options in the case that an isotropic refinement is conducted.
+ *
+ * @deprecated Use RefinementChoice (e.g., RefinementChoices::Cut68) instead.
+ */
+enum class DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+  "Use RefinementChoice instead.") IsotropicRefinementChoice : std::uint8_t
+{
+  /**
+   * Decide where to perform a cut based on the shortest edge length.
+   */
+  isotropic_refinement = 0,
+  /**
+   * Perform a cut in the along the edge (6,8).
+   */
+  cut_tet_68 = 1,
+  /**
+   * Perform a cut in the along the edge (5,7).
+   */
+  cut_tet_57 = 2,
+  /**
+   * Perform a cut in the along the edge (4,9).
+   */
+  cut_tet_49 = 3,
+};
+
+
+
 namespace internal
 {
   /**
@@ -81,6 +114,26 @@ public:
    * RefinementChoices::None.
    */
   constexpr RefinementChoice();
+
+  /**
+   * Convert an IsotropicRefinementChoice into a RefinementChoice. Since
+   * IsotropicRefinementChoice::isotropic_refinement does not correspond to a
+   * specific refinement of a tetrahedron, it is converted to
+   * RefinementChoices::None (i.e., no choice has been made yet).
+   *
+   * @note The three specific values of IsotropicRefinementChoice may only be
+   * converted to RefinementChoice<3>.
+   */
+  explicit RefinementChoice(const IsotropicRefinementChoice choice);
+
+  /**
+   * Convert a RefinementChoice to an IsotropicRefinementChoice. This is the
+   * inverse of the constructor above: RefinementChoices::None is converted to
+   * IsotropicRefinementChoice::isotropic_refinement. All values other than
+   * None, Cut49, Cut57, and Cut68 cannot be converted.
+   */
+  explicit
+  operator IsotropicRefinementChoice() const;
 
   /**
    * Convert the RefinementChoice to a bool. This is equal to testing for
@@ -201,6 +254,12 @@ public:
    */
   constexpr unsigned int
   new_tetrahedron_line() const;
+
+  /**
+   * Return the amount of memory occupied by an object of this type.
+   */
+  static constexpr std::size_t
+  memory_consumption();
 
 private:
   /**
@@ -583,6 +642,15 @@ RefinementChoice<dim>::cut_axis(const unsigned int i)
   // As with RefinementCase, cutting along an axis sets the bit corresponding to
   // that axis.
   return RefinementChoice<dim>(static_cast<std::uint8_t>(1u << i));
+}
+
+
+
+template <int dim>
+inline constexpr std::size_t
+RefinementChoice<dim>::memory_consumption()
+{
+  return sizeof(RefinementChoice<dim>);
 }
 
 

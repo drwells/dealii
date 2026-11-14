@@ -2210,7 +2210,7 @@ CellAccessor<dim, spacedim>::set_direction_flag(
 
 
 template <int dim, int spacedim>
-std::uint8_t
+RefinementChoice<dim>
 CellAccessor<dim, spacedim>::best_tetrahedral_refine_choice() const
 {
   Assert(this->reference_cell() == ReferenceCells::Tetrahedron,
@@ -2224,10 +2224,10 @@ CellAccessor<dim, spacedim>::best_tetrahedral_refine_choice() const
         {{{2, 4}}, //
          {{1, 3}}, //
          {{0, 5}}}};
-      constexpr std::array<IsotropicRefinementChoice, 3> choices = {
-        {IsotropicRefinementChoice::cut_tet_68,
-         IsotropicRefinementChoice::cut_tet_57,
-         IsotropicRefinementChoice::cut_tet_49}};
+      constexpr std::array<RefinementChoice<3>, 3> choices = {
+        {RefinementChoices::Cut68<3>,
+         RefinementChoices::Cut57<3>,
+         RefinementChoices::Cut49<3>}};
 
       unsigned int chosen_line  = 0;
       double       min_distance = std::numeric_limits<double>::infinity();
@@ -2245,11 +2245,11 @@ CellAccessor<dim, spacedim>::best_tetrahedral_refine_choice() const
               min_distance = current_distance;
             }
         }
-      return static_cast<std::uint8_t>(choices[chosen_line]);
+      return choices[chosen_line];
     }
 
   DEAL_II_ASSERT_UNREACHABLE();
-  return 0;
+  return RefinementChoices::None<dim>;
 }
 
 

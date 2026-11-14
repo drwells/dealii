@@ -7261,6 +7261,10 @@ namespace internal
                   } // GET_VERTICES
 
 
+                  // Tetrahedra may be refined in three different ways: all
+                  // other cells only use isotropic refinement here.
+                  RefinementChoice<dim> refinement_choice =
+                    RefinementChoices::Isotropic<dim>;
                   unsigned int chosen_line_tetrahedron = 0;
 
                   // set up new lines
@@ -7280,25 +7284,19 @@ namespace internal
                           // CellAccessor::set_refine_flag() and
                           // CellAccessor::set_refine_choice() guarantee that
                           // one of the three choices has been made.
-                          const std::uint8_t refinement_choice =
-                            cell->refine_choice();
-                          if (refinement_choice ==
-                              static_cast<std::uint8_t>(
-                                IsotropicRefinementChoice::cut_tet_68))
-                            chosen_line_tetrahedron = 0;
-                          else if (refinement_choice ==
-                                   static_cast<std::uint8_t>(
-                                     IsotropicRefinementChoice::cut_tet_57))
-                            chosen_line_tetrahedron = 1;
-                          else if (refinement_choice ==
-                                   static_cast<std::uint8_t>(
-                                     IsotropicRefinementChoice::cut_tet_49))
-                            chosen_line_tetrahedron = 2;
-                          else
-                            Assert(false,
-                                   ExcMessage(
-                                     "A tetrahedron was flagged for refinement "
-                                     "without a valid refinement choice."));
+                          refinement_choice =
+                            triangulation.levels[cell->level()]
+                              ->refine_choice[cell->index()];
+                          Assert(refinement_choice !=
+                                     RefinementChoices::None<dim> &&
+                                   cell_reference_cell
+                                     .is_compatible_refinement_choice(
+                                       refinement_choice),
+                                 ExcMessage(
+                                   "A tetrahedron was flagged for refinement "
+                                   "without a valid refinement choice."));
+                          chosen_line_tetrahedron =
+                            refinement_choice.new_tetrahedron_line();
 
                           cell->set_refinement_case(
                             RefinementCase<dim>(chosen_line_tetrahedron + 1));
@@ -7409,8 +7407,8 @@ namespace internal
                     // Similar to `vertex_indices` above the `relevant_lines`
                     // are filled in multiple steps. The order is once again
                     // determined by the reference cell and the refinement
-                    // algorithms used by the faces. (For Tetrahedron
-                    // `chosen_line_tetrahedron` is also relevant).
+                    // algorithms used by the faces (and, for tetrahedra, by
+                    // `refinement_choice`).
                     //  1. Get the lines from the faces that are Quadrilaterals.
                     //
                     //     .- -.- -.
@@ -7555,7 +7553,7 @@ namespace internal
                     // into `relevant_lines`.
                     const auto &new_face_lines =
                       cell_reference_cell.new_isotropic_child_face_lines(
-                        chosen_line_tetrahedron);
+                        refinement_choice);
 
                     // The created lines might not be oriented according to the
                     // expectation of the face's reference cell. Consequently,
@@ -7566,7 +7564,7 @@ namespace internal
                     const auto &new_face_lines_vert =
                       cell_reference_cell
                         .new_isotropic_child_face_line_vertices(
-                          chosen_line_tetrahedron);
+                          refinement_choice);
 
                     // When fixing the orientation of lines for hexes the
                     // calculated orientation of one line can be used for some
@@ -7725,7 +7723,7 @@ namespace internal
                     // stored in the ReferenceCell and retrieved here.
                     const auto cell_faces =
                       cell_reference_cell.new_isotropic_child_cell_faces(
-                        chosen_line_tetrahedron);
+                        refinement_choice);
 
                     // We also need to account for potential orientation
                     // mismatches between the face and the cell's ReferenceCell.
@@ -7733,7 +7731,7 @@ namespace internal
                     // details.)
                     const auto new_cells_vertices =
                       cell_reference_cell.new_isotropic_child_cell_vertices(
-                        chosen_line_tetrahedron);
+                        refinement_choice);
 
                     // 1. Preserve data that can only be extracted from active
                     //    cells.

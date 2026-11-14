@@ -15,6 +15,62 @@
 DEAL_II_NAMESPACE_OPEN
 
 template <int dim>
+RefinementChoice<dim>::RefinementChoice(const IsotropicRefinementChoice choice)
+  : kind(0)
+{
+  switch (choice)
+    {
+      case IsotropicRefinementChoice::isotropic_refinement:
+        *this = RefinementChoices::None<dim>;
+        return;
+      case IsotropicRefinementChoice::cut_tet_68:
+      case IsotropicRefinementChoice::cut_tet_57:
+      case IsotropicRefinementChoice::cut_tet_49:
+        if constexpr (dim == 3)
+          {
+            if (choice == IsotropicRefinementChoice::cut_tet_68)
+              *this = RefinementChoices::Cut68<3>;
+            else if (choice == IsotropicRefinementChoice::cut_tet_57)
+              *this = RefinementChoices::Cut57<3>;
+            else
+              *this = RefinementChoices::Cut49<3>;
+          }
+        else
+          DEAL_II_NOT_IMPLEMENTED();
+        return;
+    }
+
+  DEAL_II_NOT_IMPLEMENTED();
+}
+
+
+
+template <int dim>
+RefinementChoice<dim>::
+operator IsotropicRefinementChoice() const
+{
+  if (*this == RefinementChoices::None<dim>)
+    return IsotropicRefinementChoice::isotropic_refinement;
+
+  if constexpr (dim == 3)
+    {
+      if (*this == RefinementChoices::Cut68<3>)
+        return IsotropicRefinementChoice::cut_tet_68;
+      if (*this == RefinementChoices::Cut57<3>)
+        return IsotropicRefinementChoice::cut_tet_57;
+      if (*this == RefinementChoices::Cut49<3>)
+        return IsotropicRefinementChoice::cut_tet_49;
+    }
+
+  Assert(false,
+         ExcMessage("Only None, Cut49, Cut57, and Cut68 can be converted to "
+                    "IsotropicRefinementChoice."));
+  return IsotropicRefinementChoice::isotropic_refinement;
+}
+
+
+
+template <int dim>
 std::string
 RefinementChoice<dim>::to_string() const
 {

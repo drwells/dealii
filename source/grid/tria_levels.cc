@@ -85,7 +85,7 @@ namespace internal
       level_subdomain_ids.assign(n_cells, 0);
 
       refine_flags.assign(n_cells, 0u);
-      refine_choice.assign(n_cells, 0u);
+      refine_choice.assign(n_cells, RefinementChoices::None<dim>);
       coarsen_flags.assign(n_cells, false);
 
       parents.assign((n_cells + 1) / 2, -1);
@@ -134,10 +134,9 @@ namespace internal
       if (has_tetrahedra)
         {
           refine_choice.reserve(total_cells);
-          // Zero indicates that no choice has been made yet.
           refine_choice.insert(refine_choice.end(),
                                total_cells - refine_choice.size(),
-                               0);
+                               RefinementChoices::None<dim>);
         }
 
       coarsen_flags.reserve(total_cells);

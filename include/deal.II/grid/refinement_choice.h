@@ -372,10 +372,10 @@ namespace RefinementChoices
   /**
    * Refine a cell isotropically.
    *
-   * @note There are three distinct ways to isotropically refine a tetrahedron.
-   * If this RefinementChoice is selected for a tetrahedron, then Triangulation
-   * will pick the RefinementChoice (one of Cut49, Cut57, or Cut68) which
-   * creates cells with the best aspect ratios.
+   * @note There are three distinct ways to isotropically refine a tetrahedron
+   * and, as such, this RefinementChoice cannot be used with tetrahedra. Use one
+   * of RefinementChoices::Cut49, RefinementChoices::Cut57, or
+   * RefinementChoices::Cut68 instead.
    *
    * @note In 1d, 2d, and 3d, this value is equal to
    * RefinementCase<dim>::isotropic_refinement.
@@ -493,16 +493,17 @@ RefinementChoice<dim>::operator|(
   if (!other_choice.is_tetrahedral())
     return RefinementChoice<dim>(this->kind | other_choice.kind);
 
-  // Tetrahedral refinements:
-  Assert(!this->is_tetrahedral() ? *this == RefinementChoices::Isotropic<dim> :
-                                   true,
-         ExcMessage("Specific tetrahedral refinements (e.g., Cut49) cannot "
-                    "be combined with anisotropic refinement (e.g., CutX)."));
-  Assert(*this == RefinementChoices::Isotropic<dim>,
+  // Tetrahedral refinements can only be combined with None (handled above) or
+  // themselves (also handled above).
+  Assert(this->is_tetrahedral(),
+         ExcMessage("Tetrahedral refinements (e.g., Cut49) cannot be combined "
+                    "with refinements of other cells (e.g., CutX or "
+                    "Isotropic)."));
+  Assert(false,
          ExcMessage("The union of specific tetrahedral refinements, e.g., "
                     "Cut49 with Cut57, is not defined since these are mutually "
                     "exclusive operations."));
-  return other_choice;
+  return RefinementChoices::None<dim>;
 }
 
 
@@ -525,9 +526,14 @@ RefinementChoice<dim>::operator&(
   if (!other_choice.is_tetrahedral())
     return RefinementChoice<dim>(this->kind & other_choice.kind);
 
-  // Tetrahedral refinements: the only reasonable option here is to 'downgrade'
-  // to an unspecified isotropic refinement.
-  return RefinementChoices::Isotropic<dim>;
+  // Tetrahedral refinements can only be combined with None (handled above) or
+  // other tetrahedral refinements. Since these are mutually exclusive their
+  // intersection is empty.
+  Assert(this->is_tetrahedral(),
+         ExcMessage("Tetrahedral refinements (e.g., Cut49) cannot be combined "
+                    "with refinements of other cells (e.g., CutX or "
+                    "Isotropic)."));
+  return RefinementChoices::None<dim>;
 }
 
 

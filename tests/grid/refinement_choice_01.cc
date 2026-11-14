@@ -49,8 +49,7 @@ get_tetrahedron_choices()
   return {RefinementChoices::None<3>,
           RefinementChoices::Cut49<3>,
           RefinementChoices::Cut57<3>,
-          RefinementChoices::Cut68<3>,
-          RefinementChoices::Isotropic<3>};
+          RefinementChoices::Cut68<3>};
 }
 
 // Unions of distinct specific tetrahedral refinements are not defined.
@@ -62,7 +61,7 @@ union_is_defined(const RefinementChoice<dim> a, const RefinementChoice<dim> b)
     {
       const auto tets            = get_tetrahedron_choices();
       const auto is_specific_tet = [&](const RefinementChoice<3> c) {
-        return std::find(tets.begin() + 1, tets.end() - 1, c) != tets.end() - 1;
+        return std::find(tets.begin() + 1, tets.end(), c) != tets.end();
       };
       if (is_specific_tet(a) && is_specific_tet(b) && a != b)
         return false;

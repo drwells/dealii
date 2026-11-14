@@ -340,7 +340,7 @@ FE_P1NC::fill_fe_subface_values(
                                       face_no,
                                       sub_no,
                                       numbers::default_geometric_orientation,
-                                      RefinementCase<1>::isotropic_refinement);
+                                      RefinementChoices::Isotropic<1>);
 
   if (flags & update_values)
     for (unsigned int i = 0; i < quadrature_on_subface.size(); ++i)

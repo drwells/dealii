@@ -26,6 +26,9 @@ DEAL_II_NAMESPACE_OPEN
 #ifndef DOXYGEN
 template <int dim>
 class ReferenceCell;
+
+template <int dim>
+class RefinementChoice;
 #endif
 
 /**
@@ -87,12 +90,30 @@ public:
   /**
    * Compute the cell quadrature formula corresponding to using
    * <tt>quadrature</tt> on subface <tt>subface_no</tt> of face
-   * <tt>face_no</tt> with RefinementCase<dim-1> <tt>ref_case</tt>. The last
-   * argument is only used in 3d.
+   * <tt>face_no</tt>, which is refined with @p face_refinement_choice. The
+   * refinement choice must be compatible with the reference cell of the face
+   * and may not be RefinementChoices::None.
    *
    * @note Only the points are transformed. The quadrature weights are the
    * same as those of the original rule.
    */
+  static Quadrature<dim>
+  project_to_subface(const ReferenceCell<dim>          &reference_cell,
+                     const SubQuadrature               &quadrature,
+                     const unsigned int                 face_no,
+                     const unsigned int                 subface_no,
+                     const types::geometric_orientation combined_orientation,
+                     const RefinementChoice<dim - 1>   &face_refinement_choice);
+
+  /**
+   * Same as above, but with the refinement of the face given by a
+   * RefinementCase.
+   *
+   * @deprecated Use the version of this function which takes a
+   * RefinementChoice instead.
+   */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use the version of this function which takes a RefinementChoice instead.")
   static Quadrature<dim>
   project_to_subface(const ReferenceCell<dim>          &reference_cell,
                      const SubQuadrature               &quadrature,

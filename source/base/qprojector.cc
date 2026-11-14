@@ -150,7 +150,7 @@ QProjector<dim>::project_to_subface(
   const unsigned int                 face_no,
   const unsigned int                 subface_no,
   const types::geometric_orientation combined_orientation,
-  const RefinementCase<dim - 1>     &ref_case)
+  const RefinementChoice<dim - 1>   &face_refinement_choice)
 {
   AssertIndexRange(face_no, reference_cell.n_faces());
   AssertIndexRange(combined_orientation,
@@ -159,7 +159,7 @@ QProjector<dim>::project_to_subface(
   if (dim > 1)
     AssertIndexRange(subface_no,
                      reference_cell.face_reference_cell(face_no).n_children(
-                       ref_case));
+                       face_refinement_choice));
   if (dim == 1)
     AssertDimension(quadrature.size(), 1);
 
@@ -171,7 +171,7 @@ QProjector<dim>::project_to_subface(
   for (const unsigned int subface_vertex_no :
        reference_cell.face_reference_cell(face_no).vertex_indices())
     vertices.push_back(reference_cell.subface_vertex_location(
-      face_no, subface_no, subface_vertex_no, ref_case));
+      face_no, subface_no, subface_vertex_no, face_refinement_choice));
   internal::QProjector::append_subobject_rule(
     reference_cell.face_reference_cell(face_no),
     quadrature,
@@ -182,6 +182,26 @@ QProjector<dim>::project_to_subface(
     weights);
 
   return Quadrature<dim>(std::move(points), std::move(weights));
+}
+
+
+
+template <int dim>
+Quadrature<dim>
+QProjector<dim>::project_to_subface(
+  const ReferenceCell<dim>          &reference_cell,
+  const SubQuadrature               &quadrature,
+  const unsigned int                 face_no,
+  const unsigned int                 subface_no,
+  const types::geometric_orientation combined_orientation,
+  const RefinementCase<dim - 1>     &ref_case)
+{
+  return project_to_subface(reference_cell,
+                            quadrature,
+                            face_no,
+                            subface_no,
+                            combined_orientation,
+                            RefinementChoice<dim - 1>(ref_case));
 }
 
 
@@ -247,10 +267,11 @@ QProjector<dim>::project_to_all_subfaces(
       const auto n_orientations = reference_cell.n_face_orientations(face_no);
       const auto face_reference_cell =
         reference_cell.face_reference_cell(face_no);
-      for (const auto &refinement_case : face_reference_cell.refinement_cases())
+      for (const auto &refinement_choice :
+           face_reference_cell.refinement_choices())
         {
           const auto n_children =
-            dim > 1 ? face_reference_cell.n_children(refinement_case) : 1;
+            dim > 1 ? face_reference_cell.n_children(refinement_choice) : 1;
           n_points += n_children * n_orientations * quadrature.size();
         }
     }
@@ -265,11 +286,11 @@ QProjector<dim>::project_to_all_subfaces(
     {
       const auto face_reference_cell =
         reference_cell.face_reference_cell(face_no);
-      const auto &refinement_cases = face_reference_cell.refinement_cases();
-      for (const auto &refinement_case : refinement_cases)
+      const auto &refinement_choices = face_reference_cell.refinement_choices();
+      for (const auto &refinement_choice : refinement_choices)
         {
           const auto n_children =
-            dim > 1 ? face_reference_cell.n_children(refinement_case) : 1;
+            dim > 1 ? face_reference_cell.n_children(refinement_choice) : 1;
           for (types::geometric_orientation combined_orientation = 0;
                combined_orientation <
                reference_cell.n_face_orientations(face_no);
@@ -285,7 +306,7 @@ QProjector<dim>::project_to_all_subfaces(
                      reference_cell.face_reference_cell(face_no)
                        .vertex_indices())
                   vertices.push_back(reference_cell.subface_vertex_location(
-                    face_no, subface_no, subface_vertex_no, refinement_case));
+                    face_no, subface_no, subface_vertex_no, refinement_choice));
                 internal::QProjector::append_subobject_rule(
                   reference_cell.face_reference_cell(face_no),
                   quadrature,
@@ -453,14 +474,14 @@ QProjector<dim>::DataSetDescriptor::subface(
   AssertIndexRange(combined_orientation,
                    reference_cell.n_face_orientations(face_no));
 
-  const auto [final_subface_no, final_refinement_case] =
-    reference_cell.equivalent_refinement_case(combined_orientation,
-                                              ref_case,
-                                              subface_no);
+  const auto [final_subface_no, final_refinement_choice] =
+    reference_cell.equivalent_refinement_choice(combined_orientation,
+                                                ref_case,
+                                                subface_no);
   if (dim > 1)
     AssertIndexRange(final_subface_no,
                      reference_cell.face_reference_cell(face_no).n_children(
-                       final_refinement_case));
+                       final_refinement_choice));
 
   // This function can't work with mixed elements since, in general, those may
   // have a different number of quadrature points per face
@@ -470,12 +491,12 @@ QProjector<dim>::DataSetDescriptor::subface(
 
   // Calculate the total number of points per face:
   const auto  face_reference_cell = reference_cell.face_reference_cell(face_no);
-  const auto &refinement_cases    = face_reference_cell.refinement_cases();
+  const auto &refinement_choices  = face_reference_cell.refinement_choices();
   unsigned int points_per_face    = 0;
-  for (const auto &refinement_case : refinement_cases)
+  for (const auto &refinement_choice : refinement_choices)
     {
       const auto n_children =
-        dim > 1 ? face_reference_cell.n_children(refinement_case) : 1;
+        dim > 1 ? face_reference_cell.n_children(refinement_choice) : 1;
       points_per_face += reference_cell.n_face_orientations(face_no) *
                          n_children * n_quadrature_points;
     }
@@ -483,12 +504,12 @@ QProjector<dim>::DataSetDescriptor::subface(
   // Next, calculate where we are in the current face's enumeration of
   // quadrature rules:
   unsigned int index = points_per_face * face_no;
-  for (const auto &refinement_case : refinement_cases)
+  for (const auto &refinement_choice : refinement_choices)
     {
       const auto n_children =
-        dim > 1 ? face_reference_cell.n_children(refinement_case) : 1;
+        dim > 1 ? face_reference_cell.n_children(refinement_choice) : 1;
 
-      if (refinement_case == final_refinement_case)
+      if (refinement_choice == final_refinement_choice)
         return index + (combined_orientation * n_children + final_subface_no) *
                          n_quadrature_points;
       else

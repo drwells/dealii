@@ -504,7 +504,7 @@ FE_RaviartThomas<dim>::initialize_restriction()
             face,
             sub,
             numbers::default_geometric_orientation,
-            RefinementCase<dim - 1>::isotropic_refinement);
+            RefinementChoices::Isotropic<dim - 1>);
           const unsigned int child = GeometryInfo<dim>::child_cell_on_face(
             RefinementCase<dim>::isotropic_refinement, face, sub);
 

@@ -664,7 +664,7 @@ FE_SimplexPoly<dim, spacedim>::get_subface_interpolation_matrix(
           face_no,
           subface,
           numbers::default_geometric_orientation,
-          RefinementCase<dim - 1>::isotropic_refinement);
+          RefinementChoices::Isotropic<dim - 1>);
 
       for (unsigned int i = 0; i < source_fe.n_dofs_per_face(face_no); ++i)
         for (unsigned int j = 0; j < this->n_dofs_per_face(face_no); ++j)

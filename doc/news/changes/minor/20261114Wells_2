@@ -1,0 +1,4 @@
+New: QProjector::project_to_subface() now has a version which takes a
+RefinementChoice. The version which takes a RefinementCase is deprecated.
+<br>
+(David Wells, 2026/11/14)

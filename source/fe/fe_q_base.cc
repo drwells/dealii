@@ -260,7 +260,7 @@ struct FE_Q_Base<xdim, xspacedim>::Implementation
                    face_no,
                    subface_no,
                    numbers::default_geometric_orientation,
-                   RefinementCase<1>::isotropic_refinement)
+                   RefinementChoices::Isotropic<1>)
             .get_points();
         };
 
@@ -671,7 +671,7 @@ FE_Q_Base<dim, spacedim>::get_subface_interpolation_matrix(
             0,
             subface,
             numbers::default_geometric_orientation,
-            RefinementCase<dim - 1>::isotropic_refinement);
+            RefinementChoices::Isotropic<dim - 1>);
       for (unsigned int i = 0; i < source_fe.n_dofs_per_face(face_no); ++i)
         {
           const Point<dim> &p = subface_quadrature.point(i);

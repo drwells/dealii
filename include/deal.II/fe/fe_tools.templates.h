@@ -2006,7 +2006,7 @@ namespace FETools
           face_coarse,
           cell_number,
           numbers::default_geometric_orientation,
-          RefinementCase<dim - 1>::isotropic_refinement);
+          RefinementChoices::Isotropic<dim - 1>);
         FEValues<dim> coarse(mapping, fe, q_coarse, update_values);
 
         typename Triangulation<dim, spacedim>::active_cell_iterator fine_cell =

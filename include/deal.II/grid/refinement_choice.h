@@ -30,6 +30,9 @@ DEAL_II_NAMESPACE_OPEN
 template <int dim>
 class RefinementChoice;
 
+template <int dim>
+class RefinementCase;
+
 
 
 /**
@@ -134,6 +137,23 @@ public:
    */
   explicit
   operator IsotropicRefinementChoice() const;
+
+  /**
+   * Convert a RefinementCase into a RefinementChoice. Since RefinementCase
+   * only describes refinement of hypercubes, the result is never one of the
+   * tetrahedral RefinementChoices.
+   */
+  explicit RefinementChoice(const RefinementCase<dim> &refinement_case);
+
+  /**
+   * Convert a RefinementChoice into a RefinementCase. Since RefinementCase
+   * cannot describe the three ways in which a tetrahedron may be refined,
+   * RefinementChoices::Cut49, RefinementChoices::Cut57, and
+   * RefinementChoices::Cut68 are all converted to
+   * RefinementCase<dim>::isotropic_refinement.
+   */
+  explicit
+  operator RefinementCase<dim>() const;
 
   /**
    * Convert the RefinementChoice to a bool. This is equal to testing for
@@ -251,6 +271,13 @@ public:
   /**
    * Return the internal line for tetrahedral refinement. This function may only
    * be called on Cut49, Cut57, and Cut68.
+   *
+   * @note The returned value is the index of the new interior line in the
+   * list of possible interior lines (6, 8), (5, 7), and (4, 9) used by
+   * Triangulation and ReferenceCell: i.e., Cut68 returns 0, Cut57 returns 1,
+   * and Cut49 returns 2. This is unrelated to the array index computed by
+   * ReferenceCell::refinement_choice_index(), which follows the order of
+   * ReferenceCell::refinement_choices().
    */
   constexpr unsigned int
   new_tetrahedron_line() const;

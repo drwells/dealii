@@ -159,7 +159,9 @@ namespace
                const RefinementCase<dim> refinement_case)
   {
     if constexpr (dim > 1)
-      AssertIndexRange(child_no, reference_cell.n_children(refinement_case));
+      AssertIndexRange(child_no,
+                       reference_cell.n_children(
+                         RefinementChoice<dim>(refinement_case)));
     AssertIndexRange(vertex_no, reference_cell.n_vertices());
 
     constexpr Point<dim> V0;
@@ -265,20 +267,22 @@ namespace
 template <int dim>
 Point<dim>
 ReferenceCell<dim>::subface_vertex_location(
-  const unsigned int            face_no,
-  const unsigned int            subface_no,
-  const unsigned int            subface_vertex_no,
-  const RefinementCase<dim - 1> face_refinement_case) const
+  const unsigned int               face_no,
+  const unsigned int               subface_no,
+  const unsigned int               subface_vertex_no,
+  const RefinementChoice<dim - 1> &face_refinement_choice) const
 {
   AssertIndexRange(face_no, n_faces());
   if constexpr (dim > 1)
     {
       AssertIndexRange(subface_no,
                        face_reference_cell(face_no).n_children(
-                         face_refinement_case));
-      Assert(face_refinement_case != RefinementCase<dim - 1>::no_refinement,
+                         face_refinement_choice));
+      Assert(face_refinement_choice != RefinementChoices::None<dim - 1>,
              ExcMessage("This function may only be called for subfaces."));
     }
+  const auto face_refinement_case =
+    static_cast<RefinementCase<dim - 1>>(face_refinement_choice);
   AssertIndexRange(subface_vertex_no,
                    face_reference_cell(face_no).n_vertices());
 
@@ -299,8 +303,25 @@ ReferenceCell<dim>::subface_vertex_location(
 
 
 template <int dim>
-std::pair<unsigned int, RefinementCase<dim - 1>>
-ReferenceCell<dim>::equivalent_refinement_case(
+Point<dim>
+ReferenceCell<dim>::subface_vertex_location(
+  const unsigned int            face_no,
+  const unsigned int            subface_no,
+  const unsigned int            subface_vertex_no,
+  const RefinementCase<dim - 1> face_refinement_case) const
+{
+  return subface_vertex_location(face_no,
+                                 subface_no,
+                                 subface_vertex_no,
+                                 RefinementChoice<dim - 1>(
+                                   face_refinement_case));
+}
+
+
+
+template <int dim>
+std::pair<unsigned int, RefinementChoice<dim - 1>>
+ReferenceCell<dim>::equivalent_refinement_choice(
   const types::geometric_orientation combined_face_orientation,
   const internal::SubfaceCase<dim>   subface_case,
   const unsigned int                 subface_no) const
@@ -321,7 +342,7 @@ ReferenceCell<dim>::equivalent_refinement_case(
       (void)subface_case;
       AssertIndexRange(combined_face_orientation, n_face_orientations(0));
       AssertIndexRange(subface_no, 1);
-      return std::make_pair(0, RefinementCase<dim - 1>::isotropic_refinement);
+      return std::make_pair(0, RefinementChoices::Isotropic<dim - 1>);
     }
 
   if constexpr (dim == 2)
@@ -334,7 +355,7 @@ ReferenceCell<dim>::equivalent_refinement_case(
                                 numbers::reverse_line_orientation ?
                               1 - subface_no :
                               subface_no,
-                            RefinementCase<dim - 1>::isotropic_refinement);
+                            RefinementChoices::Isotropic<dim - 1>);
     }
   else if constexpr (dim == 3)
     {
@@ -456,7 +477,8 @@ ReferenceCell<dim>::equivalent_refinement_case(
                                               face_rotation,
                                               equivalent_refinement_case);
 
-      return std::make_pair(final_subface_no, final_refinement_case);
+      return std::make_pair(final_subface_no,
+                            RefinementChoice<dim - 1>(final_refinement_case));
     }
   else
     {
@@ -467,6 +489,24 @@ ReferenceCell<dim>::equivalent_refinement_case(
       DEAL_II_NOT_IMPLEMENTED();
       return {};
     }
+}
+
+
+
+template <int dim>
+std::pair<unsigned int, RefinementCase<dim - 1>>
+ReferenceCell<dim>::equivalent_refinement_case(
+  const types::geometric_orientation combined_face_orientation,
+  const internal::SubfaceCase<dim>   subface_case,
+  const unsigned int                 subface_no) const
+{
+  const auto [equivalent_subface_no, equivalent_choice] =
+    equivalent_refinement_choice(combined_face_orientation,
+                                 subface_case,
+                                 subface_no);
+  return std::make_pair(equivalent_subface_no,
+                        static_cast<RefinementCase<dim - 1>>(
+                          equivalent_choice));
 }
 
 

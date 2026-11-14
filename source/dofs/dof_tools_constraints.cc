@@ -3173,7 +3173,8 @@ namespace DoFTools
 
       if ((!use_mg) && face_2->has_children())
         {
-          Assert(face_2->n_children() == face_2->reference_cell().n_children(),
+          Assert(face_2->n_children() ==
+                   face_2->reference_cell().n_isotropic_children(),
                  ExcNotImplemented());
 
           // Skip further recursion if face_1 carries invalid dof indices,

@@ -10,6 +10,8 @@
 //
 // -----------------------------------------------------------------------------
 
+#include <deal.II/base/geometry_info.h>
+
 #include <deal.II/grid/reference_cell.h>
 #include <deal.II/grid/refinement_choice.h>
 
@@ -91,6 +93,31 @@ test(const RefinementChoice<dim>               choice,
             << (choice & other).to_string() << std::endl;
 }
 
+template <int dim>
+void
+test_conversions(const std::vector<RefinementChoice<dim>> &choices)
+{
+  for (const auto &choice : choices)
+    {
+      const auto ref_case = static_cast<RefinementCase<dim>>(choice);
+      deallog << dim << "d " << choice.to_string()
+              << " RefinementCase = " << int(ref_case)
+              << " round trip = " << RefinementChoice<dim>(ref_case).to_string()
+              << std::endl;
+    }
+}
+
+template <int dim>
+void
+test_reference_cell(const ReferenceCell<dim> &reference_cell)
+{
+  deallog << reference_cell.to_string() << ":";
+  for (const auto &choice : reference_cell.refinement_choices())
+    deallog << " " << choice.to_string() << " ("
+            << reference_cell.n_children(choice) << ")";
+  deallog << std::endl;
+}
+
 int
 main()
 {
@@ -151,6 +178,24 @@ main()
                 << reference_cell.is_compatible_refinement_choice(choice)
                 << std::endl;
     }
+
+  // Check conversions to and from
+  // RefinementCase:
+  test_conversions(get_hypercube_choices<0>());
+  test_conversions(get_hypercube_choices<1>());
+  test_conversions(get_hypercube_choices<2>());
+  test_conversions(get_hypercube_choices<3>());
+  test_conversions(get_tetrahedron_choices());
+
+  // Check ReferenceCell::refinement_choices() and ReferenceCell::n_children():
+  test_reference_cell(ReferenceCells::Vertex);
+  test_reference_cell(ReferenceCells::Line);
+  test_reference_cell(ReferenceCells::Triangle);
+  test_reference_cell(ReferenceCells::Quadrilateral);
+  test_reference_cell(ReferenceCells::Tetrahedron);
+  test_reference_cell(ReferenceCells::Pyramid);
+  test_reference_cell(ReferenceCells::Wedge);
+  test_reference_cell(ReferenceCells::Hexahedron);
 
   // Check that the integer values match those of RefinementCase.
   static_assert(int(RefinementChoices::Isotropic<1>) == 1);

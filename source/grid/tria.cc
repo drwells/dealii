@@ -1881,7 +1881,7 @@ namespace
   child_line_index(const unsigned int                 child_no,
                    const types::geometric_orientation line_orientation)
   {
-    AssertIndexRange(child_no, ReferenceCells::Line.n_children());
+    AssertIndexRange(child_no, ReferenceCells::Line.n_isotropic_children());
     Assert(line_orientation == numbers::default_geometric_orientation ||
              line_orientation == numbers::reverse_line_orientation,
            ExcInternalError());

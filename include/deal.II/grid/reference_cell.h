@@ -354,12 +354,34 @@ public:
   n_isotropic_children() const;
 
   /**
-   * Return the number of cells one would get by refining the
-   * current cell with the given refinement case.
+   * Return the number of cells one would get by refining the current cell
+   * with @p refinement_choice, which must be compatible with the current cell
+   * (see is_compatible_refinement_choice()).
    */
   unsigned int
-  n_children(const RefinementCase<dim> ref_case =
-               RefinementCase<dim>::isotropic_refinement) const;
+  n_children(const RefinementChoice<dim> &refinement_choice) const;
+
+  /**
+   * Return the number of cells one would get by refining the
+   * current cell with the given refinement case.
+   *
+   * @deprecated Use the version of this function which takes a
+   * RefinementChoice instead.
+   */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use the version of this function which takes a RefinementChoice instead.")
+  unsigned int
+  n_children(const RefinementCase<dim> ref_case) const;
+
+  /**
+   * Return the number of cells one would get by isotropically refining the
+   * current cell.
+   *
+   * @deprecated Use n_isotropic_children() instead.
+   */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT("Use n_isotropic_children() instead.")
+  unsigned int
+  n_children() const;
 
   /**
    * Return an object that can be thought of as an array containing all
@@ -369,12 +391,12 @@ public:
   isotropic_child_indices() const;
 
   /**
-   * Convert an internal::SubfaceCase into its equivalent RefinementCase. For
-   * example, SubfacePossibilities<3>::Possibilities::y1x2x is is geometrically
-   * equivalent to RefinementPossibilities<3>::cut_xy.
+   * Convert an internal::SubfaceCase into its equivalent RefinementChoice.
+   * For example, SubfacePossibilities<3>::Possibilities::y1x2x is
+   * geometrically equivalent to RefinementChoices::Isotropic<2>.
    *
    * @return A pair consisting of the equivalent subface number and refinement
-   * case.
+   * choice.
    *
    * @note In 1d faces cannot be refined - however, to enable dimension-independent
    * programming, this function always returns `(0, isotropic_refinement)`.
@@ -387,6 +409,19 @@ public:
    * @note In 3d, for backwards compatibility, we treat
    * internal::SubfaceCase::case_none as internal::SubfaceCase::case_isotropic.
    */
+  std::pair<unsigned int, RefinementChoice<dim - 1>>
+  equivalent_refinement_choice(
+    const types::geometric_orientation combined_face_orientation,
+    const internal::SubfaceCase<dim>   subface_case,
+    const unsigned int                 subface_no) const;
+
+  /**
+   * Same as equivalent_refinement_choice(), but return a RefinementCase.
+   *
+   * @deprecated Use equivalent_refinement_choice() instead.
+   */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use equivalent_refinement_choice() instead.")
   std::pair<unsigned int, RefinementCase<dim - 1>>
   equivalent_refinement_case(
     const types::geometric_orientation combined_face_orientation,
@@ -394,12 +429,26 @@ public:
     const unsigned int                 subface_no) const;
 
   /**
+   * Return an ArrayView of the possible ways (e.g., RefinementChoices::CutX)
+   * in which the current ReferenceCell may be refined. This ArrayView does
+   * not include RefinementChoices::None. For example, for a tetrahedron this
+   * returns RefinementChoices::Cut49, RefinementChoices::Cut57, and
+   * RefinementChoices::Cut68 and for a triangle this returns
+   * RefinementChoices::Isotropic.
+   */
+  ArrayView<const RefinementChoice<dim>>
+  refinement_choices() const;
+
+  /**
    * Return an ArrayView of the possible refinements (e.g.,
    * `RefinementPossibilities<2>::cut_x`) of the current ReferenceCell. This
    * ArrayView will not include `RefinementPossibilities<dim>::no_refinement`:
    * instead, for elements which do not yet support refinement (e.g.,
    * ReferenceCell<dim>::Pyramid) the ArrayView will be empty.
+   *
+   * @deprecated Use refinement_choices() instead.
    */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT("Use refinement_choices() instead.")
   ArrayView<const RefinementCase<dim>>
   refinement_cases() const;
 
@@ -627,9 +676,25 @@ public:
    *
    * @param[in] subface_vertex_no Index of the vertex within the subface.
    *
-   * @param[in] face_refinement_case The way in which the current face is
+   * @param[in] face_refinement_choice The way in which the current face is
    * refined.
    */
+  Point<dim>
+  subface_vertex_location(
+    const unsigned int               face_no,
+    const unsigned int               subface_no,
+    const unsigned int               subface_vertex_no,
+    const RefinementChoice<dim - 1> &face_refinement_choice) const;
+
+  /**
+   * Same as above, but with the refinement of the face given by a
+   * RefinementCase.
+   *
+   * @deprecated Use the version of this function which takes a
+   * RefinementChoice instead.
+   */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use the version of this function which takes a RefinementChoice instead.")
   Point<dim>
   subface_vertex_location(
     const unsigned int            face_no,
@@ -2782,12 +2847,50 @@ ReferenceCell<dim>::n_isotropic_children() const
 
 
 template <int dim>
+inline unsigned int
+ReferenceCell<dim>::n_children(
+  const RefinementChoice<dim> &refinement_choice) const
+{
+  Assert(is_compatible_refinement_choice(refinement_choice),
+         ExcMessage("The given RefinementChoice is not valid for this "
+                    "ReferenceCell."));
+  if (refinement_choice == RefinementChoices::None<dim>)
+    return 0;
+  // Every tetrahedral refinement and every isotropic refinement creates the
+  // number of children of isotropic refinement (which depends on the kind of
+  // cell: e.g., pyramids have ten children).
+  if (refinement_choice == RefinementChoices::Isotropic<dim> ||
+      *this == ReferenceCells::get_simplex<dim>())
+    return n_isotropic_children();
+
+  // Anisotropic refinement of a hypercube: each cut doubles the number of
+  // children.
+  Assert(this->is_hyper_cube(), ExcInternalError());
+  unsigned int n = 1;
+  for (unsigned int d = 0; d < dim; ++d)
+    if ((refinement_choice & RefinementChoice<dim>::cut_axis(d)) ==
+        RefinementChoice<dim>::cut_axis(d))
+      n *= 2;
+  return n;
+}
+
+
+
+template <int dim>
+inline unsigned int
+ReferenceCell<dim>::n_children() const
+{
+  return n_isotropic_children();
+}
+
+
+
+template <int dim>
 unsigned int
 ReferenceCell<dim>::n_children(const RefinementCase<dim> ref_case) const
 {
-  // Use GeometryInfo here to keep it the single source of truth
   if (this->is_hyper_cube())
-    return GeometryInfo<dim>::n_children(ref_case);
+    return n_children(RefinementChoice<dim>(ref_case));
 
   // TODO: Rewrite once refinement cases are cleaned up
   // For all other cells, we assume that only isotropic refinement is
@@ -2878,6 +2981,81 @@ ReferenceCell<dim>::line_indices() const
 {
   return std_cxx20::ranges::iota_view<unsigned int, unsigned int>(0U,
                                                                   n_lines());
+}
+
+
+
+template <int dim>
+inline ArrayView<const RefinementChoice<dim>>
+ReferenceCell<dim>::refinement_choices() const
+{
+  Assert(*this != ReferenceCells::Invalid<dim>, ExcNotImplemented());
+
+  if constexpr (dim == 0 || dim == 1)
+    {
+      // Like equivalent_refinement_choice(), to better enable generic
+      // programming, return a value implying vertices can be refined since 1d
+      // Triangulations can be refined.
+      static constexpr std::array<RefinementChoice<dim>, 1> choices{
+        {RefinementChoices::Isotropic<dim>}};
+      return make_array_view(choices);
+    }
+  else if constexpr (dim == 2)
+    {
+      switch (this->kind)
+        {
+          case ReferenceCells::Triangle:
+            {
+              static constexpr std::array<RefinementChoice<2>, 1> choices{
+                {RefinementChoices::Isotropic<2>}};
+              return make_array_view(choices);
+            }
+          case ReferenceCells::Quadrilateral:
+            {
+              static constexpr std::array<RefinementChoice<2>, 3> choices{
+                {RefinementChoices::CutX<2>,
+                 RefinementChoices::CutY<2>,
+                 RefinementChoices::Isotropic<2>}};
+              return make_array_view(choices);
+            }
+        }
+    }
+  else if constexpr (dim == 3)
+    {
+      switch (this->kind)
+        {
+          case ReferenceCells::Tetrahedron:
+            {
+              static constexpr std::array<RefinementChoice<3>, 3> choices{
+                {RefinementChoices::Cut49<3>,
+                 RefinementChoices::Cut57<3>,
+                 RefinementChoices::Cut68<3>}};
+              return make_array_view(choices);
+            }
+          case ReferenceCells::Pyramid:
+          case ReferenceCells::Wedge:
+            {
+              static constexpr std::array<RefinementChoice<3>, 1> choices{
+                {RefinementChoices::Isotropic<3>}};
+              return make_array_view(choices);
+            }
+          case ReferenceCells::Hexahedron:
+            {
+              static constexpr std::array<RefinementChoice<3>, 7> choices{
+                {RefinementChoices::CutX<3>,
+                 RefinementChoices::CutY<3>,
+                 RefinementChoices::CutXY<3>,
+                 RefinementChoices::CutZ<3>,
+                 RefinementChoices::CutXZ<3>,
+                 RefinementChoices::CutYZ<3>,
+                 RefinementChoices::Isotropic<3>}};
+              return make_array_view(choices);
+            }
+        }
+    }
+
+  DEAL_II_NOT_IMPLEMENTED();
+  return ArrayView<const RefinementChoice<dim>>();
 }
 
 

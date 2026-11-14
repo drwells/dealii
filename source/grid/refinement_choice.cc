@@ -10,6 +10,8 @@
 //
 // -----------------------------------------------------------------------------
 
+#include <deal.II/base/geometry_info.h>
+
 #include <deal.II/grid/refinement_choice.h>
 
 DEAL_II_NAMESPACE_OPEN
@@ -66,6 +68,48 @@ operator IsotropicRefinementChoice() const
          ExcMessage("Only None, Cut49, Cut57, and Cut68 can be converted to "
                     "IsotropicRefinementChoice."));
   return IsotropicRefinementChoice::isotropic_refinement;
+}
+
+
+
+template <int dim>
+RefinementChoice<dim>::RefinementChoice(
+  const RefinementCase<dim> &refinement_case)
+  : kind(0)
+{
+  // Compare stored values rather than enumeration values: RefinementCase
+  // stores its value in a bit field, so in 0d isotropic_refinement (0xFF) is
+  // truncated when it is stored.
+  const auto stored_value = [](const RefinementCase<dim> &rc) {
+    return static_cast<std::uint8_t>(rc);
+  };
+  if (stored_value(refinement_case) ==
+      stored_value(RefinementCase<dim>::no_refinement))
+    *this = RefinementChoices::None<dim>;
+  else if (stored_value(refinement_case) ==
+           stored_value(RefinementCase<dim>::isotropic_refinement))
+    *this = RefinementChoices::Isotropic<dim>;
+  else
+    {
+      // The integer values of the anisotropic RefinementCases and
+      // RefinementChoices are equal (the constructor checks validity).
+      Assert(dim > 1, ExcInternalError());
+      *this = RefinementChoice<dim>(static_cast<std::uint8_t>(refinement_case));
+    }
+}
+
+
+
+template <int dim>
+RefinementChoice<dim>::
+operator RefinementCase<dim>() const
+{
+  if (*this == RefinementChoices::None<dim>)
+    return RefinementCase<dim>::no_refinement;
+  else if (*this == RefinementChoices::Isotropic<dim> || this->is_tetrahedral())
+    return RefinementCase<dim>::isotropic_refinement;
+  else
+    return RefinementCase<dim>(this->kind);
 }
 
 

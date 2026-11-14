@@ -487,8 +487,9 @@ FE_RaviartThomas<dim>::initialize_restriction()
           cached_values_on_face(i, k) = this->shape_value_component(
             i, q_face.point(k), GeometryInfo<dim>::unit_normal_direction[face]);
 
-      for (unsigned int sub = 0;
-           sub < this->reference_cell().face_reference_cell(face).n_children();
+      for (unsigned int sub = 0; sub < this->reference_cell()
+                                         .face_reference_cell(face)
+                                         .n_isotropic_children();
            ++sub)
         {
           // The weight functions for
@@ -580,7 +581,8 @@ FE_RaviartThomas<dim>::initialize_restriction()
         cached_values_on_cell(i, k, d) =
           this->shape_value_component(i, q_cell.point(k), d);
 
-  for (unsigned int child = 0; child < this->reference_cell().n_children();
+  for (unsigned int child = 0;
+       child < this->reference_cell().n_isotropic_children();
        ++child)
     {
       Quadrature<dim> q_sub =

@@ -341,3 +341,31 @@ DEAL::Hex Isotropic compatible = true
 DEAL::Hex Cut49 compatible = false
 DEAL::Hex Cut57 compatible = false
 DEAL::Hex Cut68 compatible = false
+DEAL::0d None RefinementCase = 0 round trip = None
+DEAL::0d Isotropic RefinementCase = 1 round trip = Isotropic
+DEAL::1d None RefinementCase = 0 round trip = None
+DEAL::1d Isotropic RefinementCase = 1 round trip = Isotropic
+DEAL::2d None RefinementCase = 0 round trip = None
+DEAL::2d CutX RefinementCase = 1 round trip = CutX
+DEAL::2d CutY RefinementCase = 2 round trip = CutY
+DEAL::2d Isotropic RefinementCase = 3 round trip = Isotropic
+DEAL::3d None RefinementCase = 0 round trip = None
+DEAL::3d CutX RefinementCase = 1 round trip = CutX
+DEAL::3d CutY RefinementCase = 2 round trip = CutY
+DEAL::3d CutXY RefinementCase = 3 round trip = CutXY
+DEAL::3d CutZ RefinementCase = 4 round trip = CutZ
+DEAL::3d CutXZ RefinementCase = 5 round trip = CutXZ
+DEAL::3d CutYZ RefinementCase = 6 round trip = CutYZ
+DEAL::3d Isotropic RefinementCase = 7 round trip = Isotropic
+DEAL::3d None RefinementCase = 0 round trip = None
+DEAL::3d Cut49 RefinementCase = 7 round trip = Isotropic
+DEAL::3d Cut57 RefinementCase = 7 round trip = Isotropic
+DEAL::3d Cut68 RefinementCase = 7 round trip = Isotropic
+DEAL::Vertex: Isotropic (1)
+DEAL::Line: Isotropic (2)
+DEAL::Tri: Isotropic (4)
+DEAL::Quad: CutX (2) CutY (2) Isotropic (4)
+DEAL::Tet: Cut49 (8) Cut57 (8) Cut68 (8)
+DEAL::Pyramid: Isotropic (10)
+DEAL::Wedge: Isotropic (8)
+DEAL::Hex: CutX (2) CutY (2) CutXY (4) CutZ (2) CutXZ (4) CutYZ (4) Isotropic (8)

@@ -543,9 +543,95 @@ public:
    */
   unsigned int
   child_cell_on_face(
-    const unsigned int                 face,
+    const unsigned int                 face_no,
     const unsigned int                 subface,
     const types::geometric_orientation combined_orientation) const;
+
+  /**
+   * Same as above, but for a cell refined with @p cell_refinement_choice
+   * whose face @p face_no is refined with @p face_refinement_choice. The face
+   * refinement may be finer than the one induced by the cell's refinement
+   * (e.g., if a neighbor is refined): in that case @p subface refers to the
+   * finer refinement of the face and the returned child is the one which
+   * contains that subface.
+   *
+   * This is the equivalent of GeometryInfo::child_cell_on_face().
+   *
+   * @note Faces of one-dimensional cells (i.e., vertices) cannot be
+   * refined, so this function may only be called for dim > 1.
+   */
+  unsigned int
+  child_cell_on_face(
+    const unsigned int                 face_no,
+    const unsigned int                 subface,
+    const types::geometric_orientation combined_orientation,
+    const RefinementChoice<dim>       &cell_refinement_choice,
+    const RefinementChoice<dim - 1>   &face_refinement_choice) const;
+
+  /**
+   * Return the refinement of face @p face_no created by refining the current
+   * cell with @p cell_refinement_choice. The face's orientation relative to
+   * the cell is given by @p combined_orientation.
+   *
+   * Faces of cells which are refined isotropically (including the three
+   * tetrahedral refinements RefinementChoices::Cut49,
+   * RefinementChoices::Cut57, and RefinementChoices::Cut68) are refined
+   * isotropically.
+   *
+   * This is the equivalent of GeometryInfo::face_refinement_case().
+   *
+   * @note Faces of one-dimensional cells (i.e., vertices) cannot be
+   * refined, so this function may only be called for dim > 1.
+   */
+  RefinementChoice<dim - 1>
+  face_refinement_choice(
+    const RefinementChoice<dim>       &cell_refinement_choice,
+    const unsigned int                 face_no,
+    const types::geometric_orientation combined_orientation) const;
+
+  /**
+   * Return the minimal refinement of the current cell which refines face
+   * @p face_no (with orientation @p combined_orientation) at least with
+   * @p face_refinement_choice.
+   *
+   * @note Since a tetrahedron can be refined in three distinct ways, this
+   * function is not defined for tetrahedra.
+   *
+   * This is the equivalent of
+   * GeometryInfo::min_cell_refinement_case_for_face_refinement().
+   *
+   * @note Faces of one-dimensional cells (i.e., vertices) cannot be
+   * refined, so this function may only be called for dim > 1.
+   */
+  RefinementChoice<dim>
+  min_cell_refinement_choice_for_face_refinement(
+    const RefinementChoice<dim - 1>   &face_refinement_choice,
+    const unsigned int                 face_no,
+    const types::geometric_orientation combined_orientation) const;
+
+  /**
+   * Return the refinement of line @p line_no created by refining the current
+   * cell with @p cell_refinement_choice.
+   *
+   * This is the equivalent of GeometryInfo::line_refinement_case().
+   */
+  RefinementChoice<1>
+  line_refinement_choice(const RefinementChoice<dim> &cell_refinement_choice,
+                         const unsigned int           line_no) const;
+
+  /**
+   * Return the minimal refinement of the current cell which refines line
+   * @p line_no.
+   *
+   * @note Since a tetrahedron can be refined in three distinct ways, this
+   * function is not defined for tetrahedra.
+   *
+   * This is the equivalent of
+   * GeometryInfo::min_cell_refinement_case_for_line_refinement().
+   */
+  RefinementChoice<dim>
+  min_cell_refinement_choice_for_line_refinement(
+    const unsigned int line_no) const;
 
   /**
    * For a given vertex in a cell, return a pair of a face index and a
@@ -3211,15 +3297,16 @@ ReferenceCell<dim>::face_reference_cell(const unsigned int face_no) const
 template <int dim>
 inline unsigned int
 ReferenceCell<dim>::child_cell_on_face(
-  const unsigned int                 face,
+  const unsigned int                 face_no,
   const unsigned int                 subface,
   const types::geometric_orientation combined_orientation) const
 {
   (void)combined_orientation;
 
   Assert(*this != ReferenceCells::Invalid<dim>, ExcNotImplemented());
-  AssertIndexRange(face, n_faces());
-  AssertIndexRange(subface, face_reference_cell(face).n_isotropic_children());
+  AssertIndexRange(face_no, n_faces());
+  AssertIndexRange(subface,
+                   face_reference_cell(face_no).n_isotropic_children());
 
   if constexpr (dim == 0)
     DEAL_II_NOT_IMPLEMENTED();
@@ -3239,10 +3326,11 @@ ReferenceCell<dim>::child_cell_on_face(
                        combined_orientation ==
                          numbers::reverse_line_orientation,
                      ExcInternalError());
-              return subcells[face][combined_orientation ==
-                                        numbers::default_geometric_orientation ?
-                                      subface :
-                                      1 - subface];
+              return subcells[face_no]
+                             [combined_orientation ==
+                                  numbers::default_geometric_orientation ?
+                                subface :
+                                1 - subface];
             }
           case ReferenceCells::Quadrilateral:
             {
@@ -3252,7 +3340,7 @@ ReferenceCell<dim>::child_cell_on_face(
               return GeometryInfo<2>::child_cell_on_face(
                 RefinementCase<2>(
                   RefinementPossibilities<2>::isotropic_refinement),
-                face,
+                face_no,
                 subface,
                 face_orientation,
                 face_flip,
@@ -3279,7 +3367,7 @@ ReferenceCell<dim>::child_cell_on_face(
               return GeometryInfo<3>::child_cell_on_face(
                 RefinementCase<3>(
                   RefinementPossibilities<3>::isotropic_refinement),
-                face,
+                face_no,
                 subface,
                 face_orientation,
                 face_flip,

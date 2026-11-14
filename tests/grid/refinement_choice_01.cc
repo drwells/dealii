@@ -205,6 +205,136 @@ test_cell_refinement_choice()
   }
 }
 
+// Compare the new ReferenceCell functions with their GeometryInfo equivalents
+// for hypercubes
+template <int dim>
+void
+test_geometry_info_equivalents()
+{
+  const ReferenceCell<dim> reference_cell =
+    ReferenceCells::get_hypercube<dim>();
+  std::vector<RefinementChoice<dim>> choices = {RefinementChoices::None<dim>};
+  for (const auto &choice : reference_cell.refinement_choices())
+    choices.push_back(choice);
+
+  unsigned int n_checks = 0, n_failures = 0;
+  const auto   check = [&](const bool ok) {
+    ++n_checks;
+    if (!ok)
+      ++n_failures;
+  };
+
+  for (const auto &choice : choices)
+    {
+      const auto ref_case = static_cast<RefinementCase<dim>>(choice);
+      for (const unsigned int line : reference_cell.line_indices())
+        check(reference_cell.line_refinement_choice(choice, line) ==
+              RefinementChoice<1>(
+                GeometryInfo<dim>::line_refinement_case(ref_case, line)));
+      // Faces of 1d cells (vertices) cannot be refined
+      if constexpr (dim > 1)
+        for (const unsigned int face : reference_cell.face_indices())
+          for (types::geometric_orientation o = 0;
+               o < reference_cell.n_face_orientations(face);
+               ++o)
+            {
+              const auto [orientation, rotation, flip] =
+                internal::split_face_orientation(o);
+              const auto face_choice =
+                reference_cell.face_refinement_choice(choice, face, o);
+              check(face_choice ==
+                    RefinementChoice<dim - 1>(
+                      GeometryInfo<dim>::face_refinement_case(
+                        ref_case, face, orientation, flip, rotation)));
+              if (choice != RefinementChoices::None<dim> &&
+                  face_choice != RefinementChoices::None<dim - 1>)
+                for (unsigned int subface = 0;
+                     subface <
+                     reference_cell.face_reference_cell(face).n_children(
+                       face_choice);
+                     ++subface)
+                  check(reference_cell.child_cell_on_face(
+                          face, subface, o, choice, face_choice) ==
+                        GeometryInfo<dim>::child_cell_on_face(
+                          ref_case,
+                          face,
+                          subface,
+                          orientation,
+                          flip,
+                          rotation,
+                          static_cast<RefinementCase<dim - 1>>(face_choice)));
+            }
+    }
+
+  for (const unsigned int line : reference_cell.line_indices())
+    check(
+      reference_cell.min_cell_refinement_choice_for_line_refinement(line) ==
+      RefinementChoice<dim>(
+        GeometryInfo<dim>::min_cell_refinement_case_for_line_refinement(line)));
+
+  if constexpr (dim > 1)
+    for (const auto &face_choice :
+         reference_cell.face_reference_cell(0).refinement_choices())
+      for (const unsigned int face : reference_cell.face_indices())
+        for (types::geometric_orientation o = 0;
+             o < reference_cell.n_face_orientations(face);
+             ++o)
+          {
+            const auto [orientation, rotation, flip] =
+              internal::split_face_orientation(o);
+            check(
+              reference_cell.min_cell_refinement_choice_for_face_refinement(
+                face_choice, face, o) ==
+              RefinementChoice<dim>(
+                GeometryInfo<dim>::min_cell_refinement_case_for_face_refinement(
+                  static_cast<RefinementCase<dim - 1>>(face_choice),
+                  face,
+                  orientation,
+                  flip,
+                  rotation)));
+          }
+
+  deallog << reference_cell.to_string() << ": " << n_checks
+          << " comparisons with GeometryInfo, " << n_failures << " failures"
+          << std::endl;
+}
+
+void
+test_non_hypercube_refinement_functions()
+{
+  const auto tet = ReferenceCells::Tetrahedron;
+  deallog
+    << "Tet face 0 of Cut49: "
+    << tet.face_refinement_choice(RefinementChoices::Cut49<3>, 0, 0).to_string()
+    << std::endl;
+  deallog
+    << "Tet line 3 of Cut57: "
+    << tet.line_refinement_choice(RefinementChoices::Cut57<3>, 3).to_string()
+    << std::endl;
+  const auto tri = ReferenceCells::Triangle;
+  deallog << "Tri min refinement for line 1: "
+          << tri.min_cell_refinement_choice_for_line_refinement(1).to_string()
+          << std::endl;
+  deallog << "Tri child on face 0, subface 1: "
+          << tri.child_cell_on_face(0,
+                                    1,
+                                    numbers::default_geometric_orientation,
+                                    RefinementChoices::Isotropic<2>,
+                                    RefinementChoices::Isotropic<1>)
+          << " (isotropic version: "
+          << tri.child_cell_on_face(0,
+                                    1,
+                                    numbers::default_geometric_orientation)
+          << ")" << std::endl;
+  const auto wedge = ReferenceCells::Wedge;
+  deallog << "Wedge min refinement for isotropic refinement of face 2: "
+          << wedge
+               .min_cell_refinement_choice_for_face_refinement(
+                 RefinementChoices::Isotropic<2>, 2, 0)
+               .to_string()
+          << std::endl;
+}
+
 int
 main()
 {
@@ -285,6 +415,11 @@ main()
   test_reference_cell(ReferenceCells::Hexahedron);
 
   test_cell_refinement_choice();
+
+  test_geometry_info_equivalents<1>();
+  test_geometry_info_equivalents<2>();
+  test_geometry_info_equivalents<3>();
+  test_non_hypercube_refinement_functions();
 
   // Check that the integer values match those of RefinementCase.
   static_assert(int(RefinementChoices::Isotropic<1>) == 1);

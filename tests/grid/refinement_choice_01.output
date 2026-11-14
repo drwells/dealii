@@ -381,3 +381,11 @@ DEAL::3d Tet flag, then choice cut_tet_57: Cut57
 DEAL::3d Tet choice cut_tet_49, then flag: Cut49
 DEAL::3d Tet flag only (shortest new line): Cut68
 DEAL::3d Tet refined with cut_tet_57: Cut57, face 0: Isotropic
+DEAL::Line: 3 comparisons with GeometryInfo, 0 failures
+DEAL::Quad: 92 comparisons with GeometryInfo, 0 failures
+DEAL::Hex: 1404 comparisons with GeometryInfo, 0 failures
+DEAL::Tet face 0 of Cut49: Isotropic
+DEAL::Tet line 3 of Cut57: Isotropic
+DEAL::Tri min refinement for line 1: Isotropic
+DEAL::Tri child on face 0, subface 1: 1 (isotropic version: 1)
+DEAL::Wedge min refinement for isotropic refinement of face 2: Isotropic

@@ -265,6 +265,166 @@ namespace
 
 
 template <int dim>
+unsigned int
+ReferenceCell<dim>::child_cell_on_face(
+  const unsigned int                 face_no,
+  const unsigned int                 subface,
+  const types::geometric_orientation combined_orientation,
+  const RefinementChoice<dim>       &cell_refinement_choice,
+  const RefinementChoice<dim - 1>   &face_refinement_choice) const
+{
+  Assert(cell_refinement_choice != RefinementChoices::None<dim> &&
+           is_compatible_refinement_choice(cell_refinement_choice),
+         ExcMessage("The given RefinementChoice is not valid for this "
+                    "ReferenceCell."));
+  AssertIndexRange(face_no, n_faces());
+  Assert(face_reference_cell(face_no).is_compatible_refinement_choice(
+           face_refinement_choice),
+         ExcMessage("The given face_no RefinementChoice is not valid for this "
+                    "face_no."));
+
+  if (is_hyper_cube())
+    {
+      // Use GeometryInfo here to keep it the single source of truth
+      const auto [face_orientation, face_rotation, face_flip] =
+        internal::split_face_orientation(combined_orientation);
+      return GeometryInfo<dim>::child_cell_on_face(
+        static_cast<RefinementCase<dim>>(cell_refinement_choice),
+        face_no,
+        subface,
+        face_orientation,
+        face_flip,
+        face_rotation,
+        static_cast<RefinementCase<dim - 1>>(face_refinement_choice));
+    }
+
+  // All other cells only support isotropic refinement of faces
+  Assert(face_refinement_choice == RefinementChoices::Isotropic<dim - 1>,
+         ExcNotImplemented());
+  return child_cell_on_face(face_no, subface, combined_orientation);
+}
+
+
+
+template <int dim>
+RefinementChoice<dim - 1>
+ReferenceCell<dim>::face_refinement_choice(
+  const RefinementChoice<dim>       &cell_refinement_choice,
+  const unsigned int                 face_no,
+  const types::geometric_orientation combined_orientation) const
+{
+  Assert(is_compatible_refinement_choice(cell_refinement_choice),
+         ExcMessage("The given RefinementChoice is not valid for this "
+                    "ReferenceCell."));
+  AssertIndexRange(face_no, n_faces());
+
+  if (is_hyper_cube())
+    {
+      // Use GeometryInfo here to keep it the single source of truth
+      const auto [face_orientation, face_rotation, face_flip] =
+        internal::split_face_orientation(combined_orientation);
+      return RefinementChoice<dim - 1>(GeometryInfo<dim>::face_refinement_case(
+        static_cast<RefinementCase<dim>>(cell_refinement_choice),
+        face_no,
+        face_orientation,
+        face_flip,
+        face_rotation));
+    }
+
+  // All other cells only support isotropic refinement, which refines all
+  // faces isotropically
+  (void)combined_orientation;
+  if (cell_refinement_choice == RefinementChoices::None<dim>)
+    return RefinementChoices::None<dim - 1>;
+  return RefinementChoices::Isotropic<dim - 1>;
+}
+
+
+
+template <int dim>
+RefinementChoice<dim>
+ReferenceCell<dim>::min_cell_refinement_choice_for_face_refinement(
+  const RefinementChoice<dim - 1>   &face_refinement_choice,
+  const unsigned int                 face_no,
+  const types::geometric_orientation combined_orientation) const
+{
+  AssertIndexRange(face_no, n_faces());
+  Assert(face_reference_cell(face_no).is_compatible_refinement_choice(
+           face_refinement_choice),
+         ExcMessage("The given face RefinementChoice is not valid for this "
+                    "face."));
+
+  if (is_hyper_cube())
+    {
+      // Use GeometryInfo here to keep it the single source of truth
+      const auto [face_orientation, face_rotation, face_flip] =
+        internal::split_face_orientation(combined_orientation);
+      return RefinementChoice<dim>(
+        GeometryInfo<dim>::min_cell_refinement_case_for_face_refinement(
+          static_cast<RefinementCase<dim - 1>>(face_refinement_choice),
+          face_no,
+          face_orientation,
+          face_flip,
+          face_rotation));
+    }
+
+  (void)combined_orientation;
+  Assert(*this != ReferenceCells::get_simplex<dim>() || dim < 3,
+         ExcMessage("This function is not defined for tetrahedra since they "
+                    "can be refined in three distinct ways."));
+  if (face_refinement_choice == RefinementChoices::None<dim - 1>)
+    return RefinementChoices::None<dim>;
+  return RefinementChoices::Isotropic<dim>;
+}
+
+
+
+template <int dim>
+RefinementChoice<1>
+ReferenceCell<dim>::line_refinement_choice(
+  const RefinementChoice<dim> &cell_refinement_choice,
+  const unsigned int           line_no) const
+{
+  Assert(is_compatible_refinement_choice(cell_refinement_choice),
+         ExcMessage("The given RefinementChoice is not valid for this "
+                    "ReferenceCell."));
+  AssertIndexRange(line_no, n_lines());
+
+  if (is_hyper_cube())
+    // Use GeometryInfo here to keep it the single source of truth
+    return RefinementChoice<1>(GeometryInfo<dim>::line_refinement_case(
+      static_cast<RefinementCase<dim>>(cell_refinement_choice), line_no));
+
+  // All other cells only support isotropic refinement, which refines all
+  // lines
+  if (cell_refinement_choice == RefinementChoices::None<dim>)
+    return RefinementChoices::None<1>;
+  return RefinementChoices::Isotropic<1>;
+}
+
+
+
+template <int dim>
+RefinementChoice<dim>
+ReferenceCell<dim>::min_cell_refinement_choice_for_line_refinement(
+  const unsigned int line_no) const
+{
+  AssertIndexRange(line_no, n_lines());
+
+  if (is_hyper_cube())
+    // Use GeometryInfo here to keep it the single source of truth
+    return RefinementChoice<dim>(
+      GeometryInfo<dim>::min_cell_refinement_case_for_line_refinement(line_no));
+
+  Assert(*this != ReferenceCells::get_simplex<dim>() || dim < 3,
+         ExcMessage("This function is not defined for tetrahedra since they "
+                    "can be refined in three distinct ways."));
+  return RefinementChoices::Isotropic<dim>;
+}
+
+
+
+template <int dim>
 Point<dim>
 ReferenceCell<dim>::subface_vertex_location(
   const unsigned int               face_no,

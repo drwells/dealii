@@ -311,6 +311,51 @@ namespace FETools
   compute_node_matrix(const FiniteElement<dim, spacedim> &fe);
 
   /**
+   * Compute the embedding matrices from a coarse cell to the child cells
+   * created by refining it with @p refinement_choice. Each column of the
+   * resulting matrices contains the representation of a coarse grid basis
+   * function by the fine grid basis; the matrices are split such that there
+   * is one matrix for every child.
+   *
+   * This function computes the coarse grid function in a sufficiently large
+   * number of quadrature points and fits the fine grid functions using least
+   * squares approximation. Therefore, the use of this function is restricted
+   * to the case that the finite element spaces are actually nested.
+   *
+   * Typically this function is called by the various implementations of
+   * FiniteElement classes in order to fill the respective
+   * FiniteElement::prolongation_matrices:
+   * @code
+   * FETools::compute_embedding_matrices(
+   *   *this,
+   *   refinement_choice,
+   *   this->prolongation_matrices[this->reference_cell()
+   *                                 .refinement_choice_index(
+   *                                   refinement_choice)]);
+   * @endcode
+   *
+   * @param fe The finite element class for which we compute the embedding
+   * matrices.
+   *
+   * @param refinement_choice The refinement of the coarse cell. This must be
+   * compatible with the reference cell of @p fe and may not be
+   * RefinementChoices::None.
+   *
+   * @param matrices The output: one matrix per child. This vector is resized
+   * to the number of children (and the matrices to the number of degrees of
+   * freedom per cell) if necessary.
+   *
+   * @param threshold is the gap allowed in the least squares algorithm
+   * computing the embedding.
+   */
+  template <int dim, typename number, int spacedim>
+  void
+  compute_embedding_matrices(const FiniteElement<dim, spacedim> &fe,
+                             const RefinementChoice<dim>     &refinement_choice,
+                             std::vector<FullMatrix<number>> &matrices,
+                             const double threshold = 1.e-12);
+
+  /**
    * For all possible (isotropic and anisotropic) refinement cases compute the
    * embedding matrices from a coarse cell to the child cells. Each column of
    * the resulting matrices contains the representation of a coarse grid basis
@@ -347,10 +392,15 @@ namespace FETools
    *
    * @param threshold is the gap allowed in the least squares algorithm
    * computing the embedding.
+   *
+   * @deprecated Use the version of this function which takes a
+   * RefinementChoice instead: unlike this function, it uses the same indexing
+   * as FiniteElement::prolongation_matrices.
    */
   template <int dim, typename number, int spacedim>
-  void
-  compute_embedding_matrices(
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use the version of this function which takes a RefinementChoice instead.")
+  void compute_embedding_matrices(
     const FiniteElement<dim, spacedim>           &fe,
     std::vector<std::vector<FullMatrix<number>>> &matrices,
     const bool                                    isotropic_only = false,
@@ -386,6 +436,31 @@ namespace FETools
                                   const double       threshold = 1.e-12);
 
   /**
+   * Compute the <i>L<sup>2</sup></i>-projection matrices from the children
+   * created by refining a cell with @p refinement_choice to the coarse cell.
+   *
+   * Typically this function is called by the various implementations of
+   * FiniteElement classes in order to fill the respective
+   * FiniteElement::restriction_matrices.
+   *
+   * @arg[in] fe The finite element class for which we compute the projection
+   *   matrices.
+   *
+   * @arg[in] refinement_choice The refinement of the coarse cell. This must
+   *   be compatible with the reference cell of @p fe and may not be
+   *   RefinementChoices::None.
+   *
+   * @arg[out] matrices One matrix per child. This vector is resized to the
+   *   number of children (and the matrices to the number of degrees of
+   *   freedom per cell) if necessary.
+   */
+  template <int dim, typename number, int spacedim>
+  void
+  compute_projection_matrices(const FiniteElement<dim, spacedim> &fe,
+                              const RefinementChoice<dim> &refinement_choice,
+                              std::vector<FullMatrix<number>> &matrices);
+
+  /**
    * For all possible (isotropic and anisotropic) refinement cases compute the
    * <i>L<sup>2</sup></i>-projection matrices from the children to a coarse
    * cell.
@@ -415,10 +490,15 @@ namespace FETools
    *   function only computes data for the isotropic refinement case. The
    *   other elements of the output vector are left untouched (but still
    *   exist).
+   *
+   * @deprecated Use the version of this function which takes a
+   * RefinementChoice instead: unlike this function, it uses the same indexing
+   * as FiniteElement::restriction_matrices.
    */
   template <int dim, typename number, int spacedim>
-  void
-  compute_projection_matrices(
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use the version of this function which takes a RefinementChoice instead.")
+  void compute_projection_matrices(
     const FiniteElement<dim, spacedim>           &fe,
     std::vector<std::vector<FullMatrix<number>>> &matrices,
     const bool                                    isotropic_only = false);
@@ -1507,6 +1587,58 @@ namespace FETools
   {
     return std::make_unique<FE>(degree);
   }
+
+  namespace internal
+  {
+    /**
+     * Fill @p matrices, which uses the same indexing as
+     * FiniteElement::prolongation_matrices, by calling
+     * compute_embedding_matrices() for each RefinementChoice of the reference
+     * cell of @p fe (or only the isotropic ones if @p isotropic_only is true).
+     */
+    template <int dim, int spacedim>
+    void
+    compute_embedding_matrices_for_all_choices(
+      const FiniteElement<dim, spacedim>           &fe,
+      std::vector<std::vector<FullMatrix<double>>> &matrices,
+      const bool                                    isotropic_only,
+      const double                                  threshold = 1.e-12)
+    {
+      const ReferenceCell<dim> reference_cell = fe.reference_cell();
+      matrices.resize(reference_cell.refinement_choices().size());
+      for (const auto &refinement_choice : reference_cell.refinement_choices())
+        if (!isotropic_only || !refinement_choice.is_anisotropic())
+          compute_embedding_matrices(
+            fe,
+            refinement_choice,
+            matrices[reference_cell.refinement_choice_index(refinement_choice)],
+            threshold);
+    }
+
+
+
+    /**
+     * Same as compute_embedding_matrices_for_all_choices(), but for
+     * compute_projection_matrices() and FiniteElement::restriction_matrices.
+     */
+    template <int dim, int spacedim>
+    void
+    compute_projection_matrices_for_all_choices(
+      const FiniteElement<dim, spacedim>           &fe,
+      std::vector<std::vector<FullMatrix<double>>> &matrices,
+      const bool                                    isotropic_only)
+    {
+      const ReferenceCell<dim> reference_cell = fe.reference_cell();
+      matrices.resize(reference_cell.refinement_choices().size());
+      for (const auto &refinement_choice : reference_cell.refinement_choices())
+        if (!isotropic_only || !refinement_choice.is_anisotropic())
+          compute_projection_matrices(
+            fe,
+            refinement_choice,
+            matrices[reference_cell.refinement_choice_index(
+              refinement_choice)]);
+    }
+  } // namespace internal
 
   namespace Compositing
   {

@@ -65,16 +65,9 @@ FE_RT_Bubbles<dim>::FE_RT_Bubbles(const unsigned int deg)
 
   // Reinit the vectors of prolongation matrices to the
   // right sizes. There are no restriction matrices implemented
-  for (const unsigned int ref_case :
-       RefinementCase<dim>::all_refinement_cases())
-    if (ref_case != RefinementCase<dim>::no_refinement)
-      {
-        const unsigned int nc =
-          this->reference_cell().n_children(RefinementCase<dim>(ref_case));
-
-        for (unsigned int i = 0; i < nc; ++i)
-          this->prolongation[ref_case - 1][i].reinit(n_dofs, n_dofs);
-      }
+  for (auto &matrices : this->prolongation_matrices)
+    for (auto &matrix : matrices)
+      matrix.reinit(n_dofs, n_dofs);
 
   // TODO: the implementation makes the assumption that all faces have the
   // same number of dofs
@@ -83,7 +76,8 @@ FE_RT_Bubbles<dim>::FE_RT_Bubbles(const unsigned int deg)
 
   // Fill prolongation matrices with embedding operators
   // set tolerance to 1, as embedding error accumulate quickly
-  FETools::compute_embedding_matrices(*this, this->prolongation, true, 1.0);
+  FETools::internal::compute_embedding_matrices_for_all_choices(
+    *this, this->prolongation_matrices, true, 1.0);
   FullMatrix<double> face_embeddings[GeometryInfo<dim>::max_children_per_face];
   for (unsigned int i = 0; i < GeometryInfo<dim>::max_children_per_face; ++i)
     face_embeddings[i].reinit(this->n_dofs_per_face(face_no),

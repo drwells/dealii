@@ -1,0 +1,20 @@
+
+DEAL::UserQ<2>: override called yes, max difference OK
+DEAL::UserQ<3>: override called yes, max difference OK
+DEAL::FE_Q<2>(2) CutX (index 0): exact
+DEAL::FE_Q<2>(2) CutY (index 1): exact
+DEAL::FE_Q<2>(2) Isotropic (index 2): exact
+DEAL::FE_Q<3>(2) CutX (index 0): exact
+DEAL::FE_Q<3>(2) CutY (index 1): exact
+DEAL::FE_Q<3>(2) CutXY (index 2): exact
+DEAL::FE_Q<3>(2) CutZ (index 3): exact
+DEAL::FE_Q<3>(2) CutXZ (index 4): exact
+DEAL::FE_Q<3>(2) CutYZ (index 5): exact
+DEAL::FE_Q<3>(2) Isotropic (index 6): exact
+DEAL::FE_SimplexP<2>(2) Isotropic (index 0): exact
+DEAL::FE_SimplexP<3>(2) Cut49 (index 0): exact
+DEAL::FE_SimplexP<3>(2) Cut57 (index 1): exact
+DEAL::FE_SimplexP<3>(2) Cut68 (index 2): exact
+DEAL::Tet Cut49 = legacy RefinementCase 3: same matrices
+DEAL::Tet Cut57 = legacy RefinementCase 2: same matrices
+DEAL::Tet Cut68 = legacy RefinementCase 1: same matrices

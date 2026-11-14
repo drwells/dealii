@@ -152,9 +152,11 @@ FE_DGPMonomial<dim>::FE_DGPMonomial(const unsigned int degree)
   // matrices to the right sizes
   this->reinit_restriction_and_prolongation_matrices();
   // Fill prolongation matrices with embedding operators
-  FETools::compute_embedding_matrices(*this, this->prolongation);
+  FETools::internal::compute_embedding_matrices_for_all_choices(
+    *this, this->prolongation_matrices, false);
   // Fill restriction matrices with L2-projection
-  FETools::compute_projection_matrices(*this, this->restriction);
+  FETools::internal::compute_projection_matrices_for_all_choices(
+    *this, this->restriction_matrices, false);
 }
 
 

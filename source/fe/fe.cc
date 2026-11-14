@@ -131,19 +131,21 @@ FiniteElement<dim, spacedim>::FiniteElement(
 
   // initialize the restriction and prolongation matrices. the default
   // constructor of FullMatrix<dim> initializes them with size zero
-  prolongation.resize(RefinementCase<dim>::isotropic_refinement);
-  restriction.resize(RefinementCase<dim>::isotropic_refinement);
-  for (const unsigned int ref_case :
-       RefinementCase<dim>::all_refinement_cases())
-    if (ref_case != RefinementCase<dim>::no_refinement)
+  {
+    const ReferenceCell<dim> reference_cell = this->reference_cell();
+    const auto refinement_choices = reference_cell.refinement_choices();
+    prolongation_matrices.resize(refinement_choices.size());
+    restriction_matrices.resize(refinement_choices.size());
+    for (const auto &refinement_choice : refinement_choices)
       {
-        prolongation[ref_case - 1].resize(this->reference_cell().n_children(
-                                            RefinementCase<dim>(ref_case)),
-                                          FullMatrix<double>());
-        restriction[ref_case - 1].resize(this->reference_cell().n_children(
-                                           RefinementCase<dim>(ref_case)),
-                                         FullMatrix<double>());
+        const unsigned int index =
+          reference_cell.refinement_choice_index(refinement_choice);
+        prolongation_matrices[index].resize(
+          reference_cell.n_children(refinement_choice), FullMatrix<double>());
+        restriction_matrices[index].resize(
+          reference_cell.n_children(refinement_choice), FullMatrix<double>());
       }
+  }
 
 
   if (dim == 3)
@@ -298,30 +300,48 @@ FiniteElement<dim, spacedim>::reinit_restriction_and_prolongation_matrices(
   const bool isotropic_restriction_only,
   const bool isotropic_prolongation_only)
 {
-  for (const unsigned int ref_case :
-       RefinementCase<dim>::all_refinement_cases())
-    if (ref_case != RefinementCase<dim>::no_refinement)
-      {
-        const unsigned int nc =
-          this->reference_cell().n_children(RefinementCase<dim>(ref_case));
-
-        for (unsigned int i = 0; i < nc; ++i)
-          {
-            if (this->restriction[ref_case - 1][i].m() !=
-                  this->n_dofs_per_cell() &&
-                (!isotropic_restriction_only ||
-                 ref_case == RefinementCase<dim>::isotropic_refinement))
-              this->restriction[ref_case - 1][i].reinit(
-                this->n_dofs_per_cell(), this->n_dofs_per_cell());
-            if (this->prolongation[ref_case - 1][i].m() !=
-                  this->n_dofs_per_cell() &&
-                (!isotropic_prolongation_only ||
-                 ref_case == RefinementCase<dim>::isotropic_refinement))
-              this->prolongation[ref_case - 1][i].reinit(
-                this->n_dofs_per_cell(), this->n_dofs_per_cell());
-          }
-      }
+  const ReferenceCell<dim> reference_cell = this->reference_cell();
+  for (const auto &refinement_choice : reference_cell.refinement_choices())
+    {
+      const unsigned int index =
+        reference_cell.refinement_choice_index(refinement_choice);
+      const bool is_isotropic = !refinement_choice.is_anisotropic();
+      for (unsigned int i = 0; i < reference_cell.n_children(refinement_choice);
+           ++i)
+        {
+          if (this->restriction_matrices[index][i].m() !=
+                this->n_dofs_per_cell() &&
+              (!isotropic_restriction_only || is_isotropic))
+            this->restriction_matrices[index][i].reinit(
+              this->n_dofs_per_cell(), this->n_dofs_per_cell());
+          if (this->prolongation_matrices[index][i].m() !=
+                this->n_dofs_per_cell() &&
+              (!isotropic_prolongation_only || is_isotropic))
+            this->prolongation_matrices[index][i].reinit(
+              this->n_dofs_per_cell(), this->n_dofs_per_cell());
+        }
+    }
 }
+
+
+template <int dim, int spacedim>
+const FullMatrix<double> &
+FiniteElement<dim, spacedim>::get_restriction_matrix(
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
+{
+  const ReferenceCell<dim> reference_cell = this->reference_cell();
+  Assert(refinement_choice != RefinementChoices::None<dim>,
+         ExcMessage(
+           "Restriction matrices are only available for refined cells!"));
+  AssertIndexRange(child, reference_cell.n_children(refinement_choice));
+  const unsigned int index =
+    reference_cell.refinement_choice_index(refinement_choice);
+  Assert(restriction_matrices[index][child].n() == this->n_dofs_per_cell(),
+         ExcProjectionVoid());
+  return restriction_matrices[index][child];
+}
+
 
 
 template <int dim, int spacedim>
@@ -330,20 +350,30 @@ FiniteElement<dim, spacedim>::get_restriction_matrix(
   const unsigned int         child,
   const RefinementCase<dim> &refinement_case) const
 {
-  AssertIndexRange(refinement_case,
-                   RefinementCase<dim>::isotropic_refinement + 1);
-  Assert(refinement_case != RefinementCase<dim>::no_refinement,
+  return get_restriction_matrix(
+    child,
+    internal::refinement_choice_from_legacy_refinement_case(
+      this->reference_cell(), refinement_case));
+}
+
+
+
+template <int dim, int spacedim>
+const FullMatrix<double> &
+FiniteElement<dim, spacedim>::get_prolongation_matrix(
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
+{
+  const ReferenceCell<dim> reference_cell = this->reference_cell();
+  Assert(refinement_choice != RefinementChoices::None<dim>,
          ExcMessage(
-           "Restriction matrices are only available for refined cells!"));
-  AssertIndexRange(child,
-                   this->reference_cell().n_children(
-                     RefinementCase<dim>(refinement_case)));
-  // we use refinement_case-1 here. the -1 takes care of the origin of the
-  // vector, as for RefinementCase<dim>::no_refinement (=0) there is no data
-  // available and so the vector indices are shifted
-  Assert(restriction[refinement_case - 1][child].n() == this->n_dofs_per_cell(),
-         ExcProjectionVoid());
-  return restriction[refinement_case - 1][child];
+           "Prolongation matrices are only available for refined cells!"));
+  AssertIndexRange(child, reference_cell.n_children(refinement_choice));
+  const unsigned int index =
+    reference_cell.refinement_choice_index(refinement_choice);
+  Assert(prolongation_matrices[index][child].n() == this->n_dofs_per_cell(),
+         ExcEmbeddingVoid());
+  return prolongation_matrices[index][child];
 }
 
 
@@ -354,24 +384,12 @@ FiniteElement<dim, spacedim>::get_prolongation_matrix(
   const unsigned int         child,
   const RefinementCase<dim> &refinement_case) const
 {
-  AssertIndexRange(refinement_case,
-                   RefinementCase<dim>::isotropic_refinement + 1);
-  Assert(refinement_case != RefinementCase<dim>::no_refinement,
-         ExcMessage(
-           "Prolongation matrices are only available for refined cells!"));
-  AssertIndexRange(child,
-                   this->reference_cell().n_children(
-                     RefinementCase<dim>(refinement_case)));
-  // we use refinement_case-1 here. the -1 takes care
-  // of the origin of the vector, as for
-  // RefinementCase::no_refinement (=0) there is no
-  // data available and so the vector indices
-  // are shifted
-  Assert(prolongation[refinement_case - 1][child].n() ==
-           this->n_dofs_per_cell(),
-         ExcEmbeddingVoid());
-  return prolongation[refinement_case - 1][child];
+  return get_prolongation_matrix(
+    child,
+    internal::refinement_choice_from_legacy_refinement_case(
+      this->reference_cell(), refinement_case));
 }
+
 
 
 // TODO:[GK] This is probably not the most efficient way of doing this.
@@ -632,32 +650,62 @@ FiniteElement<dim, spacedim>::face_to_cell_index(
 
 
 
+namespace internal
+{
+  namespace FiniteElementImplementation
+  {
+    // Check whether all transfer matrices for the given refinement choices are
+    // implemented. Calling the getter first ensures that lazily initialized
+    // matrices are created.
+    template <int dim, int spacedim, typename Getter>
+    bool
+    transfer_matrices_are_implemented(
+      const FiniteElement<dim, spacedim>                 &fe,
+      const std::vector<std::vector<FullMatrix<double>>> &matrices,
+      const Getter                                       &getter,
+      const bool                                          isotropic_only)
+    {
+      const ReferenceCell<dim> reference_cell = fe.reference_cell();
+      for (const auto &refinement_choice : reference_cell.refinement_choices())
+        if (!isotropic_only || !refinement_choice.is_anisotropic())
+          {
+            const unsigned int index =
+              reference_cell.refinement_choice_index(refinement_choice);
+            for (unsigned int c = 0;
+                 c < reference_cell.n_children(refinement_choice);
+                 ++c)
+              {
+                getter(c, refinement_choice);
+                const FullMatrix<double> &matrix = matrices[index][c];
+                Assert((matrix.m() == fe.n_dofs_per_cell()) ||
+                         (matrix.m() == 0),
+                       ExcInternalError());
+                Assert((matrix.n() == fe.n_dofs_per_cell()) ||
+                         (matrix.n() == 0),
+                       ExcInternalError());
+                if ((matrix.m() == 0) || (matrix.n() == 0))
+                  return false;
+              }
+          }
+      return true;
+    }
+  } // namespace FiniteElementImplementation
+} // namespace internal
+
+
+
 template <int dim, int spacedim>
 bool
 FiniteElement<dim, spacedim>::prolongation_is_implemented() const
 {
-  for (const unsigned int ref_case :
-       RefinementCase<dim>::all_refinement_cases())
-    if (ref_case != RefinementCase<dim>::no_refinement)
-      for (unsigned int c = 0;
-           c < this->reference_cell().n_children(RefinementCase<dim>(ref_case));
-           ++c)
-        {
-          // make sure also the lazily initialized matrices are created
-          get_prolongation_matrix(c, RefinementCase<dim>(ref_case));
-          Assert((prolongation[ref_case - 1][c].m() ==
-                  this->n_dofs_per_cell()) ||
-                   (prolongation[ref_case - 1][c].m() == 0),
-                 ExcInternalError());
-          Assert((prolongation[ref_case - 1][c].n() ==
-                  this->n_dofs_per_cell()) ||
-                   (prolongation[ref_case - 1][c].n() == 0),
-                 ExcInternalError());
-          if ((prolongation[ref_case - 1][c].m() == 0) ||
-              (prolongation[ref_case - 1][c].n() == 0))
-            return false;
-        }
-  return true;
+  return internal::FiniteElementImplementation::
+    transfer_matrices_are_implemented(
+      *this,
+      prolongation_matrices,
+      [this](const unsigned int c, const RefinementChoice<dim> &choice) {
+        this->get_prolongation_matrix(c, choice);
+      },
+      false);
 }
 
 
@@ -666,28 +714,14 @@ template <int dim, int spacedim>
 bool
 FiniteElement<dim, spacedim>::restriction_is_implemented() const
 {
-  for (const unsigned int ref_case :
-       RefinementCase<dim>::all_refinement_cases())
-    if (ref_case != RefinementCase<dim>::no_refinement)
-      for (unsigned int c = 0;
-           c < this->reference_cell().n_children(RefinementCase<dim>(ref_case));
-           ++c)
-        {
-          // make sure also the lazily initialized matrices are created
-          get_restriction_matrix(c, RefinementCase<dim>(ref_case));
-          Assert((restriction[ref_case - 1][c].m() ==
-                  this->n_dofs_per_cell()) ||
-                   (restriction[ref_case - 1][c].m() == 0),
-                 ExcInternalError());
-          Assert((restriction[ref_case - 1][c].n() ==
-                  this->n_dofs_per_cell()) ||
-                   (restriction[ref_case - 1][c].n() == 0),
-                 ExcInternalError());
-          if ((restriction[ref_case - 1][c].m() == 0) ||
-              (restriction[ref_case - 1][c].n() == 0))
-            return false;
-        }
-  return true;
+  return internal::FiniteElementImplementation::
+    transfer_matrices_are_implemented(
+      *this,
+      restriction_matrices,
+      [this](const unsigned int c, const RefinementChoice<dim> &choice) {
+        this->get_restriction_matrix(c, choice);
+      },
+      false);
 }
 
 
@@ -696,26 +730,14 @@ template <int dim, int spacedim>
 bool
 FiniteElement<dim, spacedim>::isotropic_prolongation_is_implemented() const
 {
-  const RefinementCase<dim> ref_case =
-    RefinementCase<dim>::isotropic_refinement;
-
-  for (unsigned int c = 0;
-       c < this->reference_cell().n_children(RefinementCase<dim>(ref_case));
-       ++c)
-    {
-      // make sure also the lazily initialized matrices are created
-      get_prolongation_matrix(c, RefinementCase<dim>(ref_case));
-      Assert((prolongation[ref_case - 1][c].m() == this->n_dofs_per_cell()) ||
-               (prolongation[ref_case - 1][c].m() == 0),
-             ExcInternalError());
-      Assert((prolongation[ref_case - 1][c].n() == this->n_dofs_per_cell()) ||
-               (prolongation[ref_case - 1][c].n() == 0),
-             ExcInternalError());
-      if ((prolongation[ref_case - 1][c].m() == 0) ||
-          (prolongation[ref_case - 1][c].n() == 0))
-        return false;
-    }
-  return true;
+  return internal::FiniteElementImplementation::
+    transfer_matrices_are_implemented(
+      *this,
+      prolongation_matrices,
+      [this](const unsigned int c, const RefinementChoice<dim> &choice) {
+        this->get_prolongation_matrix(c, choice);
+      },
+      true);
 }
 
 
@@ -724,26 +746,14 @@ template <int dim, int spacedim>
 bool
 FiniteElement<dim, spacedim>::isotropic_restriction_is_implemented() const
 {
-  const RefinementCase<dim> ref_case =
-    RefinementCase<dim>::isotropic_refinement;
-
-  for (unsigned int c = 0;
-       c < this->reference_cell().n_children(RefinementCase<dim>(ref_case));
-       ++c)
-    {
-      // make sure also the lazily initialized matrices are created
-      get_restriction_matrix(c, RefinementCase<dim>(ref_case));
-      Assert((restriction[ref_case - 1][c].m() == this->n_dofs_per_cell()) ||
-               (restriction[ref_case - 1][c].m() == 0),
-             ExcInternalError());
-      Assert((restriction[ref_case - 1][c].n() == this->n_dofs_per_cell()) ||
-               (restriction[ref_case - 1][c].n() == 0),
-             ExcInternalError());
-      if ((restriction[ref_case - 1][c].m() == 0) ||
-          (restriction[ref_case - 1][c].n() == 0))
-        return false;
-    }
-  return true;
+  return internal::FiniteElementImplementation::
+    transfer_matrices_are_implemented(
+      *this,
+      restriction_matrices,
+      [this](const unsigned int c, const RefinementChoice<dim> &choice) {
+        this->get_restriction_matrix(c, choice);
+      },
+      true);
 }
 
 
@@ -1219,8 +1229,8 @@ FiniteElement<dim, spacedim>::memory_consumption() const
 {
   return (
     sizeof(FiniteElementData<dim>) +
-    MemoryConsumption::memory_consumption(restriction) +
-    MemoryConsumption::memory_consumption(prolongation) +
+    MemoryConsumption::memory_consumption(restriction_matrices) +
+    MemoryConsumption::memory_consumption(prolongation_matrices) +
     MemoryConsumption::memory_consumption(interface_constraints) +
     MemoryConsumption::memory_consumption(system_to_component_table) +
     MemoryConsumption::memory_consumption(face_system_to_component_table) +

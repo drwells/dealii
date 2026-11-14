@@ -1,0 +1,6 @@
+New: FETools::compute_embedding_matrices() and
+FETools::compute_projection_matrices() now have versions which compute the
+matrices for a single RefinementChoice. The previous versions, which compute
+the matrices for all refinement cases at once, are deprecated.
+<br>
+(David Wells, 2026/11/14)

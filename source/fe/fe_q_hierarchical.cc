@@ -199,17 +199,21 @@ FE_Q_Hierarchical<dim>::get_interpolation_matrix(
 template <int dim>
 const FullMatrix<double> &
 FE_Q_Hierarchical<dim>::get_prolongation_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
+  const RefinementCase<dim> refinement_case =
+    static_cast<RefinementCase<dim>>(refinement_choice);
   Assert(
     refinement_case == RefinementCase<dim>::isotropic_refinement,
     ExcMessage(
       "Prolongation matrices are only available for isotropic refinement!"));
 
-  AssertIndexRange(child, this->reference_cell().n_children(refinement_case));
+  AssertIndexRange(child, this->reference_cell().n_children(refinement_choice));
+  const unsigned int refinement_index =
+    this->reference_cell().refinement_choice_index(refinement_choice);
 
-  return this->prolongation[refinement_case - 1][child];
+  return this->prolongation_matrices[refinement_index][child];
 }
 
 
@@ -678,7 +682,8 @@ FE_Q_Hierarchical<dim>::initialize_embedding_and_restriction(
   const std::vector<FullMatrix<double>> &dofs_cell,
   const std::vector<FullMatrix<double>> &dofs_subcell)
 {
-  unsigned int iso = RefinementCase<dim>::isotropic_refinement - 1;
+  unsigned int iso = this->reference_cell().refinement_choice_index(
+    RefinementChoices::Isotropic<dim>);
 
   const unsigned int dofs_1d =
     2 * this->n_dofs_per_vertex() + this->n_dofs_per_line();
@@ -689,10 +694,10 @@ FE_Q_Hierarchical<dim>::initialize_embedding_and_restriction(
 
   for (unsigned int c = 0; c < GeometryInfo<dim>::max_children_per_cell; ++c)
     {
-      this->prolongation[iso][c].reinit(this->n_dofs_per_cell(),
-                                        this->n_dofs_per_cell());
-      this->restriction[iso][c].reinit(this->n_dofs_per_cell(),
-                                       this->n_dofs_per_cell());
+      this->prolongation_matrices[iso][c].reinit(this->n_dofs_per_cell(),
+                                                 this->n_dofs_per_cell());
+      this->restriction_matrices[iso][c].reinit(this->n_dofs_per_cell(),
+                                                this->n_dofs_per_cell());
     }
 
   // the 1d case is particularly
@@ -702,8 +707,8 @@ FE_Q_Hierarchical<dim>::initialize_embedding_and_restriction(
       for (unsigned int c = 0; c < GeometryInfo<dim>::max_children_per_cell;
            ++c)
         {
-          this->prolongation[iso][c].fill(dofs_subcell[c]);
-          this->restriction[iso][c].fill(dofs_cell[c]);
+          this->prolongation_matrices[iso][c].fill(dofs_subcell[c]);
+          this->restriction_matrices[iso][c].fill(dofs_cell[c]);
         }
       return;
     }
@@ -733,7 +738,7 @@ FE_Q_Hierarchical<dim>::initialize_embedding_and_restriction(
                   // bottom/top line: 0/1
                   const unsigned int c1 = c / 2;
 
-                  this->prolongation[iso][c](j, i) =
+                  this->prolongation_matrices[iso][c](j, i) =
                     dofs_subcell[c0](renumber[j] % dofs_1d,
                                      renumber[i] % dofs_1d) *
                     dofs_subcell[c1]((renumber[j] - (renumber[j] % dofs_1d)) /
@@ -741,7 +746,7 @@ FE_Q_Hierarchical<dim>::initialize_embedding_and_restriction(
                                      (renumber[i] - (renumber[i] % dofs_1d)) /
                                        dofs_1d);
 
-                  this->restriction[iso][c](j, i) =
+                  this->restriction_matrices[iso][c](j, i) =
                     dofs_cell[c0](renumber[j] % dofs_1d,
                                   renumber[i] % dofs_1d) *
                     dofs_cell[c1]((renumber[j] - (renumber[j] % dofs_1d)) /
@@ -765,7 +770,7 @@ FE_Q_Hierarchical<dim>::initialize_embedding_and_restriction(
                   // bottom/top face: 0/1
                   const unsigned int c2 = c / 4;
 
-                  this->prolongation[iso][c](j, i) =
+                  this->prolongation_matrices[iso][c](j, i) =
                     dofs_subcell[c0](renumber[j] % dofs_1d,
                                      renumber[i] % dofs_1d) *
                     dofs_subcell[c1](
@@ -783,7 +788,7 @@ FE_Q_Hierarchical<dim>::initialize_embedding_and_restriction(
                         dofs_1d)) /
                         dofs_1d);
 
-                  this->restriction[iso][c](j, i) =
+                  this->restriction_matrices[iso][c](j, i) =
                     dofs_cell[c0](renumber[j] % dofs_1d,
                                   renumber[i] % dofs_1d) *
                     dofs_cell[c1](

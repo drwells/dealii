@@ -45,9 +45,11 @@ FE_DGP<dim, spacedim>::FE_DGP(const unsigned int degree)
   // Fill prolongation matrices with embedding operators
   if (dim == spacedim)
     {
-      FETools::compute_embedding_matrices(*this, this->prolongation);
+      FETools::internal::compute_embedding_matrices_for_all_choices(
+        *this, this->prolongation_matrices, false);
       // Fill restriction matrices with L2-projection
-      FETools::compute_projection_matrices(*this, this->restriction);
+      FETools::internal::compute_projection_matrices_for_all_choices(
+        *this, this->restriction_matrices, false);
     }
 }
 

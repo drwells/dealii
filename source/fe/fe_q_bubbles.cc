@@ -210,11 +210,11 @@ FE_Q_Bubbles<dim, spacedim>::FE_Q_Bubbles(const unsigned int q_degree)
   this->reinit_restriction_and_prolongation_matrices();
   if (dim == spacedim)
     {
-      internal::FE_Q_Bubbles::compute_embedding_matrices(*this,
-                                                         this->prolongation,
-                                                         false);
+      internal::FE_Q_Bubbles::compute_embedding_matrices(
+        *this, this->prolongation_matrices, false);
       // Fill restriction matrices with L2-projection
-      FETools::compute_projection_matrices(*this, this->restriction);
+      FETools::internal::compute_projection_matrices_for_all_choices(
+        *this, this->restriction_matrices, false);
     }
 }
 
@@ -249,11 +249,11 @@ FE_Q_Bubbles<dim, spacedim>::FE_Q_Bubbles(const Quadrature<1> &points)
   this->reinit_restriction_and_prolongation_matrices();
   if (dim == spacedim)
     {
-      internal::FE_Q_Bubbles::compute_embedding_matrices(*this,
-                                                         this->prolongation,
-                                                         false);
+      internal::FE_Q_Bubbles::compute_embedding_matrices(
+        *this, this->prolongation_matrices, false);
       // Fill restriction matrices with L2-projection
-      FETools::compute_projection_matrices(*this, this->restriction);
+      FETools::internal::compute_projection_matrices_for_all_choices(
+        *this, this->restriction_matrices, false);
     }
 }
 
@@ -461,20 +461,20 @@ FE_Q_Bubbles<dim, spacedim>::has_support_on_face(
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_Q_Bubbles<dim, spacedim>::get_prolongation_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  AssertIndexRange(refinement_case,
-                   RefinementCase<dim>::isotropic_refinement + 1);
-  Assert(refinement_case != RefinementCase<dim>::no_refinement,
+  Assert(refinement_choice != RefinementChoices::None<dim>,
          ExcMessage(
            "Prolongation matrices are only available for refined cells!"));
-  AssertIndexRange(child, this->reference_cell().n_children(refinement_case));
+  AssertIndexRange(child, this->reference_cell().n_children(refinement_choice));
+  const unsigned int refinement_index =
+    this->reference_cell().refinement_choice_index(refinement_choice);
 
-  Assert(this->prolongation[refinement_case - 1][child].n() != 0,
+  Assert(this->prolongation_matrices[refinement_index][child].n() != 0,
          ExcMessage("This prolongation matrix has not been computed yet!"));
   // finally return the matrix
-  return this->prolongation[refinement_case - 1][child];
+  return this->prolongation_matrices[refinement_index][child];
 }
 
 
@@ -482,21 +482,21 @@ FE_Q_Bubbles<dim, spacedim>::get_prolongation_matrix(
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_Q_Bubbles<dim, spacedim>::get_restriction_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  AssertIndexRange(refinement_case,
-                   RefinementCase<dim>::isotropic_refinement + 1);
-  Assert(refinement_case != RefinementCase<dim>::no_refinement,
+  Assert(refinement_choice != RefinementChoices::None<dim>,
          ExcMessage(
            "Restriction matrices are only available for refined cells!"));
-  AssertIndexRange(child, this->reference_cell().n_children(refinement_case));
+  AssertIndexRange(child, this->reference_cell().n_children(refinement_choice));
+  const unsigned int refinement_index =
+    this->reference_cell().refinement_choice_index(refinement_choice);
 
-  Assert(this->restriction[refinement_case - 1][child].n() != 0,
+  Assert(this->restriction_matrices[refinement_index][child].n() != 0,
          ExcMessage("This restriction matrix has not been computed yet!"));
 
   // finally return the matrix
-  return this->restriction[refinement_case - 1][child];
+  return this->restriction_matrices[refinement_index][child];
 }
 
 

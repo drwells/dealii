@@ -78,7 +78,8 @@ FE_ABF<dim>::FE_ABF(const unsigned int deg)
   // refinement
   this->reinit_restriction_and_prolongation_matrices(true);
   // Fill prolongation matrices with embedding operators
-  FETools::compute_embedding_matrices(*this, this->prolongation, false, 1.e-10);
+  FETools::internal::compute_embedding_matrices_for_all_choices(
+    *this, this->prolongation_matrices, false, 1.e-10);
 
   initialize_restriction();
 
@@ -351,13 +352,15 @@ FE_ABF<dim>::initialize_restriction()
 {
   if (dim == 1)
     {
-      unsigned int iso = RefinementCase<dim>::isotropic_refinement - 1;
+      unsigned int iso = this->reference_cell().refinement_choice_index(
+        RefinementChoices::Isotropic<dim>);
       for (unsigned int i = 0; i < GeometryInfo<dim>::max_children_per_cell;
            ++i)
-        this->restriction[iso][i].reinit(0, 0);
+        this->restriction_matrices[iso][i].reinit(0, 0);
       return;
     }
-  unsigned int          iso = RefinementCase<dim>::isotropic_refinement - 1;
+  unsigned int iso = this->reference_cell().refinement_choice_index(
+    RefinementChoices::Isotropic<dim>);
   const QGauss<dim - 1> q_base(rt_order + 1);
   const unsigned int    n_face_points = q_base.size();
   // First, compute interpolation on
@@ -424,7 +427,7 @@ FE_ABF<dim>::initialize_restriction()
                   // subcell are NOT
                   // transformed, so we
                   // have to do it here.
-                  this->restriction[iso][child](
+                  this->restriction_matrices[iso][child](
                     face * this->n_dofs_per_face(face) + i_face, i_child) +=
                     Utilities::fixed_power<dim - 1>(.5) * q_sub.weight(k) *
                     cached_values_face(i_child, k) *
@@ -489,9 +492,9 @@ FE_ABF<dim>::initialize_restriction()
             for (unsigned int i_weight = 0; i_weight < polynomials[d]->n();
                  ++i_weight)
               {
-                this->restriction[iso][child](start_cell_dofs + i_weight * dim +
-                                                d,
-                                              i_child) +=
+                this->restriction_matrices[iso][child](start_cell_dofs +
+                                                         i_weight * dim + d,
+                                                       i_child) +=
                   q_sub.weight(k) * cached_values_cell(i_child, k, d) *
                   polynomials[d]->compute_value(i_weight, q_sub.point(k));
               }

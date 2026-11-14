@@ -510,15 +510,19 @@ class FESystem;
  *
  * To define the prolongation matrices, i.e., those matrices that describe the
  * transfer of a finite element field from one cell to its children,
- * implementations of finite elements can either fill the #prolongation array
- * by hand, or can call FETools::compute_embedding_matrices().
+ * implementations of finite elements can either fill the
+ * #prolongation_matrices array by hand, or can call
+ * FETools::compute_embedding_matrices().
  *
  * In the latter case, all that is required is the following piece of code:
  * @code
- * for (unsigned int c=0; c<GeometryInfo<dim>::max_children_per_cell; ++c)
- *   this->prolongation[c].reinit (this->n_dofs_per_cell(),
- *                                 this->n_dofs_per_cell());
- * FETools::compute_embedding_matrices (*this, this->prolongation);
+ * const ReferenceCell<dim> reference_cell = this->reference_cell();
+ * for (const auto &refinement_choice : reference_cell.refinement_choices())
+ *   FETools::compute_embedding_matrices(
+ *     *this,
+ *     refinement_choice,
+ *     this->prolongation_matrices[reference_cell.refinement_choice_index(
+ *       refinement_choice)]);
  * @endcode
  * As in this example, prolongation is almost always implemented via
  * embedding, i.e., the nodal values of the function on the children may be
@@ -534,11 +538,11 @@ class FESystem;
  * the finite element function on the children to the nodal values of the
  * parent cell. In deal.II, the restriction operation is implemented as a loop
  * over the children of a cell that each apply a matrix to the vector of
- * unknowns on that child cell (these matrices are stored in #restriction and
- * are accessed by get_restriction_matrix()). The operation that then needs to
- * be implemented turns out to be surprisingly difficult to describe, but is
- * instructive to describe because it also defines the meaning of the
- * #restriction_is_additive_flags array (accessed via the
+ * unknowns on that child cell (these matrices are stored in
+ * #restriction_matrices and are accessed by get_restriction_matrix()). The
+ * operation that then needs to be implemented turns out to be surprisingly
+ * difficult to describe, but is instructive to describe because it also defines
+ * the meaning of the #restriction_is_additive_flags array (accessed via the
  * restriction_is_additive() function).
  *
  * To give a concrete example, assume we use a $Q_1$ element in 1d, and that
@@ -1054,8 +1058,30 @@ public:
    *   the *meaning* of the term "restriction" in the current context and in
    *   the multigrid context is quite different, and the two should not
    *   be confused.
+   *
+   * @p refinement_choice must be compatible with the reference cell of this
+   * element (see ReferenceCell::is_compatible_refinement_choice()) and may
+   * not be RefinementChoices::None.
    */
   virtual const FullMatrix<double> &
+  get_restriction_matrix(const unsigned int           child,
+                         const RefinementChoice<dim> &refinement_choice) const;
+
+  /**
+   * Same as above, but with the refinement given by a RefinementCase. For
+   * tetrahedra, the values 1, 2, and 3 correspond to
+   * RefinementChoices::Cut68, RefinementChoices::Cut57, and
+   * RefinementChoices::Cut49.
+   *
+   * @note This function is not virtual: derived classes must override the
+   * version of this function which takes a RefinementChoice instead.
+   *
+   * @deprecated Use the version of this function which takes a
+   * RefinementChoice instead.
+   */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use the version of this function which takes a RefinementChoice instead.")
+  const FullMatrix<double> &
   get_restriction_matrix(const unsigned int         child,
                          const RefinementCase<dim> &refinement_case =
                            RefinementCase<dim>::isotropic_refinement) const;
@@ -1088,8 +1114,30 @@ public:
    * FiniteElement::ExcEmbeddingVoid. You can check whether this would happen
    * by first calling the prolongation_is_implemented() or the
    * isotropic_prolongation_is_implemented() function.
+   *
+   * @p refinement_choice must be compatible with the reference cell of this
+   * element (see ReferenceCell::is_compatible_refinement_choice()) and may
+   * not be RefinementChoices::None.
    */
   virtual const FullMatrix<double> &
+  get_prolongation_matrix(const unsigned int           child,
+                          const RefinementChoice<dim> &refinement_choice) const;
+
+  /**
+   * Same as above, but with the refinement given by a RefinementCase. For
+   * tetrahedra, the values 1, 2, and 3 correspond to
+   * RefinementChoices::Cut68, RefinementChoices::Cut57, and
+   * RefinementChoices::Cut49.
+   *
+   * @note This function is not virtual: derived classes must override the
+   * version of this function which takes a RefinementChoice instead.
+   *
+   * @deprecated Use the version of this function which takes a
+   * RefinementChoice instead.
+   */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use the version of this function which takes a RefinementChoice instead.")
+  const FullMatrix<double> &
   get_prolongation_matrix(const unsigned int         child,
                           const RefinementCase<dim> &refinement_case =
                             RefinementCase<dim>::isotropic_refinement) const;
@@ -2537,28 +2585,31 @@ protected:
    * constructor initializes these matrices to zero dimensions, which can be
    * changed by derived classes implementing them.
    *
-   * Note, that <code>restriction[refinement_case-1][child]</code> includes
-   * the restriction matrix of child <code>child</code> for the RefinementCase
-   * <code>refinement_case</code>. Here, we use <code>refinement_case-1</code>
-   * instead of <code>refinement_case</code> as for
-   * RefinementCase::no_refinement(=0) there are no restriction matrices
-   * available.
+   * The matrix <code>restriction_matrices[i][child]</code> is the restriction
+   * matrix of child <code>child</code> for the RefinementChoice whose index
+   * (see ReferenceCell::refinement_choice_index()) is <code>i</code>.
+   *
+   * @note Previous versions of deal.II called this variable `restriction` and
+   * indexed it by RefinementCase. It was renamed when the indexing changed
+   * so that code relying on the old indexing does not compile.
    */
-  std::vector<std::vector<FullMatrix<double>>> restriction;
+  std::vector<std::vector<FullMatrix<double>>> restriction_matrices;
 
   /**
    * Vector of embedding matrices. See <tt>get_prolongation_matrix()</tt>
    * above. The constructor initializes these matrices to zero dimensions,
    * which can be changed by derived classes implementing them.
    *
-   * Note, that <code>prolongation[refinement_case-1][child]</code> includes
-   * the prolongation matrix of child <code>child</code> for the
-   * RefinementCase <code>refinement_case</code>. Here, we use
-   * <code>refinement_case-1</code> instead of <code>refinement_case</code> as
-   * for RefinementCase::no_refinement(=0) there are no prolongation matrices
-   * available.
+   * The matrix <code>prolongation_matrices[i][child]</code> is the
+   * prolongation matrix of child <code>child</code> for the RefinementChoice
+   * whose index (see ReferenceCell::refinement_choice_index()) is
+   * <code>i</code>.
+   *
+   * @note Previous versions of deal.II called this variable `prolongation`
+   * and indexed it by RefinementCase. It was renamed when the indexing changed
+   * so that code relying on the old indexing does not compile.
    */
-  std::vector<std::vector<FullMatrix<double>>> prolongation;
+  std::vector<std::vector<FullMatrix<double>>> prolongation_matrices;
 
   /**
    * Specify the constraints which the dofs on the two sides of a cell

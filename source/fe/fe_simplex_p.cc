@@ -366,79 +366,39 @@ FE_SimplexPoly<dim, spacedim>::get_constant_modes() const
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_SimplexPoly<dim, spacedim>::get_prolongation_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  if (dim == 3)
-    Assert(RefinementCase<dim>(refinement_case) ==
-               RefinementCase<dim>(
-                 static_cast<char>(IsotropicRefinementChoice::cut_tet_68)) ||
-             RefinementCase<dim>(refinement_case) ==
-               RefinementCase<dim>(
-                 static_cast<char>(IsotropicRefinementChoice::cut_tet_57)) ||
-             RefinementCase<dim>(refinement_case) ==
-               RefinementCase<dim>(
-                 static_cast<char>(IsotropicRefinementChoice::cut_tet_49)),
-           ExcNotImplemented());
-  else
-    Assert(refinement_case ==
-             RefinementCase<dim>(RefinementCase<dim>::isotropic_refinement),
-           ExcNotImplemented());
+  const ReferenceCell<dim> reference_cell = this->reference_cell();
+  Assert(refinement_choice != RefinementChoices::None<dim> &&
+           reference_cell.is_compatible_refinement_choice(refinement_choice),
+         ExcNotImplemented());
   AssertDimension(dim, spacedim);
+  AssertIndexRange(child, reference_cell.n_children(refinement_choice));
+  const unsigned int refinement_index =
+    reference_cell.refinement_choice_index(refinement_choice);
 
   // initialization upon first request
-  if (this->prolongation[refinement_case - 1][child].n() == 0)
+  if (this->prolongation_matrices[refinement_index][child].n() == 0)
     {
       std::scoped_lock lock(prolongation_matrix_mutex);
 
       // if matrix got updated while waiting for the lock
-      if (this->prolongation[refinement_case - 1][child].n() ==
+      if (this->prolongation_matrices[refinement_index][child].n() ==
           this->n_dofs_per_cell())
-        return this->prolongation[refinement_case - 1][child];
+        return this->prolongation_matrices[refinement_index][child];
 
       // now do the work. need to get a non-const version of data in order to
       // be able to modify them inside a const function
       auto &this_nonconst = const_cast<FE_SimplexPoly<dim, spacedim> &>(*this);
-
-      if (dim == 2)
-        {
-          std::vector<std::vector<FullMatrix<double>>> isotropic_matrices(
-            RefinementCase<dim>::isotropic_refinement);
-          isotropic_matrices.back().resize(
-            this->reference_cell().n_children(
-              RefinementCase<dim>(refinement_case)),
-            FullMatrix<double>(this->n_dofs_per_cell(),
-                               this->n_dofs_per_cell()));
-
-          FETools::compute_embedding_matrices(*this, isotropic_matrices, true);
-
-          this_nonconst.prolongation[refinement_case - 1] =
-            std::move(isotropic_matrices.back());
-        }
-      else if (dim == 3)
-        {
-          std::vector<std::vector<FullMatrix<double>>> matrices(
-            static_cast<unsigned int>(IsotropicRefinementChoice::cut_tet_49),
-            std::vector<FullMatrix<double>>(
-              this->reference_cell().n_children(
-                RefinementCase<dim>(refinement_case)),
-              FullMatrix<double>(this->n_dofs_per_cell(),
-                                 this->n_dofs_per_cell())));
-          FETools::compute_embedding_matrices(*this, matrices, true);
-          for (unsigned int refinement_direction = static_cast<unsigned int>(
-                 IsotropicRefinementChoice::cut_tet_68);
-               refinement_direction <=
-               static_cast<unsigned int>(IsotropicRefinementChoice::cut_tet_49);
-               refinement_direction++)
-            this_nonconst.prolongation[refinement_direction - 1] =
-              std::move(matrices[refinement_direction - 1]);
-        }
-      else
-        DEAL_II_ASSERT_UNREACHABLE();
+      FETools::compute_embedding_matrices(
+        *this,
+        refinement_choice,
+        this_nonconst.prolongation_matrices[refinement_index]);
     }
 
   // finally return the matrix
-  return this->prolongation[refinement_case - 1][child];
+  return this->prolongation_matrices[refinement_index][child];
 }
 
 
@@ -485,34 +445,27 @@ FE_SimplexPoly<dim, spacedim>::face_to_cell_index(
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_SimplexPoly<dim, spacedim>::get_restriction_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  if (dim == 3)
-    Assert(RefinementCase<dim>(refinement_case) ==
-               RefinementCase<dim>(
-                 static_cast<char>(IsotropicRefinementChoice::cut_tet_68)) ||
-             RefinementCase<dim>(refinement_case) ==
-               RefinementCase<dim>(
-                 static_cast<char>(IsotropicRefinementChoice::cut_tet_57)) ||
-             RefinementCase<dim>(refinement_case) ==
-               RefinementCase<dim>(
-                 static_cast<char>(IsotropicRefinementChoice::cut_tet_49)),
-           ExcNotImplemented());
-  else
-    Assert(refinement_case == RefinementCase<dim>::isotropic_refinement,
-           ExcNotImplemented());
+  const ReferenceCell<dim> reference_cell = this->reference_cell();
+  Assert(refinement_choice != RefinementChoices::None<dim> &&
+           reference_cell.is_compatible_refinement_choice(refinement_choice),
+         ExcNotImplemented());
   AssertDimension(dim, spacedim);
+  AssertIndexRange(child, reference_cell.n_children(refinement_choice));
+  const unsigned int refinement_index =
+    reference_cell.refinement_choice_index(refinement_choice);
 
   // initialization upon first request
-  if (this->restriction[refinement_case - 1][child].n() == 0)
+  if (this->restriction_matrices[refinement_index][child].n() == 0)
     {
       std::scoped_lock lock(restriction_matrix_mutex);
 
       // if matrix got updated while waiting for the lock
-      if (this->restriction[refinement_case - 1][child].n() ==
+      if (this->restriction_matrices[refinement_index][child].n() ==
           this->n_dofs_per_cell())
-        return this->restriction[refinement_case - 1][child];
+        return this->restriction_matrices[refinement_index][child];
 
       // get the restriction matrix
       // Refine a unit cell. As the parent cell is a unit
@@ -535,8 +488,12 @@ FE_SimplexPoly<dim, spacedim>::get_restriction_matrix(
       GridGenerator::reference_cell(tria, this->reference_cell());
       tria.begin_active()->set_refine_flag(
         RefinementCase<dim>::isotropic_refinement);
-      if (dim == 3)
-        tria.begin_active()->set_refine_choice(refinement_case);
+      // Triangulation does not yet accept RefinementChoice objects, so
+      // convert to an IsotropicRefinementChoice value for tetrahedra
+      if (reference_cell == ReferenceCells::Tetrahedron)
+        tria.begin_active()->set_refine_choice(static_cast<std::uint8_t>(
+          internal::legacy_refinement_case_from_refinement_choice(
+            reference_cell, refinement_choice)));
       tria.execute_coarsening_and_refinement();
 
       const auto &child_cell = tria.begin(0)->child(child);
@@ -596,12 +553,12 @@ FE_SimplexPoly<dim, spacedim>::get_restriction_matrix(
           }
 
       const_cast<FullMatrix<double> &>(
-        this->restriction[refinement_case - 1][child]) =
+        this->restriction_matrices[refinement_index][child]) =
         std::move(restriction_mat);
     }
 
   // finally return the matrix
-  return this->restriction[refinement_case - 1][child];
+  return this->restriction_matrices[refinement_index][child];
 }
 
 
@@ -1272,78 +1229,39 @@ FE_SimplexDGP<dim, spacedim>::hp_line_dof_identities(
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_SimplexDGP<dim, spacedim>::get_restriction_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  if (dim == 3)
-    Assert(RefinementCase<dim>(refinement_case) ==
-               RefinementCase<dim>(
-                 static_cast<char>(IsotropicRefinementChoice::cut_tet_68)) ||
-             RefinementCase<dim>(refinement_case) ==
-               RefinementCase<dim>(
-                 static_cast<char>(IsotropicRefinementChoice::cut_tet_57)) ||
-             RefinementCase<dim>(refinement_case) ==
-               RefinementCase<dim>(
-                 static_cast<char>(IsotropicRefinementChoice::cut_tet_49)),
-           ExcNotImplemented());
-  else
-    Assert(refinement_case == RefinementCase<dim>::isotropic_refinement,
-           ExcNotImplemented());
+  const ReferenceCell<dim> reference_cell = this->reference_cell();
+  Assert(refinement_choice != RefinementChoices::None<dim> &&
+           reference_cell.is_compatible_refinement_choice(refinement_choice),
+         ExcNotImplemented());
   AssertDimension(dim, spacedim);
+  AssertIndexRange(child, reference_cell.n_children(refinement_choice));
+  const unsigned int refinement_index =
+    reference_cell.refinement_choice_index(refinement_choice);
 
   // initialization upon first request
-  if (this->restriction[refinement_case - 1][child].n() == 0)
+  if (this->restriction_matrices[refinement_index][child].n() == 0)
     {
       std::scoped_lock lock(this->restriction_matrix_mutex);
 
       // if matrix got updated while waiting for the lock
-      if (this->restriction[refinement_case - 1][child].n() ==
+      if (this->restriction_matrices[refinement_index][child].n() ==
           this->n_dofs_per_cell())
-        return this->restriction[refinement_case - 1][child];
+        return this->restriction_matrices[refinement_index][child];
 
       // now do the work. need to get a non-const version of data in order to
       // be able to modify them inside a const function
       auto &this_nonconst = const_cast<FE_SimplexDGP<dim, spacedim> &>(*this);
-
-      if (dim == 2)
-        {
-          std::vector<std::vector<FullMatrix<double>>> isotropic_matrices(
-            RefinementCase<dim>::isotropic_refinement);
-          isotropic_matrices.back().resize(
-            this->reference_cell().n_children(
-              RefinementCase<dim>(refinement_case)),
-            FullMatrix<double>(this->n_dofs_per_cell(),
-                               this->n_dofs_per_cell()));
-
-          FETools::compute_projection_matrices(*this, isotropic_matrices, true);
-
-          this_nonconst.restriction[refinement_case - 1] =
-            std::move(isotropic_matrices.back());
-        }
-      else if (dim == 3)
-        {
-          std::vector<std::vector<FullMatrix<double>>> matrices(
-            static_cast<unsigned int>(IsotropicRefinementChoice::cut_tet_49),
-            std::vector<FullMatrix<double>>(
-              this->reference_cell().n_children(
-                RefinementCase<dim>(refinement_case)),
-              FullMatrix<double>(this->n_dofs_per_cell(),
-                                 this->n_dofs_per_cell())));
-          FETools::compute_projection_matrices(*this, matrices, true);
-          for (unsigned int refinement_direction = static_cast<unsigned int>(
-                 IsotropicRefinementChoice::cut_tet_68);
-               refinement_direction <=
-               static_cast<unsigned int>(IsotropicRefinementChoice::cut_tet_49);
-               refinement_direction++)
-            this_nonconst.restriction[refinement_direction - 1] =
-              std::move(matrices[refinement_direction - 1]);
-        }
-      else
-        DEAL_II_ASSERT_UNREACHABLE();
+      FETools::compute_projection_matrices(
+        *this,
+        refinement_choice,
+        this_nonconst.restriction_matrices[refinement_index]);
     }
 
   // finally return the matrix
-  return this->restriction[refinement_case - 1][child];
+  return this->restriction_matrices[refinement_index][child];
 }
 
 // explicit instantiations

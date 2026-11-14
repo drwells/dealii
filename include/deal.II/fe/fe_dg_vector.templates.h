@@ -49,8 +49,10 @@ FE_DGVector<PolynomialType, dim, spacedim>::FE_DGVector(const unsigned int deg,
   this->generalized_support_points = quadrature.get_points();
 
   this->reinit_restriction_and_prolongation_matrices(true, true);
-  FETools::compute_projection_matrices(*this, this->restriction, true);
-  FETools::compute_embedding_matrices(*this, this->prolongation, true);
+  FETools::internal::compute_projection_matrices_for_all_choices(
+    *this, this->restriction_matrices, true);
+  FETools::internal::compute_embedding_matrices_for_all_choices(
+    *this, this->prolongation_matrices, true);
 }
 
 

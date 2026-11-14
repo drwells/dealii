@@ -82,7 +82,8 @@ FE_RaviartThomas<dim>::FE_RaviartThomas(const unsigned int deg)
   // refinement
   this->reinit_restriction_and_prolongation_matrices(true);
   // Fill prolongation matrices with embedding operators
-  FETools::compute_embedding_matrices(*this, this->prolongation);
+  FETools::internal::compute_embedding_matrices_for_all_choices(
+    *this, this->prolongation_matrices, false);
   initialize_restriction();
 
   // TODO: the implementation makes the assumption that all faces have the
@@ -440,7 +441,7 @@ FE_RaviartThomas<1>::initialize_restriction()
   // there is only one refinement case in 1d,
   // which is the isotropic one (first index of
   // the matrix array has to be 0)
-  for (auto &restriction_matrix : this->restriction[0])
+  for (auto &restriction_matrix : this->restriction_matrices[0])
     restriction_matrix.reinit(0, 0);
 }
 
@@ -460,7 +461,8 @@ template <int dim>
 void
 FE_RaviartThomas<dim>::initialize_restriction()
 {
-  const unsigned int iso = RefinementCase<dim>::isotropic_refinement - 1;
+  const unsigned int iso = this->reference_cell().refinement_choice_index(
+    RefinementChoices::Isotropic<dim>);
 
   const QGauss<dim - 1> q_base(this->degree);
   const unsigned int    n_face_points = q_base.size();
@@ -530,7 +532,7 @@ FE_RaviartThomas<dim>::initialize_restriction()
                   // subcell are NOT
                   // transformed, so we
                   // have to do it here.
-                  this->restriction[iso][child](
+                  this->restriction_matrices[iso][child](
                     face * this->n_dofs_per_face(face) + i_face, i_child) +=
                     Utilities::fixed_power<dim - 1>(.5) * q_sub.weight(k) *
                     cached_values_on_face(i_child, k) *
@@ -597,9 +599,9 @@ FE_RaviartThomas<dim>::initialize_restriction()
             for (unsigned int i_weight = 0; i_weight < polynomials[d]->n();
                  ++i_weight)
               {
-                this->restriction[iso][child](start_cell_dofs + i_weight * dim +
-                                                d,
-                                              i_child) +=
+                this->restriction_matrices[iso][child](start_cell_dofs +
+                                                         i_weight * dim + d,
+                                                       i_child) +=
                   q_sub.weight(k) * cached_values_on_cell(i_child, k, d) *
                   polynomials[d]->compute_value(i_weight, q_sub.point(k));
               }

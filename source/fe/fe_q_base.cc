@@ -1194,25 +1194,27 @@ FE_Q_Base<dim, spacedim>::initialize_constraints(
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_Q_Base<dim, spacedim>::get_prolongation_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  AssertIndexRange(refinement_case,
-                   RefinementCase<dim>::isotropic_refinement + 1);
-  Assert(refinement_case != RefinementCase<dim>::no_refinement,
+  const RefinementCase<dim> refinement_case =
+    static_cast<RefinementCase<dim>>(refinement_choice);
+  Assert(refinement_choice != RefinementChoices::None<dim>,
          ExcMessage(
            "Prolongation matrices are only available for refined cells!"));
-  AssertIndexRange(child, this->reference_cell().n_children(refinement_case));
+  AssertIndexRange(child, this->reference_cell().n_children(refinement_choice));
+  const unsigned int refinement_index =
+    this->reference_cell().refinement_choice_index(refinement_choice);
 
   // initialization upon first request
-  if (this->prolongation[refinement_case - 1][child].n() == 0)
+  if (this->prolongation_matrices[refinement_index][child].n() == 0)
     {
       std::scoped_lock lock(prolongation_matrix_mutex);
 
       // if matrix got updated while waiting for the lock
-      if (this->prolongation[refinement_case - 1][child].n() ==
+      if (this->prolongation_matrices[refinement_index][child].n() ==
           this->n_dofs_per_cell())
-        return this->prolongation[refinement_case - 1][child];
+        return this->prolongation_matrices[refinement_index][child];
 
       // distinguish q/q_dg0 case: only treat Q dofs first
       const unsigned int q_dofs_per_cell =
@@ -1385,11 +1387,12 @@ FE_Q_Base<dim, spacedim>::get_prolongation_matrix(
 
       // move result into place
       const_cast<FullMatrix<double> &>(
-        this->prolongation[refinement_case - 1][child]) = std::move(prolongate);
+        this->prolongation_matrices[refinement_index][child]) =
+        std::move(prolongate);
     }
 
   // finally return the matrix
-  return this->prolongation[refinement_case - 1][child];
+  return this->prolongation_matrices[refinement_index][child];
 }
 
 
@@ -1397,25 +1400,27 @@ FE_Q_Base<dim, spacedim>::get_prolongation_matrix(
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_Q_Base<dim, spacedim>::get_restriction_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  AssertIndexRange(refinement_case,
-                   RefinementCase<dim>::isotropic_refinement + 1);
-  Assert(refinement_case != RefinementCase<dim>::no_refinement,
+  const RefinementCase<dim> refinement_case =
+    static_cast<RefinementCase<dim>>(refinement_choice);
+  Assert(refinement_choice != RefinementChoices::None<dim>,
          ExcMessage(
            "Restriction matrices are only available for refined cells!"));
-  AssertIndexRange(child, this->reference_cell().n_children(refinement_case));
+  AssertIndexRange(child, this->reference_cell().n_children(refinement_choice));
+  const unsigned int refinement_index =
+    this->reference_cell().refinement_choice_index(refinement_choice);
 
   // initialization upon first request
-  if (this->restriction[refinement_case - 1][child].n() == 0)
+  if (this->restriction_matrices[refinement_index][child].n() == 0)
     {
       std::scoped_lock lock(restriction_matrix_mutex);
 
       // if matrix got updated while waiting for the lock...
-      if (this->restriction[refinement_case - 1][child].n() ==
+      if (this->restriction_matrices[refinement_index][child].n() ==
           this->n_dofs_per_cell())
-        return this->restriction[refinement_case - 1][child];
+        return this->restriction_matrices[refinement_index][child];
 
       FullMatrix<double> my_restriction(this->n_dofs_per_cell(),
                                         this->n_dofs_per_cell());
@@ -1519,17 +1524,16 @@ FE_Q_Base<dim, spacedim>::get_restriction_matrix(
           if (q_dofs_per_cell < this->n_dofs_per_cell())
             my_restriction(this->n_dofs_per_cell() - 1,
                            this->n_dofs_per_cell() - 1) =
-              1. / this->reference_cell().n_children(
-                     RefinementCase<dim>(refinement_case));
+              1. / this->reference_cell().n_children(refinement_choice);
         }
 
       // move result into place
       const_cast<FullMatrix<double> &>(
-        this->restriction[refinement_case - 1][child]) =
+        this->restriction_matrices[refinement_index][child]) =
         std::move(my_restriction);
     }
 
-  return this->restriction[refinement_case - 1][child];
+  return this->restriction_matrices[refinement_index][child];
 }
 
 

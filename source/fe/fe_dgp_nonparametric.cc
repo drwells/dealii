@@ -48,28 +48,27 @@ FE_DGPNonparametric<dim, spacedim>::FE_DGPNonparametric(
         ComponentMask(std::vector<bool>(1, true))))
   , polynomial_space(Polynomials::Legendre::generate_complete_basis(degree))
 {
-  const unsigned int n_dofs = this->n_dofs_per_cell();
-  for (const unsigned int ref_case :
-       RefinementCase<dim>::all_refinement_cases())
-    if (ref_case != RefinementCase<dim>::no_refinement)
-      {
-        if (dim != 2 && ref_case != RefinementCase<dim>::isotropic_refinement)
-          // do nothing, as anisotropic
-          // refinement is not
-          // implemented so far
-          continue;
+  const unsigned int       n_dofs         = this->n_dofs_per_cell();
+  const ReferenceCell<dim> reference_cell = this->reference_cell();
+  for (const auto &refinement_choice : reference_cell.refinement_choices())
+    {
+      if (dim != 2 && refinement_choice.is_anisotropic())
+        // do nothing, as anisotropic
+        // refinement is not
+        // implemented so far
+        continue;
 
-        const unsigned int nc =
-          this->reference_cell().n_children(RefinementCase<dim>(ref_case));
-        for (unsigned int i = 0; i < nc; ++i)
-          {
-            this->prolongation[ref_case - 1][i].reinit(n_dofs, n_dofs);
-            // Fill prolongation matrices with
-            // embedding operators
-            for (unsigned int j = 0; j < n_dofs; ++j)
-              this->prolongation[ref_case - 1][i](j, j) = 1.;
-          }
-      }
+      for (auto &matrix :
+           this->prolongation_matrices[reference_cell.refinement_choice_index(
+             refinement_choice)])
+        {
+          matrix.reinit(n_dofs, n_dofs);
+          // Fill prolongation matrices with
+          // embedding operators
+          for (unsigned int j = 0; j < n_dofs; ++j)
+            matrix(j, j) = 1.;
+        }
+    }
 
   // restriction can be defined
   // through projection for
@@ -92,7 +91,7 @@ FE_DGPNonparametric<dim, spacedim>::FE_DGPNonparametric(
   // "empty". however, that is done in the
   // default constructor already, so do nothing
   //  for (unsigned int i=0;i<GeometryInfo<dim>::max_children_per_cell;++i)
-  //    this->restriction[i].reinit(0, 0);
+  //    this->restriction_matrices[i].reinit(0, 0);
 
   // note further, that these
   // elements have neither support

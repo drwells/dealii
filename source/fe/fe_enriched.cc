@@ -1030,20 +1030,20 @@ FE_Enriched<dim, spacedim>::compare_for_domination(
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_Enriched<dim, spacedim>::get_prolongation_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  return fe_system->get_prolongation_matrix(child, refinement_case);
+  return fe_system->get_prolongation_matrix(child, refinement_choice);
 }
 
 
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_Enriched<dim, spacedim>::get_restriction_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  return fe_system->get_restriction_matrix(child, refinement_case);
+  return fe_system->get_restriction_matrix(child, refinement_choice);
 }
 
 

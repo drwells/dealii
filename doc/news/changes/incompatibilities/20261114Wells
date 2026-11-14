@@ -1,0 +1,15 @@
+Changed: FiniteElement::get_prolongation_matrix() and
+FiniteElement::get_restriction_matrix() now have versions which take a
+RefinementChoice: these are the virtual functions which derived classes must
+override. The versions which take a RefinementCase are no longer virtual and
+are deprecated (calls like `fe.get_prolongation_matrix(child)` continue to
+work). Furthermore, the protected member variables FiniteElement::prolongation
+and FiniteElement::restriction were renamed to
+FiniteElement::prolongation_matrices and FiniteElement::restriction_matrices
+since they are now indexed by ReferenceCell::refinement_choice_index(), which
+differs from the previous indexing for simplices, wedges, and pyramids. As a
+result, finite element classes defined outside of deal.II which override the
+old functions or access these variables directly no longer compile and must
+be updated.
+<br>
+(David Wells, 2026/11/14)

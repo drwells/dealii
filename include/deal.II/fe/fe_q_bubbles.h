@@ -139,13 +139,25 @@ public:
 
   virtual const FullMatrix<double> &
   get_prolongation_matrix(
-    const unsigned int         child,
-    const RefinementCase<dim> &refinement_case) const override;
+    const unsigned int           child,
+    const RefinementChoice<dim> &refinement_choice) const override;
+
+  /**
+   * Make the deprecated version of this function, which takes a
+   * RefinementCase, available.
+   */
+  using FiniteElement<dim, spacedim>::get_prolongation_matrix;
 
   virtual const FullMatrix<double> &
   get_restriction_matrix(
-    const unsigned int         child,
-    const RefinementCase<dim> &refinement_case) const override;
+    const unsigned int           child,
+    const RefinementChoice<dim> &refinement_choice) const override;
+
+  /**
+   * Make the deprecated version of this function, which takes a
+   * RefinementCase, available.
+   */
+  using FiniteElement<dim, spacedim>::get_restriction_matrix;
 
   /**
    * Check for non-zero values on a face.

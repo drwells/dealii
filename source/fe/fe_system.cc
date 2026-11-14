@@ -847,27 +847,27 @@ FESystem<dim, spacedim>::get_interpolation_matrix(
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FESystem<dim, spacedim>::get_restriction_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  AssertIndexRange(refinement_case,
-                   RefinementCase<dim>::isotropic_refinement + 1);
-  Assert(refinement_case != RefinementCase<dim>::no_refinement,
+  Assert(refinement_choice != RefinementChoices::None<dim>,
          ExcMessage(
            "Restriction matrices are only available for refined cells!"));
-  AssertIndexRange(child, this->reference_cell().n_children(refinement_case));
+  AssertIndexRange(child, this->reference_cell().n_children(refinement_choice));
+  const unsigned int refinement_index =
+    this->reference_cell().refinement_choice_index(refinement_choice);
 
 
 
   // initialization upon first request
-  if (this->restriction[refinement_case - 1][child].n() == 0)
+  if (this->restriction_matrices[refinement_index][child].n() == 0)
     {
       std::scoped_lock lock(restriction_matrix_mutex);
 
       // check if updated while waiting for lock
-      if (this->restriction[refinement_case - 1][child].n() ==
+      if (this->restriction_matrices[refinement_index][child].n() ==
           this->n_dofs_per_cell())
-        return this->restriction[refinement_case - 1][child];
+        return this->restriction_matrices[refinement_index][child];
 
       // shortcut for accessing local restrictions further down
       std::vector<const FullMatrix<double> *> base_matrices(
@@ -876,7 +876,7 @@ FESystem<dim, spacedim>::get_restriction_matrix(
       for (unsigned int i = 0; i < this->n_base_elements(); ++i)
         {
           base_matrices[i] =
-            &base_element(i).get_restriction_matrix(child, refinement_case);
+            &base_element(i).get_restriction_matrix(child, refinement_choice);
 
           Assert(base_matrices[i]->n() == base_element(i).n_dofs_per_cell(),
                  (typename FiniteElement<dim, spacedim>::ExcProjectionVoid()));
@@ -920,10 +920,11 @@ FESystem<dim, spacedim>::get_restriction_matrix(
           }
 
       const_cast<FullMatrix<double> &>(
-        this->restriction[refinement_case - 1][child]) = std::move(restriction);
+        this->restriction_matrices[refinement_index][child]) =
+        std::move(restriction);
     }
 
-  return this->restriction[refinement_case - 1][child];
+  return this->restriction_matrices[refinement_index][child];
 }
 
 
@@ -931,32 +932,32 @@ FESystem<dim, spacedim>::get_restriction_matrix(
 template <int dim, int spacedim>
 const FullMatrix<double> &
 FESystem<dim, spacedim>::get_prolongation_matrix(
-  const unsigned int         child,
-  const RefinementCase<dim> &refinement_case) const
+  const unsigned int           child,
+  const RefinementChoice<dim> &refinement_choice) const
 {
-  AssertIndexRange(refinement_case,
-                   RefinementCase<dim>::isotropic_refinement + 1);
-  Assert(refinement_case != RefinementCase<dim>::no_refinement,
+  Assert(refinement_choice != RefinementChoices::None<dim>,
          ExcMessage(
            "Restriction matrices are only available for refined cells!"));
-  AssertIndexRange(child, this->reference_cell().n_children(refinement_case));
+  AssertIndexRange(child, this->reference_cell().n_children(refinement_choice));
+  const unsigned int refinement_index =
+    this->reference_cell().refinement_choice_index(refinement_choice);
 
   // initialization upon first request, construction completely analogous to
   // restriction matrix
-  if (this->prolongation[refinement_case - 1][child].n() == 0)
+  if (this->prolongation_matrices[refinement_index][child].n() == 0)
     {
       std::scoped_lock lock(prolongation_matrix_mutex);
 
-      if (this->prolongation[refinement_case - 1][child].n() ==
+      if (this->prolongation_matrices[refinement_index][child].n() ==
           this->n_dofs_per_cell())
-        return this->prolongation[refinement_case - 1][child];
+        return this->prolongation_matrices[refinement_index][child];
 
       std::vector<const FullMatrix<double> *> base_matrices(
         this->n_base_elements());
       for (unsigned int i = 0; i < this->n_base_elements(); ++i)
         {
           base_matrices[i] =
-            &base_element(i).get_prolongation_matrix(child, refinement_case);
+            &base_element(i).get_prolongation_matrix(child, refinement_choice);
 
           Assert(base_matrices[i]->n() == base_element(i).n_dofs_per_cell(),
                  (typename FiniteElement<dim, spacedim>::ExcEmbeddingVoid()));
@@ -982,10 +983,11 @@ FESystem<dim, spacedim>::get_prolongation_matrix(
           }
 
       const_cast<FullMatrix<double> &>(
-        this->prolongation[refinement_case - 1][child]) = std::move(prolongate);
+        this->prolongation_matrices[refinement_index][child]) =
+        std::move(prolongate);
     }
 
-  return this->prolongation[refinement_case - 1][child];
+  return this->prolongation_matrices[refinement_index][child];
 }
 
 

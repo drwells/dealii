@@ -5137,6 +5137,75 @@ ReferenceCell<dim>::get_inverse_combined_orientation(
 }
 
 
+
+namespace internal
+{
+  /**
+   * Convert a RefinementCase into the equivalent RefinementChoice for
+   * @p reference_cell. For hypercubes this is the same as the conversion
+   * operator of RefinementChoice. For tetrahedra, RefinementCase has
+   * historically been used to encode the specific refinement: the values 1,
+   * 2, and 3 correspond to RefinementChoices::Cut68,
+   * RefinementChoices::Cut57, and RefinementChoices::Cut49 (i.e., the values
+   * of IsotropicRefinementChoice). For all other cells
+   * RefinementCase::isotropic_refinement is converted to
+   * RefinementChoices::Isotropic.
+   *
+   * @note This function only exists to implement deprecated interfaces which
+   * still use RefinementCase and will be removed with them.
+   */
+  template <int dim>
+  inline RefinementChoice<dim>
+  refinement_choice_from_legacy_refinement_case(
+    const ReferenceCell<dim>  &reference_cell,
+    const RefinementCase<dim> &refinement_case)
+  {
+    if constexpr (dim == 3)
+      if (reference_cell == ReferenceCells::Tetrahedron &&
+          refinement_case != RefinementCase<dim>::no_refinement)
+        {
+          const auto value = static_cast<std::uint8_t>(refinement_case);
+          Assert(1 <= value && value <= 3,
+                 ExcMessage("For tetrahedra, a specific refinement must be "
+                            "given: the values 1, 2, and 3 correspond to "
+                            "RefinementChoices::Cut68, Cut57, and Cut49."));
+          constexpr std::array<RefinementChoice<3>, 3> choices = {
+            {RefinementChoices::Cut68<3>,
+             RefinementChoices::Cut57<3>,
+             RefinementChoices::Cut49<3>}};
+          return choices[value - 1];
+        }
+    (void)reference_cell;
+    return RefinementChoice<dim>(refinement_case);
+  }
+
+
+
+  /**
+   * The inverse of refinement_choice_from_legacy_refinement_case().
+   *
+   * @note This function only exists to implement deprecated interfaces which
+   * still use RefinementCase and will be removed with them.
+   */
+  template <int dim>
+  inline RefinementCase<dim>
+  legacy_refinement_case_from_refinement_choice(
+    const ReferenceCell<dim>    &reference_cell,
+    const RefinementChoice<dim> &refinement_choice)
+  {
+    Assert(reference_cell.is_compatible_refinement_choice(refinement_choice),
+           ExcMessage("The given RefinementChoice is not valid for this "
+                      "ReferenceCell."));
+    if constexpr (dim == 3)
+      if (reference_cell == ReferenceCells::Tetrahedron &&
+          refinement_choice != RefinementChoices::None<3>)
+        return RefinementCase<3>(static_cast<std::uint8_t>(
+          refinement_choice.new_tetrahedron_line() + 1));
+    (void)reference_cell;
+    return static_cast<RefinementCase<dim>>(refinement_choice);
+  }
+} // namespace internal
+
 DEAL_II_NAMESPACE_CLOSE
 
 #endif

@@ -437,15 +437,25 @@ public:
 
   virtual const FullMatrix<double> &
   get_restriction_matrix(
-    const unsigned int         child,
-    const RefinementCase<dim> &refinement_case =
-      RefinementCase<dim>::isotropic_refinement) const override;
+    const unsigned int           child,
+    const RefinementChoice<dim> &refinement_choice) const override;
+
+  /**
+   * Make the deprecated version of this function, which takes a
+   * RefinementCase, available.
+   */
+  using FiniteElement<dim, spacedim>::get_restriction_matrix;
 
   virtual const FullMatrix<double> &
   get_prolongation_matrix(
-    const unsigned int         child,
-    const RefinementCase<dim> &refinement_case =
-      RefinementCase<dim>::isotropic_refinement) const override;
+    const unsigned int           child,
+    const RefinementChoice<dim> &refinement_choice) const override;
+
+  /**
+   * Make the deprecated version of this function, which takes a
+   * RefinementCase, available.
+   */
+  using FiniteElement<dim, spacedim>::get_prolongation_matrix;
 
 private:
   /**

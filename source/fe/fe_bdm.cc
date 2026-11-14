@@ -79,7 +79,8 @@ FE_BDM<dim>::FE_BDM(const unsigned int deg)
   // Embedding errors become pretty large, so we just replace the
   // regular threshold in both "computing_..." functions by 1.
   this->reinit_restriction_and_prolongation_matrices(true, true);
-  FETools::compute_embedding_matrices(*this, this->prolongation, true, 1.);
+  FETools::internal::compute_embedding_matrices_for_all_choices(
+    *this, this->prolongation_matrices, true, 1.);
 
   AssertDimension(this->n_unique_faces(), 1);
   const unsigned int face_no = 0;

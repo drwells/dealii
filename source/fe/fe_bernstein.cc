@@ -62,13 +62,13 @@ template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_Bernstein<dim, spacedim>::get_restriction_matrix(
   const unsigned int,
-  const RefinementCase<dim> &) const
+  const RefinementChoice<dim> &) const
 {
   AssertThrow(false,
               (typename FiniteElement<dim, spacedim>::ExcProjectionVoid()));
   // return dummy, nothing will happen because the base class FE_Q_Base
   // implements lazy evaluation of those matrices
-  return this->restriction[0][0];
+  return this->restriction_matrices[0][0];
 }
 
 
@@ -77,13 +77,13 @@ template <int dim, int spacedim>
 const FullMatrix<double> &
 FE_Bernstein<dim, spacedim>::get_prolongation_matrix(
   const unsigned int,
-  const RefinementCase<dim> &) const
+  const RefinementChoice<dim> &) const
 {
   AssertThrow(false,
               (typename FiniteElement<dim, spacedim>::ExcEmbeddingVoid()));
   // return dummy, nothing will happen because the base class FE_Q_Base
   // implements lazy evaluation of those matrices
-  return this->prolongation[0][0];
+  return this->prolongation_matrices[0][0];
 }
 
 

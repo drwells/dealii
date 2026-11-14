@@ -12,7 +12,7 @@
 
 #include <deal.II/grid/refinement_choice.h>
 
-#include <sstream>
+#include <algorithm>
 #include <vector>
 
 #include "../tests.h"
@@ -23,6 +23,8 @@ template <int dim>
 std::vector<RefinementChoice<dim>>
 get_hypercube_choices()
 {
+  if constexpr (dim == 0)
+    return {RefinementChoices::None<0>, RefinementChoices::Isotropic<0>};
   if constexpr (dim == 1)
     return {RefinementChoices::None<1>, RefinementChoices::Isotropic<1>};
   if constexpr (dim == 2)
@@ -51,32 +53,39 @@ get_tetrahedron_choices()
           RefinementChoices::Isotropic<3>};
 }
 
+// Unions of distinct specific tetrahedral refinements are not defined.
+template <int dim>
+bool
+union_is_defined(const RefinementChoice<dim> a, const RefinementChoice<dim> b)
+{
+  if constexpr (dim == 3)
+    {
+      const auto tets            = get_tetrahedron_choices();
+      const auto is_specific_tet = [&](const RefinementChoice<3> c) {
+        return std::find(tets.begin() + 1, tets.end() - 1, c) != tets.end() - 1;
+      };
+      if (is_specific_tet(a) && is_specific_tet(b) && a != b)
+        return false;
+    }
+  return true;
+}
+
 template <int dim>
 void
-test_hypercube(const RefinementChoice<dim>               choice,
-               const std::vector<RefinementChoice<dim>> &other_choices)
+test(const RefinementChoice<dim>               choice,
+     const std::vector<RefinementChoice<dim>> &other_choices)
 {
   const auto str = choice.to_string();
-  deallog << str << std::endl;
+  deallog << dim << "d " << str << " (" << int(choice) << ")" << std::endl;
   deallog << "  ~" << str << " = " << (~choice).to_string() << std::endl;
   deallog << "  bool(" << str << ") = " << std::boolalpha << bool(choice)
           << std::endl;
+  deallog << "  is_anisotropic(" << str << ") = " << choice.is_anisotropic()
+          << std::endl;
   for (const auto &other : other_choices)
-    {
-      // only some unions are allowed (e.g., not Cut49 | Cut57)
-      try
-        {
-          const auto result = choice | other;
-          deallog << "  " << str << " | " << other.to_string() << " = "
-                  << result.to_string() << std::endl;
-        }
-      catch (const ExceptionBase &e)
-        {
-          std::ostringstream message;
-          e.print_info(message);
-          deallog << message.str() << std::endl;
-        }
-    }
+    if (union_is_defined(choice, other))
+      deallog << "  " << str << " | " << other.to_string() << " = "
+              << (choice | other).to_string() << std::endl;
   for (const auto &other : other_choices)
     deallog << "  " << str << " & " << other.to_string() << " = "
             << (choice & other).to_string() << std::endl;
@@ -87,19 +96,20 @@ main()
 {
   initlog();
 
-#ifndef Assert
-  // TODO clean this up
-#  warning "This test assumes Assert() is defined"
-#endif
-
-  deal_II_exceptions::disable_abort_on_exception();
-
+  for (const auto &choice : get_hypercube_choices<0>())
+    test(choice, get_hypercube_choices<0>());
   for (const auto &choice : get_hypercube_choices<1>())
-    test_hypercube(choice, get_hypercube_choices<1>());
+    test(choice, get_hypercube_choices<1>());
   for (const auto &choice : get_hypercube_choices<2>())
-    test_hypercube(choice, get_hypercube_choices<2>());
+    test(choice, get_hypercube_choices<2>());
   for (const auto &choice : get_hypercube_choices<3>())
-    test_hypercube(choice, get_hypercube_choices<3>());
+    test(choice, get_hypercube_choices<3>());
   for (const auto &choice : get_tetrahedron_choices())
-    test_hypercube(choice, get_tetrahedron_choices());
+    test(choice, get_tetrahedron_choices());
+
+  // Check that the integer values match those of RefinementCase.
+  static_assert(int(RefinementChoices::Isotropic<1>) == 1);
+  static_assert(int(RefinementChoices::Isotropic<2>) == 3);
+  static_assert(int(RefinementChoices::Isotropic<3>) == 7);
+  static_assert(int(RefinementChoices::CutXZ<3>) == 5);
 }

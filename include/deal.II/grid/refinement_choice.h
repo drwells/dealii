@@ -258,7 +258,7 @@ inline constexpr RefinementChoice<dim>::RefinementChoice(
            ExcMessage("The only valid RefinementChoices in 2d are None, "
                       "CutX, CutY, and Isotropic."));
   else if constexpr (dim == 3)
-    Assert(kind <= isotropic_kind || kind == 15 || kind == 23 || kind == 31,
+    Assert(kind <= isotropic_kind || (8 <= kind && kind <= 10),
            ExcMessage("This RefinementChoice isn't implemented in 3d."));
 }
 
@@ -391,7 +391,7 @@ namespace RefinementChoices
    */
   template <int dim>
   constexpr RefinementChoice<dim> Cut49 =
-    internal::make_3d_refinement_choice_from_int<dim>(15);
+    internal::make_3d_refinement_choice_from_int<dim>(8);
 
   /**
    * Refine a Tetrahedron isotropically, with the internal line placed between
@@ -399,7 +399,7 @@ namespace RefinementChoices
    */
   template <int dim>
   constexpr RefinementChoice<dim> Cut57 =
-    internal::make_3d_refinement_choice_from_int<dim>(23);
+    internal::make_3d_refinement_choice_from_int<dim>(9);
 
   /**
    * Refine a Tetrahedron isotropically, with the internal line placed between
@@ -407,7 +407,7 @@ namespace RefinementChoices
    */
   template <int dim>
   constexpr RefinementChoice<dim> Cut68 =
-    internal::make_3d_refinement_choice_from_int<dim>(31);
+    internal::make_3d_refinement_choice_from_int<dim>(10);
 } // namespace RefinementChoices
 
 
@@ -566,11 +566,11 @@ inline constexpr unsigned int
 RefinementChoice<dim>::new_tetrahedron_line() const
 {
   AssertDimension(dim, 3);
-  if (*this == internal::make_refinement_choice_from_int<dim>(15))
+  if (*this == internal::make_refinement_choice_from_int<dim>(8))
     return 2;
-  else if (*this == internal::make_refinement_choice_from_int<dim>(23))
+  else if (*this == internal::make_refinement_choice_from_int<dim>(9))
     return 1;
-  else if (*this == internal::make_refinement_choice_from_int<dim>(31))
+  else if (*this == internal::make_refinement_choice_from_int<dim>(10))
     return 0;
 
   DEAL_II_NOT_IMPLEMENTED();

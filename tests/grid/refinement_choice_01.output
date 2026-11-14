@@ -251,7 +251,7 @@ DEAL::  None & None = None
 DEAL::  None & Cut49 = None
 DEAL::  None & Cut57 = None
 DEAL::  None & Cut68 = None
-DEAL::3d Cut49 (15)
+DEAL::3d Cut49 (8)
 DEAL::  ~Cut49 = None
 DEAL::  bool(Cut49) = true
 DEAL::  is_anisotropic(Cut49) = false
@@ -261,7 +261,7 @@ DEAL::  Cut49 & None = None
 DEAL::  Cut49 & Cut49 = Cut49
 DEAL::  Cut49 & Cut57 = None
 DEAL::  Cut49 & Cut68 = None
-DEAL::3d Cut57 (23)
+DEAL::3d Cut57 (9)
 DEAL::  ~Cut57 = None
 DEAL::  bool(Cut57) = true
 DEAL::  is_anisotropic(Cut57) = false
@@ -271,7 +271,7 @@ DEAL::  Cut57 & None = None
 DEAL::  Cut57 & Cut49 = None
 DEAL::  Cut57 & Cut57 = Cut57
 DEAL::  Cut57 & Cut68 = None
-DEAL::3d Cut68 (31)
+DEAL::3d Cut68 (10)
 DEAL::  ~Cut68 = None
 DEAL::  bool(Cut68) = true
 DEAL::  is_anisotropic(Cut68) = false

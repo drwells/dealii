@@ -17704,6 +17704,36 @@ namespace
 } // namespace
 
 #ifndef DOXYGEN
+namespace
+{
+  // Return whether the refinement of a face cuts it along the given axis of
+  // the face. Faces of two-dimensional cells (lines) only have one axis.
+  template <int facedim>
+  bool
+  face_cuts_along(const RefinementChoice<facedim> &face_refinement_choice,
+                  const unsigned int               axis)
+  {
+    return axis < facedim && (face_refinement_choice &
+                              RefinementChoice<facedim>::cut_axis(axis)) !=
+                               RefinementChoices::None<facedim>;
+  }
+
+
+
+  // Return whether the refinement of a face is exactly the cut along the given
+  // axis of the face.
+  template <int facedim>
+  bool
+  face_cut_equals(const RefinementChoice<facedim> &face_refinement_choice,
+                  const unsigned int               axis)
+  {
+    return axis < facedim &&
+           face_refinement_choice == RefinementChoice<facedim>::cut_axis(axis);
+  }
+} // namespace
+
+
+
 template <int dim, int spacedim>
 DEAL_II_CXX20_REQUIRES((concepts::is_valid_dim_spacedim<dim, spacedim>))
 bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
@@ -17861,7 +17891,7 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
         {
           for (const auto &cell : cell_iterators())
             if (!cell->is_active() ||
-                (cell->is_active() && cell->refine_flag_set() &&
+                (cell->is_active() && cell->refinement_choice_set() &&
                  cell->is_locally_owned()))
               {
                 // check whether all children are active, i.e. not
@@ -17970,7 +18000,7 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
           std::vector<int> vertex_level(vertices.size(), 0);
           for (const auto &cell : active_cell_iterators())
             {
-              if (cell->refine_flag_set())
+              if (cell->refinement_choice_set())
                 for (const unsigned int vertex : cell->vertex_indices())
                   vertex_level[cell->vertex_index(vertex)] =
                     std::max(vertex_level[cell->vertex_index(vertex)],
@@ -18005,7 +18035,7 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
           // coarsening flags on cells adjacent to vertices that will
           // see refinement
           for (active_cell_iterator cell = last_active(); cell != end(); --cell)
-            if (cell->refine_flag_set() == false)
+            if (!cell->refinement_choice_set())
               {
                 for (const unsigned int vertex : cell->vertex_indices())
                   if (vertex_level[cell->vertex_index(vertex)] >=
@@ -18051,8 +18081,8 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
           for (active_cell_iterator cell = last_active(); cell != end(); --cell)
             // only do something if cell is not already flagged for
             // (isotropic) refinement
-            if (cell->refine_flag_set() !=
-                RefinementCase<dim>::isotropic_refinement)
+            if (!cell->refinement_choice_set() ||
+                cell->refinement_choice_set().is_anisotropic())
               possibly_refine_unrefined_island<dim, spacedim>(
                 cell, (smooth_grid & allow_anisotropic_smoothing) != 0);
         }
@@ -18104,12 +18134,12 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
 
                 // cell is found to be a patch.  combine the refine
                 // cases of all children
-                RefinementCase<dim> combined_ref_case =
-                  RefinementCase<dim>::no_refinement;
+                RefinementChoice<dim> combined_ref_case =
+                  RefinementChoices::None<dim>;
                 for (unsigned int i = 0; i < cell->n_children(); ++i)
                   combined_ref_case =
-                    combined_ref_case | cell->child(i)->refine_flag_set();
-                if (combined_ref_case != RefinementCase<dim>::no_refinement)
+                    combined_ref_case | cell->child(i)->refinement_choice_set();
+                if (combined_ref_case != RefinementChoices::None<dim>)
                   for (unsigned int i = 0; i < cell->n_children(); ++i)
                     {
                       cell_iterator child = cell->child(i);
@@ -18235,7 +18265,7 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
           active_cell_iterator cell = last_active(), endc = end();
 
           for (; cell != endc; --cell)
-            if (cell->refine_flag_set())
+            if (cell->refinement_choice_set())
               {
                 // loop over neighbors of cell
                 for (const auto i : cell->face_indices())
@@ -18248,9 +18278,11 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                     const bool has_neighbor_or_periodic_neighbor =
                       !cell->at_boundary(i) || has_periodic_neighbor;
                     if (has_neighbor_or_periodic_neighbor &&
-                        GeometryInfo<dim>::face_refinement_case(
-                          cell->refine_flag_set(), i) !=
-                          RefinementCase<dim - 1>::no_refinement)
+                        cell->reference_cell().face_refinement_choice(
+                          cell->refinement_choice_set(),
+                          i,
+                          numbers::default_geometric_orientation) !=
+                          RefinementChoices::None<dim - 1>)
                       {
                         // 1) if the neighbor has children: nothing to
                         // worry about.  2) if the neighbor is active
@@ -18298,20 +18330,22 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                                                 ->periodic_neighbor_of_coarser_periodic_neighbor(
                                                   i)
                                                 .first,
-                                              RefinementCase<dim - 1>::cut_x) :
+                                              RefinementChoice<
+                                                dim - 1>::cut_axis(0)) :
                                           cell->neighbor(i)
                                             ->flag_for_face_refinement(
                                               cell
                                                 ->neighbor_of_coarser_neighbor(
                                                   i)
                                                 .first,
-                                              RefinementCase<dim - 1>::cut_x);
+                                              RefinementChoice<dim -
+                                                               1>::cut_axis(0));
                                     else
                                       {
                                         if (!cell
                                                ->neighbor_or_periodic_neighbor(
                                                  i)
-                                               ->refine_flag_set())
+                                               ->refinement_choice_set())
                                           changed = true;
                                         cell->neighbor_or_periodic_neighbor(i)
                                           ->set_refine_flag();
@@ -18498,11 +18532,11 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                                         // neighbors face and count
                                         // refinements in x and y
                                         // direction.
-                                        RefinementCase<dim - 1> frc =
-                                          parent_face->refinement_case();
-                                        if (frc & RefinementCase<dim>::cut_x)
+                                        RefinementChoice<dim - 1> frc =
+                                          parent_face->refinement_choice();
+                                        if (face_cuts_along(frc, 0))
                                           ++refined_along_x;
-                                        if (frc & RefinementCase<dim>::cut_y)
+                                        if (face_cuts_along(frc, 1))
                                           ++refined_along_y;
                                       }
                                     else
@@ -18515,18 +18549,15 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                                     // step 2: detect, along which axis the face
                                     // has to be refined given the current
                                     // refine flag
-                                    RefinementCase<dim - 1> flagged_frc =
-                                      GeometryInfo<dim>::face_refinement_case(
-                                        cell->refine_flag_set(),
-                                        i,
-                                        cell->face_orientation(i),
-                                        cell->face_flip(i),
-                                        cell->face_rotation(i));
-                                    if (flagged_frc &
-                                        RefinementCase<dim>::cut_x)
+                                    RefinementChoice<dim - 1> flagged_frc =
+                                      cell->reference_cell()
+                                        .face_refinement_choice(
+                                          cell->refinement_choice_set(),
+                                          i,
+                                          cell->combined_face_orientation(i));
+                                    if (face_cuts_along(flagged_frc, 0))
                                       ++to_be_refined_along_x;
-                                    if (flagged_frc &
-                                        RefinementCase<dim>::cut_y)
+                                    if (face_cuts_along(flagged_frc, 1))
                                       ++to_be_refined_along_y;
 
                                     // step 3: set the refine flag of the
@@ -18534,7 +18565,7 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                                     if ((smooth_grid &
                                          allow_anisotropic_smoothing) ||
                                         cell->neighbor_or_periodic_neighbor(i)
-                                          ->refine_flag_set())
+                                          ->refinement_choice_set())
                                       {
                                         if (refined_along_x +
                                               to_be_refined_along_x >
@@ -18544,8 +18575,8 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                                               ->neighbor_or_periodic_neighbor(i)
                                               ->flag_for_face_refinement(
                                                 nb_indices.first,
-                                                RefinementCase<dim -
-                                                               1>::cut_axis(0));
+                                                RefinementChoice<
+                                                  dim - 1>::cut_axis(0));
                                         if (refined_along_y +
                                               to_be_refined_along_y >
                                             1)
@@ -18554,17 +18585,25 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                                               ->neighbor_or_periodic_neighbor(i)
                                               ->flag_for_face_refinement(
                                                 nb_indices.first,
-                                                RefinementCase<dim -
-                                                               1>::cut_axis(1));
+                                                RefinementChoice<
+                                                  dim - 1>::cut_axis(1));
                                       }
                                     else
                                       {
-                                        if (cell
-                                              ->neighbor_or_periodic_neighbor(i)
-                                              ->refine_flag_set() !=
-                                            RefinementCase<
-                                              dim>::isotropic_refinement)
-                                          changed = true;
+                                        {
+                                          const RefinementChoice<dim>
+                                            neighbor_choice =
+                                              cell
+                                                ->neighbor_or_periodic_neighbor(
+                                                  i)
+                                                ->refinement_choice_set();
+                                          // i.e., the neighbor is not
+                                          // flagged for isotropic
+                                          // refinement
+                                          if (!neighbor_choice ||
+                                              neighbor_choice.is_anisotropic())
+                                            changed = true;
+                                        }
                                         cell->neighbor_or_periodic_neighbor(i)
                                           ->set_refine_flag();
                                       }
@@ -18573,25 +18612,25 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                                     // the refine flag of the current cell
                                     cell_iterator nb =
                                       cell->neighbor_or_periodic_neighbor(i);
-                                    RefinementCase<dim - 1> nb_frc =
-                                      GeometryInfo<dim>::face_refinement_case(
-                                        nb->refine_flag_set(),
-                                        nb_indices.first,
-                                        nb->face_orientation(nb_indices.first),
-                                        nb->face_flip(nb_indices.first),
-                                        nb->face_rotation(nb_indices.first));
-                                    if ((nb_frc & RefinementCase<dim>::cut_x) &&
+                                    RefinementChoice<dim - 1> nb_frc =
+                                      nb->reference_cell()
+                                        .face_refinement_choice(
+                                          nb->refinement_choice_set(),
+                                          nb_indices.first,
+                                          nb->combined_face_orientation(
+                                            nb_indices.first));
+                                    if (face_cuts_along(nb_frc, 0) &&
                                         !((refined_along_x != 0u) ||
                                           (to_be_refined_along_x != 0u)))
                                       changed |= cell->flag_for_face_refinement(
                                         i,
-                                        RefinementCase<dim - 1>::cut_axis(0));
-                                    if ((nb_frc & RefinementCase<dim>::cut_y) &&
+                                        RefinementChoice<dim - 1>::cut_axis(0));
+                                    if (face_cuts_along(nb_frc, 1) &&
                                         !((refined_along_y != 0u) ||
                                           (to_be_refined_along_y != 0u)))
                                       changed |= cell->flag_for_face_refinement(
                                         i,
-                                        RefinementCase<dim - 1>::cut_axis(1));
+                                        RefinementChoice<dim - 1>::cut_axis(1));
                                   }
                               } // if neighbor is coarser
                             else // -> now the neighbor is not coarser
@@ -18606,32 +18645,27 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                                     cell->neighbor_of_neighbor(i);
                                 const cell_iterator neighbor =
                                   cell->neighbor_or_periodic_neighbor(i);
-                                RefinementCase<dim - 1> face_ref_case =
-                                  GeometryInfo<dim>::face_refinement_case(
-                                    neighbor->refine_flag_set(),
-                                    nb_nb,
-                                    neighbor->face_orientation(nb_nb),
-                                    neighbor->face_flip(nb_nb),
-                                    neighbor->face_rotation(nb_nb));
-                                RefinementCase<dim - 1> needed_face_ref_case =
-                                  GeometryInfo<dim>::face_refinement_case(
-                                    cell->refine_flag_set(),
+                                RefinementChoice<dim - 1> face_ref_case =
+                                  neighbor->reference_cell()
+                                    .face_refinement_choice(
+                                      neighbor->refinement_choice_set(),
+                                      nb_nb,
+                                      neighbor->combined_face_orientation(
+                                        nb_nb));
+                                RefinementChoice<dim - 1> needed_face_ref_case =
+                                  cell->reference_cell().face_refinement_choice(
+                                    cell->refinement_choice_set(),
                                     i,
-                                    cell->face_orientation(i),
-                                    cell->face_flip(i),
-                                    cell->face_rotation(i));
+                                    cell->combined_face_orientation(i));
                                 // if the neighbor wants to refine the
                                 // face with cut_x and we want cut_y
                                 // or vice versa, we have to refine
                                 // isotropically at the given face
-                                if ((face_ref_case ==
-                                       RefinementCase<dim>::cut_x &&
-                                     needed_face_ref_case ==
-                                       RefinementCase<dim>::cut_y) ||
-                                    (face_ref_case ==
-                                       RefinementCase<dim>::cut_y &&
-                                     needed_face_ref_case ==
-                                       RefinementCase<dim>::cut_x))
+                                if ((face_cut_equals(face_ref_case, 0) &&
+                                     face_cut_equals(needed_face_ref_case,
+                                                     1)) ||
+                                    (face_cut_equals(face_ref_case, 1) &&
+                                     face_cut_equals(needed_face_ref_case, 0)))
                                   {
                                     changed = cell->flag_for_face_refinement(
                                       i, face_ref_case);
@@ -18642,24 +18676,21 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
                           }
                         else //-> the neighbor is not active
                           {
-                            RefinementCase<dim - 1>
-                              face_ref_case = cell->face(i)->refinement_case(),
+                            RefinementChoice<dim - 1>
+                              face_ref_case =
+                                cell->face(i)->refinement_choice(),
                               needed_face_ref_case =
-                                GeometryInfo<dim>::face_refinement_case(
-                                  cell->refine_flag_set(),
+                                cell->reference_cell().face_refinement_choice(
+                                  cell->refinement_choice_set(),
                                   i,
-                                  cell->face_orientation(i),
-                                  cell->face_flip(i),
-                                  cell->face_rotation(i));
+                                  cell->combined_face_orientation(i));
                             // if the face is refined with cut_x and
                             // we want cut_y or vice versa, we have to
                             // refine isotropically at the given face
-                            if ((face_ref_case == RefinementCase<dim>::cut_x &&
-                                 needed_face_ref_case ==
-                                   RefinementCase<dim>::cut_y) ||
-                                (face_ref_case == RefinementCase<dim>::cut_y &&
-                                 needed_face_ref_case ==
-                                   RefinementCase<dim>::cut_x))
+                            if ((face_cut_equals(face_ref_case, 0) &&
+                                 face_cut_equals(needed_face_ref_case, 1)) ||
+                                (face_cut_equals(face_ref_case, 1) &&
+                                 face_cut_equals(needed_face_ref_case, 0)))
                               changed =
                                 cell->flag_for_face_refinement(i,
                                                                face_ref_case);
@@ -18696,14 +18727,14 @@ bool Triangulation<dim, spacedim>::prepare_coarsening_and_refinement()
 
                   const int periodic_neighbor_future_level =
                     periodic_neighbor->level() +
-                    (periodic_neighbor->refine_flag_set() ? 1 : 0) -
+                    (periodic_neighbor->refinement_choice_set() ? 1 : 0) -
                     (periodic_neighbor->coarsen_flag_set() ? 1 : 0);
 
                   if (cell->level() < periodic_neighbor_future_level)
                     {
                       if (cell->coarsen_flag_set())
                         cell->clear_coarsen_flag();
-                      else if (!cell->refine_flag_set())
+                      else if (!cell->refinement_choice_set())
                         cell->set_refine_flag();
                     }
                   else if (cell->level() == periodic_neighbor_future_level &&

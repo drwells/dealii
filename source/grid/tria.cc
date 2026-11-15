@@ -17190,7 +17190,7 @@ typename Triangulation<dim, spacedim>::DistortedCellList
       // refinement flag of a non-active cell is set, something went wrong
       // since the cell-accessors should have caught this)
       for (const auto &cell : this->cell_iterators())
-        Assert(!cell->refine_flag_set(), ExcInternalError());
+        Assert(!cell->refinement_choice_set(), ExcInternalError());
     }
 
   return cells_with_distorted_children;

@@ -13969,10 +13969,17 @@ void Triangulation<dim, spacedim>::save_refine_flags(std::vector<bool> &v) const
   v.resize(dim * n_active_cells(), false);
   std::vector<bool>::iterator i = v.begin();
 
+  // This format stores one bit per coordinate direction, i.e., the bits of
+  // the equivalent RefinementCase. It cannot store the specific refinement of
+  // a tetrahedron, which is stored as isotropic refinement instead.
   for (const auto &cell : this->active_cell_iterators())
-    for (unsigned int j = 0; j < dim; ++j, ++i)
-      if (cell->refine_flag_set() & (1 << j))
-        *i = true;
+    {
+      const auto refinement_case =
+        static_cast<RefinementCase<dim>>(cell->refinement_choice_set());
+      for (unsigned int j = 0; j < dim; ++j, ++i)
+        if (static_cast<std::uint8_t>(refinement_case) & (1 << j))
+          *i = true;
+    }
 
   Assert(i == v.end(), ExcInternalError());
 }

@@ -12491,22 +12491,25 @@ namespace internal
           return;
 
         for (const auto &cell : triangulation.cell_iterators())
-          if (cell->at_boundary() && cell->refine_flag_set() &&
-              cell->refine_flag_set() !=
-                RefinementCase<dim>::isotropic_refinement)
+          if (cell->at_boundary() &&
+              cell->refinement_choice_set().is_anisotropic())
             {
               // The cell is at the boundary and it is flagged for
               // anisotropic refinement. Therefore, we have a closer
               // look
-              const RefinementCase<dim> ref_case = cell->refine_flag_set();
+              const RefinementChoice<dim> ref_case =
+                cell->refinement_choice_set();
               for (const unsigned int face_no :
                    GeometryInfo<dim>::face_indices())
                 if (cell->face(face_no)->at_boundary())
                   {
                     // this is the critical face at the boundary.
-                    if (GeometryInfo<dim>::face_refinement_case(ref_case,
-                                                                face_no) !=
-                        RefinementCase<dim - 1>::isotropic_refinement)
+                    if (ReferenceCells::get_hypercube<dim>()
+                          .face_refinement_choice(
+                            ref_case,
+                            face_no,
+                            numbers::default_geometric_orientation) !=
+                        RefinementChoices::Isotropic<dim - 1>)
                       {
                         // up to now, we do not want to refine this
                         // cell along the face under consideration

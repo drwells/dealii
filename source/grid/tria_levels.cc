@@ -51,7 +51,6 @@ namespace internal
     {
       return (
         MemoryConsumption::memory_consumption(refine_flags) +
-        MemoryConsumption::memory_consumption(refine_choice) +
         MemoryConsumption::memory_consumption(coarsen_flags) +
         MemoryConsumption::memory_consumption(active_cell_indices) +
         MemoryConsumption::memory_consumption(global_active_cell_indices) +
@@ -85,7 +84,6 @@ namespace internal
       level_subdomain_ids.assign(n_cells, 0);
 
       refine_flags.assign(n_cells, RefinementChoices::None<dim>);
-      refine_choice.assign(n_cells, RefinementChoices::None<dim>);
       coarsen_flags.assign(n_cells, false);
 
       parents.assign((n_cells + 1) / 2, -1);
@@ -114,8 +112,7 @@ namespace internal
     template <int dim, int spacedim>
     void
     TriaLevel<dim, spacedim>::allocate_end(const std::size_t n_new_cells,
-                                           const bool        orientation_needed,
-                                           const bool        has_tetrahedra)
+                                           const bool        orientation_needed)
     {
       Assert(children_per_object == cells.children_per_object,
              ExcInternalError());
@@ -130,14 +127,6 @@ namespace internal
       refine_flags.insert(refine_flags.end(),
                           total_cells - refine_flags.size(),
                           RefinementChoices::None<dim>);
-
-      if (has_tetrahedra)
-        {
-          refine_choice.reserve(total_cells);
-          refine_choice.insert(refine_choice.end(),
-                               total_cells - refine_choice.size(),
-                               RefinementChoices::None<dim>);
-        }
 
       coarsen_flags.reserve(total_cells);
       coarsen_flags.insert(coarsen_flags.end(),

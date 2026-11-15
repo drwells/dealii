@@ -366,16 +366,16 @@ namespace internal
 
   template <int dim, int spacedim>
   FullMatrix<double>
-  get_restriction_matrix(
-    const FiniteElement<dim, spacedim> &fe,
-    const unsigned int                  child,
-    RefinementCase<dim> ref_case = RefinementCase<dim>::isotropic_refinement)
+  get_restriction_matrix(const FiniteElement<dim, spacedim> &fe,
+                         const unsigned int                  child,
+                         const RefinementChoice<dim>        &refinement_choice)
   {
-    auto matrix = fe.get_restriction_matrix(child, ref_case);
+    auto matrix = fe.get_restriction_matrix(child, refinement_choice);
 
     for (unsigned int c_other = 0; c_other < child; ++c_other)
       {
-        const auto &matrix_other = fe.get_restriction_matrix(c_other, ref_case);
+        const auto &matrix_other =
+          fe.get_restriction_matrix(c_other, refinement_choice);
         for (unsigned int i = 0; i < fe.n_dofs_per_cell(); ++i)
           {
             if (fe.restriction_is_additive(i) == true)
@@ -481,11 +481,11 @@ namespace internal
       const std::function<void(std::vector<types::global_dof_index> &)>
                                           &get_dof_indices_function,
       const std::function<unsigned int()> &active_fe_index_function,
-      const std::function<std::uint8_t()> &refinement_case_function)
+      const std::function<std::uint8_t()> &refinement_choice_function)
       : has_children_function(has_children_function)
       , get_dof_indices_function(get_dof_indices_function)
       , active_fe_index_function(active_fe_index_function)
-      , refinement_case_function(refinement_case_function)
+      , refinement_choice_function(refinement_choice_function)
     {}
 
     /**
@@ -514,12 +514,14 @@ namespace internal
       return active_fe_index_function();
     }
     /**
-     * Get refinement choice.
+     * Get the RefinementChoice with which the cell is refined.
      */
-    std::uint8_t
-    refinement_case() const
+    template <int dim>
+    RefinementChoice<dim>
+    refinement_choice() const
     {
-      return refinement_case_function();
+      return dealii::internal::make_refinement_choice_from_int<dim>(
+        refinement_choice_function());
     }
 
   private:
@@ -540,9 +542,10 @@ namespace internal
     const std::function<unsigned int()> active_fe_index_function;
 
     /**
-     * Lambda function returning the refinement choice.
+     * Lambda function returning the RefinementChoice with which the cell is
+     * refined, converted to std::uint8_t.
      */
-    const std::function<std::uint8_t()> refinement_case_function;
+    const std::function<std::uint8_t()> refinement_choice_function;
   };
 
 
@@ -772,11 +775,11 @@ namespace internal
               const auto cell_raw =
                 dof_handler_fine.get_triangulation().create_cell_iterator(
                   cell_id);
-              return cell_raw->refinement_case();
+              return static_cast<std::uint8_t>(cell_raw->refinement_choice());
             }
           else
             {
-              return cell->refinement_case();
+              return static_cast<std::uint8_t>(cell->refinement_choice());
             }
         });
     }
@@ -896,7 +899,8 @@ namespace internal
 
                 buffer.push_back(cell->active_fe_index());
                 if (cell->level() != 0)
-                  buffer.push_back(cell->parent()->refinement_case());
+                  buffer.push_back(static_cast<std::uint8_t>(
+                    cell->parent()->refinement_choice()));
                 else
                   buffer.push_back(numbers::invalid_dof_index);
                 buffer.insert(buffer.end(), indices.begin(), indices.end());
@@ -1129,24 +1133,23 @@ namespace internal
                 *dof_handler_fine.get_triangulation().create_cell_iterator(
                   cell->id()),
                 &dof_handler_fine));
-              return cell_fine->refinement_case();
+              return static_cast<std::uint8_t>(cell_fine->refinement_choice());
             }
           else if (is_cell_locally_owned)
             {
-              return cell->refinement_case();
+              return static_cast<std::uint8_t>(cell->refinement_choice());
             }
 
           else if (is_cell_remotely_owned)
             {
-              return RefinementCase<dim>(
-                std::get<2>(remote_cell_info_map.at(id)));
+              return std::get<2>(remote_cell_info_map.at(id));
             }
           else
             {
               AssertThrow(false, ExcNotImplemented());
             }
           // return no refinement
-          return RefinementCase<dim>(0);
+          return static_cast<std::uint8_t>(RefinementChoices::None<dim>);
         });
     }
 
@@ -1695,8 +1698,23 @@ namespace internal
       //    .
       //    .
       //    .
-      transfer.schemes.resize(1 +
-                              reference_cell.n_isotropic_refinement_choices());
+      // The schemes (1) and following correspond to the isotropic
+      // RefinementChoices of the reference cell (one for most cells, three
+      // for tetrahedra).
+      std::vector<RefinementChoice<dim>> isotropic_refinement_choices;
+      for (const auto &choice : reference_cell.refinement_choices())
+        if (!choice.is_anisotropic())
+          isotropic_refinement_choices.push_back(choice);
+      const auto scheme_index_of =
+        [&](const RefinementChoice<dim> &refinement_choice) -> unsigned int {
+        const auto position = std::find(isotropic_refinement_choices.begin(),
+                                        isotropic_refinement_choices.end(),
+                                        refinement_choice);
+        AssertThrow(position != isotropic_refinement_choices.end(),
+                    ExcNotImplemented());
+        return 1 + (position - isotropic_refinement_choices.begin());
+      };
+      transfer.schemes.resize(1 + isotropic_refinement_choices.size());
 
       const unsigned int fe_index_fine   = min_active_fe_indices[0];
       const unsigned int fe_index_coarse = min_active_fe_indices[1];
@@ -1786,7 +1804,7 @@ namespace internal
 
       // continuous or discontinuous
       transfer.fine_element_is_continuous  = fe_fine.n_dofs_per_vertex() > 0;
-      std::uint8_t current_refinement_case = static_cast<std::uint8_t>(-1);
+      unsigned int current_refinement_case = numbers::invalid_unsigned_int;
 
       // count coarse cells for each scheme (0, 1, ...)
       {
@@ -1796,26 +1814,9 @@ namespace internal
             transfer.schemes[0].n_coarse_cells++;
           },
           [&](const auto &, const auto &cell_fine, const auto c) {
-            std::uint8_t refinement_case = cell_fine.refinement_case();
             // Assert triggers if cell has no children
-            if (reference_cell == ReferenceCells::Tetrahedron)
-              Assert(RefinementCase<dim>(refinement_case) ==
-                         RefinementCase<dim>(static_cast<std::uint8_t>(
-                           IsotropicRefinementChoice::cut_tet_68)) ||
-                       RefinementCase<dim>(refinement_case) ==
-                         RefinementCase<dim>(static_cast<std::uint8_t>(
-                           IsotropicRefinementChoice::cut_tet_57)) ||
-                       RefinementCase<dim>(refinement_case) ==
-                         RefinementCase<dim>(static_cast<std::uint8_t>(
-                           IsotropicRefinementChoice::cut_tet_49)),
-                     ExcNotImplemented());
-            else
-              {
-                Assert(RefinementCase<dim>(refinement_case) ==
-                         RefinementCase<dim>::isotropic_refinement,
-                       ExcNotImplemented());
-                refinement_case = 1;
-              }
+            const unsigned int refinement_case =
+              scheme_index_of(cell_fine.template refinement_choice<dim>());
 
             if (c == 0)
               {
@@ -1952,10 +1953,8 @@ namespace internal
           },
           [&](const auto &cell_coarse, const auto &cell_fine, const auto c) {
             // process rest of cells
-            const std::uint8_t refinement_case =
-              reference_cell == ReferenceCells::Tetrahedron ?
-                cell_fine.refinement_case() :
-                1;
+            const unsigned int refinement_case =
+              scheme_index_of(cell_fine.template refinement_choice<dim>());
             // parent (only once at the beginning)
             if (c == 0)
               {
@@ -2099,8 +2098,9 @@ namespace internal
                         transfer.schemes[transfer_scheme_index]
                           .prolongation_matrix[i * n_child_dofs_1d + j +
                                                c * shift] =
-                          fe->get_prolongation_matrix(c)(renumbering[j],
-                                                         renumbering[i]);
+                          fe->get_prolongation_matrix(
+                            c, RefinementChoices::Isotropic<1>)(renumbering[j],
+                                                                renumbering[i]);
                 }
                 {
                   transfer.schemes[transfer_scheme_index]
@@ -2111,7 +2111,10 @@ namespace internal
                        c < GeometryInfo<1>::max_children_per_cell;
                        ++c)
                     {
-                      const auto matrix = get_restriction_matrix(*fe, c);
+                      const auto matrix =
+                        get_restriction_matrix(*fe,
+                                               c,
+                                               RefinementChoices::Isotropic<1>);
                       for (unsigned int i = 0; i < fe->n_dofs_per_cell(); ++i)
                         for (unsigned int j = 0; j < fe->n_dofs_per_cell(); ++j)
                           transfer.schemes[transfer_scheme_index]
@@ -2136,11 +2139,10 @@ namespace internal
                        c < GeometryInfo<dim>::max_children_per_cell;
                        ++c)
                     {
-                      const auto matrix =
-                        reference_cell == ReferenceCells::Tetrahedron ?
-                          fe.get_prolongation_matrix(
-                            c, RefinementCase<dim>(transfer_scheme_index)) :
-                          fe.get_prolongation_matrix(c);
+                      const auto matrix = fe.get_prolongation_matrix(
+                        c,
+                        isotropic_refinement_choices[transfer_scheme_index -
+                                                     1]);
 
 
                       for (unsigned int i = 0; i < n_dofs_per_cell; ++i)
@@ -2162,11 +2164,11 @@ namespace internal
                        c < GeometryInfo<dim>::max_children_per_cell;
                        ++c)
                     {
-                      const auto matrix =
-                        reference_cell == ReferenceCells::Tetrahedron ?
-                          get_restriction_matrix(
-                            fe, c, RefinementCase<dim>(transfer_scheme_index)) :
-                          get_restriction_matrix(fe, c);
+                      const auto matrix = get_restriction_matrix(
+                        fe,
+                        c,
+                        isotropic_refinement_choices[transfer_scheme_index -
+                                                     1]);
                       for (unsigned int i = 0; i < n_dofs_per_cell; ++i)
                         for (unsigned int j = 0; j < n_dofs_per_cell; ++j)
                           transfer.schemes[transfer_scheme_index]

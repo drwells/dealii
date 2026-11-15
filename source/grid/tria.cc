@@ -5453,9 +5453,7 @@ namespace internal
             if (used_cells + needed_cells > next_level.size())
               next_level.allocate_end((used_cells + needed_cells) -
                                         next_level.size(),
-                                      orientation_needed,
-                                      // We are in 2d so there are no tetrahedra
-                                      false);
+                                      orientation_needed);
 
             // TODO: perhaps we can merge this with TriaLevel::allocate_end()
             next_level.cells.allocate_end(needed_cells, 0);
@@ -5895,9 +5893,8 @@ namespace internal
             if (used_cells + needed_cells > next_level.size())
               next_level.allocate_end((used_cells + needed_cells) -
                                         next_level.size(),
-                                      // We are in 1d so there are no tetrahedra
-                                      // and we do not need the orientation
-                                      false,
+                                      // We are in 1d so we do not need the
+                                      // orientation
                                       false);
 
             // TODO: perhaps we can merge this with TriaLevel::allocate_end()
@@ -6221,11 +6218,9 @@ namespace internal
                              next_level.cells.used.end(),
                              true);
                 if (used_cells + needed_cells > next_level.size())
-                  next_level.allocate_end(
-                    (used_cells + needed_cells) - next_level.size(),
-                    orientation_needed,
-                    // We are in 2d so there are no tetrahedra
-                    false);
+                  next_level.allocate_end((used_cells + needed_cells) -
+                                            next_level.size(),
+                                          orientation_needed);
 
                 // TODO: perhaps we can merge this with
                 // TriaLevel::allocate_end()
@@ -6564,12 +6559,7 @@ namespace internal
                 next_level.allocate_end(
                   (used_cells + needed_cells) - next_level.size(),
                   // We unconditionally store the orientation in 3d
-                  true,
-                  // TODO: we can get rid of this check (i.e., we don't need to
-                  // store this value for purely wedge meshes). This will be
-                  // simpler to do once we merge IsotropicRefinementChoice and
-                  // RefinementCase.
-                  !triangulation.all_reference_cells_are_hyper_cube());
+                  true);
 
               // TODO: perhaps we can merge this with TriaLevel::allocate_end()
               next_level.cells.allocate_end(needed_cells, 0);
@@ -7304,12 +7294,10 @@ namespace internal
                                                   {{5, 7}}, //
                                                   {{4, 9}}}};
 
-                          // CellAccessor::set_refine_flag() and
-                          // CellAccessor::set_refine_choice() guarantee that
-                          // one of the three choices has been made.
-                          refinement_choice =
-                            triangulation.levels[cell->level()]
-                              ->refine_choice[cell->index()];
+                          // CellAccessor::set_refine_flag() guarantees that
+                          // one of the three choices has been made (the flag
+                          // itself has already been cleared above).
+                          refinement_choice = ref_case;
                           Assert(refinement_choice !=
                                      RefinementChoices::None<dim> &&
                                    cell_reference_cell
@@ -8201,12 +8189,7 @@ namespace internal
               next_level.allocate_end(
                 (used_cells + needed_cells) - next_level.size(),
                 // We unconditionally store the orientation in 3d
-                true,
-                // TODO: we can get rid of this check (i.e., we don't need to
-                // store this value for purely wedge meshes). This will be
-                // simpler to do once we merge IsotropicRefinementChoice and
-                // RefinementCase.
-                !triangulation.all_reference_cells_are_hyper_cube());
+                true);
 
             // TODO: perhaps we can merge this with TriaLevel::allocate_end()
             next_level.cells.allocate_end(needed_cells, 0);
@@ -13918,8 +13901,10 @@ void Triangulation<dim, spacedim>::set_all_refine_flags()
   for (const auto &cell : this->active_cell_iterators())
     {
       cell->clear_coarsen_flag();
+      // Start from scratch so that tetrahedra use the refinement choice with
+      // the best aspect ratios
+      cell->clear_refine_flag();
       cell->set_refine_flag();
-      cell->set_refine_choice();
     }
 }
 

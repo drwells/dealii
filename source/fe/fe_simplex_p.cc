@@ -486,14 +486,7 @@ FE_SimplexPoly<dim, spacedim>::get_restriction_matrix(
       // now create children on the reference cell
       Triangulation<dim> tria;
       GridGenerator::reference_cell(tria, this->reference_cell());
-      tria.begin_active()->set_refine_flag(
-        RefinementCase<dim>::isotropic_refinement);
-      // Triangulation does not yet accept RefinementChoice objects, so
-      // convert to an IsotropicRefinementChoice value for tetrahedra
-      if (reference_cell == ReferenceCells::Tetrahedron)
-        tria.begin_active()->set_refine_choice(static_cast<std::uint8_t>(
-          internal::legacy_refinement_case_from_refinement_choice(
-            reference_cell, refinement_choice)));
+      tria.begin_active()->set_refine_flag(refinement_choice);
       tria.execute_coarsening_and_refinement();
 
       const auto &child_cell = tria.begin(0)->child(child);

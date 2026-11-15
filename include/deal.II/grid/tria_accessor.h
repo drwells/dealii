@@ -3666,10 +3666,11 @@ public:
   set_refine_flag(const RefinementCase<dim> ref_case) const;
 
   /**
-   * Flag the cell pointed to for isotropic refinement. For tetrahedra, which
-   * can be refined isotropically in three distinct ways, this uses the
-   * choice previously set by set_refine_choice() or, if no choice was set,
-   * the one which creates children with the best aspect ratios.
+   * Flag the cell pointed to for isotropic refinement. Tetrahedra can be
+   * refined isotropically in three distinct ways: if the cell is already
+   * flagged for refinement then its RefinementChoice is not changed and,
+   * otherwise, this function selects the RefinementChoice which creates
+   * children with the best aspect ratios.
    */
   void
   set_refine_flag() const;
@@ -3691,9 +3692,16 @@ public:
   clear_refine_flag() const;
 
   /**
-   * Return the @p IsotropicRefinementChoices this cell was flagged to be refined
-   * with.
+   * Return the IsotropicRefinementChoice (converted to std::uint8_t) this cell
+   * was flagged to be refined with, or
+   * IsotropicRefinementChoice::isotropic_refinement if the cell is not a
+   * flagged tetrahedron.
+   *
+   * @deprecated Use refinement_choice_set() instead.
    */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use CellAccessor::refinement_choice_set() and "
+    "CellAccessor::set_refine_flag() with a RefinementChoice instead.")
   std::uint8_t
   refine_choice() const;
 
@@ -3705,22 +3713,43 @@ public:
    * IsotropicRefinementChoice::cut_tet_49 then this function selects the
    * refinement choice which creates children with the best aspect ratios.
    *
-   * @note This value is only stored for tetrahedra: for all other cells this
-   * function does nothing.
+   * Since the refinement choice is part of the refinement flag, this function
+   * also flags the cell for refinement.
+   *
+   * @note This only applies to tetrahedra: for all other cells this function
+   * does nothing.
+   *
+   * @deprecated Use set_refine_flag() with a RefinementChoice (e.g.,
+   * RefinementChoices::Cut49) instead.
    */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use CellAccessor::refinement_choice_set() and "
+    "CellAccessor::set_refine_flag() with a RefinementChoice instead.")
   void
   set_refine_choice(const std::uint8_t refinement_choice) const;
 
   /**
    * Same as above, but always select the refinement choice which creates
    * children with the best aspect ratios.
+   *
+   * @deprecated Use set_refine_flag() with a RefinementChoice instead.
    */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use CellAccessor::refinement_choice_set() and "
+    "CellAccessor::set_refine_flag() with a RefinementChoice instead.")
   void
   set_refine_choice() const;
 
   /**
-   * Clear the @p IsotropicRefinementChoices flag.
+   * If this cell is a tetrahedron flagged for refinement, reset its
+   * refinement choice to the one which creates children with the best aspect
+   * ratios.
+   *
+   * @deprecated Use set_refine_flag() with a RefinementChoice instead.
    */
+  DEAL_II_DEPRECATED_EARLY_WITH_COMMENT(
+    "Use CellAccessor::refinement_choice_set() and "
+    "CellAccessor::set_refine_flag() with a RefinementChoice instead.")
   void
   clear_refine_choice() const;
 
@@ -7796,11 +7825,6 @@ CellAccessor<dim, spacedim>::set_refine_flag(
 
   this->tria->levels[this->level()]->refine_flags[this->present_index] =
     refinement_choice;
-  // Also remember the choice for tetrahedra
-  if (refinement_choice != RefinementChoices::None<dim> &&
-      this->tria->levels[this->level()]->refine_choice.size() != 0)
-    this->tria->levels[this->level()]->refine_choice[this->present_index] =
-      refinement_choice;
 }
 
 
@@ -7809,17 +7833,13 @@ template <int dim, int spacedim>
 inline void
 CellAccessor<dim, spacedim>::set_refine_flag() const
 {
-  // Tetrahedra additionally need to know how they will be refined. If no
-  // choice has been made yet then pick the one with the best aspect ratios.
+  // Tetrahedra additionally need to know how they will be refined. Keep an
+  // existing choice and, if no choice has been made yet, pick the one with the
+  // best aspect ratios.
   if (this->reference_cell() == ReferenceCells::Tetrahedron)
     {
-      Assert(this->tria->levels[this->level()]->refine_choice.size() != 0,
-             ExcInternalError());
-      const RefinementChoice<dim> choice =
-        this->tria->levels[this->level()]->refine_choice[this->present_index];
-      set_refine_flag(choice != RefinementChoices::None<dim> ?
-                        choice :
-                        best_tetrahedral_refine_choice());
+      if (refinement_choice_set() == RefinementChoices::None<dim>)
+        set_refine_flag(best_tetrahedral_refine_choice());
     }
   else
     set_refine_flag(RefinementChoices::Isotropic<dim>);
@@ -7863,16 +7883,12 @@ inline std::uint8_t
 CellAccessor<dim, spacedim>::refine_choice() const
 {
   Assert(this->used(), TriaAccessorExceptions::ExcCellNotUsed());
-  // A flagged tetrahedron stores its choice in the refinement flag
-  if (refinement_choice_set() != RefinementChoices::None<dim> &&
-      this->reference_cell() == ReferenceCells::Tetrahedron)
-    return static_cast<std::uint8_t>(
-      static_cast<IsotropicRefinementChoice>(refinement_choice_set()));
-  if (this->tria->levels[this->level()]->refine_choice.size() == 0)
-    return static_cast<std::uint8_t>(
-      static_cast<IsotropicRefinementChoice>(RefinementChoices::None<dim>));
-  return static_cast<std::uint8_t>(static_cast<IsotropicRefinementChoice>(
-    this->tria->levels[this->level()]->refine_choice[this->present_index]));
+  const RefinementChoice<dim> choice =
+    this->reference_cell() == ReferenceCells::Tetrahedron ?
+      refinement_choice_set() :
+      RefinementChoices::None<dim>;
+  return static_cast<std::uint8_t>(
+    static_cast<IsotropicRefinementChoice>(choice));
 }
 
 
@@ -7882,24 +7898,18 @@ CellAccessor<dim, spacedim>::set_refine_choice(
   const std::uint8_t refinement_choice) const
 {
   Assert(this->used() && this->is_active(), ExcRefineCellNotActive());
-  if (this->tria->levels[this->level()]->refine_choice.size() != 0 &&
-      this->reference_cell() == ReferenceCells::Tetrahedron)
+  if (this->reference_cell() == ReferenceCells::Tetrahedron)
     {
-      const RefinementChoice<dim> choice =
-        (refinement_choice ==
-           static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_68) ||
-         refinement_choice ==
-           static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_57) ||
-         refinement_choice ==
-           static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_49)) ?
-          RefinementChoice<dim>(
-            static_cast<IsotropicRefinementChoice>(refinement_choice)) :
-          best_tetrahedral_refine_choice();
-      this->tria->levels[this->level()]->refine_choice[this->present_index] =
-        choice;
-      // A flagged tetrahedron stores its choice in the refinement flag
-      if (refinement_choice_set() != RefinementChoices::None<dim>)
-        set_refine_flag(choice);
+      if (refinement_choice ==
+            static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_68) ||
+          refinement_choice ==
+            static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_57) ||
+          refinement_choice ==
+            static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_49))
+        set_refine_flag(RefinementChoice<dim>(
+          static_cast<IsotropicRefinementChoice>(refinement_choice)));
+      else
+        set_refine_flag(best_tetrahedral_refine_choice());
     }
 }
 
@@ -7909,11 +7919,8 @@ inline void
 CellAccessor<dim, spacedim>::set_refine_choice() const
 {
   Assert(this->used() && this->is_active(), ExcRefineCellNotActive());
-  if (this->tria->levels[this->level()]->refine_choice.size() != 0 &&
-      this->reference_cell() == ReferenceCells::Tetrahedron)
-    set_refine_choice(
-      static_cast<std::uint8_t>(static_cast<IsotropicRefinementChoice>(
-        best_tetrahedral_refine_choice())));
+  if (this->reference_cell() == ReferenceCells::Tetrahedron)
+    set_refine_flag(best_tetrahedral_refine_choice());
 }
 
 
@@ -7922,15 +7929,9 @@ inline void
 CellAccessor<dim, spacedim>::clear_refine_choice() const
 {
   Assert(this->used() && this->is_active(), ExcRefineCellNotActive());
-  if (this->tria->levels[this->level()]->refine_choice.size() != 0)
-    {
-      this->tria->levels[this->level()]->refine_choice[this->present_index] =
-        RefinementChoices::None<dim>;
-      // A flagged tetrahedron must still know how it will be refined
-      if (this->reference_cell() == ReferenceCells::Tetrahedron &&
-          refinement_choice_set() != RefinementChoices::None<dim>)
-        set_refine_flag(best_tetrahedral_refine_choice());
-    }
+  if (this->reference_cell() == ReferenceCells::Tetrahedron &&
+      refinement_choice_set() != RefinementChoices::None<dim>)
+    set_refine_flag(best_tetrahedral_refine_choice());
 }
 
 

@@ -1695,13 +1695,6 @@ namespace FETools
              reference_cell.is_compatible_refinement_choice(refinement_choice),
            ExcMessage("The given RefinementChoice is not valid for the "
                       "reference cell of this element."));
-    // Triangulation does not yet accept RefinementChoice objects, so convert
-    // to the legacy representation (for tetrahedra: an
-    // IsotropicRefinementChoice value) here.
-    const unsigned int ref_case = static_cast<std::uint8_t>(
-      dealii::internal::legacy_refinement_case_from_refinement_choice(
-        reference_cell, refinement_choice));
-
     const unsigned int n  = fe.n_dofs_per_cell();
     const unsigned int nc = reference_cell.n_children(refinement_choice);
 
@@ -1714,14 +1707,7 @@ namespace FETools
     // reference cell and refine it once
     Triangulation<dim, spacedim> tria;
     GridGenerator::reference_cell(tria, reference_cell);
-    if (reference_cell == ReferenceCells::Tetrahedron)
-      {
-        tria.begin_active()->set_refine_flag(
-          RefinementCase<dim>::isotropic_refinement);
-        tria.begin_active()->set_refine_choice(ref_case);
-      }
-    else
-      tria.begin_active()->set_refine_flag(RefinementCase<dim>(ref_case));
+    tria.begin_active()->set_refine_flag(refinement_choice);
     tria.execute_coarsening_and_refinement();
 
     const unsigned int degree = fe.degree;
@@ -2072,13 +2058,6 @@ namespace FETools
              reference_cell.is_compatible_refinement_choice(refinement_choice),
            ExcMessage("The given RefinementChoice is not valid for the "
                       "reference cell of this element."));
-    // Triangulation does not yet accept RefinementChoice objects, so convert
-    // to the legacy representation (for tetrahedra: an
-    // IsotropicRefinementChoice value) here.
-    const unsigned int ref_case = static_cast<std::uint8_t>(
-      dealii::internal::legacy_refinement_case_from_refinement_choice(
-        reference_cell, refinement_choice));
-
     const unsigned int n      = fe.n_dofs_per_cell();
     const unsigned int nd     = fe.n_components();
     const unsigned int degree = fe.degree;
@@ -2144,14 +2123,7 @@ namespace FETools
     Triangulation<dim, spacedim> tr;
     GridGenerator::reference_cell(tr, reference_cell);
 
-    if (reference_cell == ReferenceCells::Tetrahedron)
-      {
-        tr.begin_active()->set_refine_flag(
-          RefinementCase<dim>::isotropic_refinement);
-        tr.begin_active()->set_refine_choice(ref_case);
-      }
-    else
-      tr.begin_active()->set_refine_flag(RefinementCase<dim>(ref_case));
+    tr.begin_active()->set_refine_flag(refinement_choice);
     tr.execute_coarsening_and_refinement();
 
     FEValues<dim, spacedim> fine(mapping,

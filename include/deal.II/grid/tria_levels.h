@@ -102,13 +102,10 @@ namespace internal
        *
        * @param[in] orientation_needed Whether or not the level needs to store
        *            orientation values.
-       *
-       * @param[in] has_tetrahedra Whether or not the level contains tetrahedra.
        */
       void
       allocate_end(const std::size_t n_new_cells,
-                   const bool        orientation_needed,
-                   const bool        has_tetrahedra);
+                   const bool        orientation_needed);
 
       /**
        * Return the number of cells in the level.
@@ -194,14 +191,6 @@ namespace internal
        * instead stored in TriaObjects::refinement_choices.
        */
       std::vector<RefinementChoice<dim>> refine_flags;
-
-      /**
-       * The RefinementChoice with which each tetrahedral cell will be refined.
-       * RefinementChoices::None indicates that no choice has been made yet.
-       * This vector is only allocated if the Triangulation contains
-       * tetrahedra.
-       */
-      std::vector<RefinementChoice<dim>> refine_choice;
 
       /**
        * Same meaning as the one above, but specifies whether a cell must be

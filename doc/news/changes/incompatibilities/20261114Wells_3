@@ -1,0 +1,12 @@
+Deprecated: IsotropicRefinementChoice and the functions which use it
+(CellAccessor::refine_choice(), CellAccessor::set_refine_choice(),
+CellAccessor::clear_refine_choice(),
+ReferenceCell::get_isotropic_refinement_choice(), and
+ReferenceCell::n_isotropic_refinement_choices()) are deprecated: use
+RefinementChoice (e.g., RefinementChoices::Cut49) with
+CellAccessor::refinement_choice_set() and CellAccessor::set_refine_flag()
+instead. Since the refinement choice of a tetrahedron is now part of its
+refinement flag, CellAccessor::set_refine_choice() now also flags the cell for
+refinement.
+<br>
+(David Wells, 2026/11/14)

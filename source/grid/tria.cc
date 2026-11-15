@@ -1824,23 +1824,19 @@ namespace
 
                     // find subcell ids that belong to the subface indices
                     unsigned int child_cell_1 =
-                      GeometryInfo<dim>::child_cell_on_face(
-                        cell_1->refinement_case(),
+                      cell_1->reference_cell().child_cell_on_face(
                         n_face_1,
                         i,
-                        cell_1->face_orientation(n_face_1),
-                        cell_1->face_flip(n_face_1),
-                        cell_1->face_rotation(n_face_1),
-                        face_1->refinement_case());
+                        cell_1->combined_face_orientation(n_face_1),
+                        cell_1->refinement_choice(),
+                        face_1->refinement_choice());
                     unsigned int child_cell_2 =
-                      GeometryInfo<dim>::child_cell_on_face(
-                        cell_2->refinement_case(),
+                      cell_2->reference_cell().child_cell_on_face(
                         n_face_2,
                         j,
-                        cell_2->face_orientation(n_face_2),
-                        cell_2->face_flip(n_face_2),
-                        cell_2->face_rotation(n_face_2),
-                        face_2->refinement_case());
+                        cell_2->combined_face_orientation(n_face_2),
+                        cell_2->refinement_choice(),
+                        face_2->refinement_choice());
 
                     Assert(cell_1->child(child_cell_1)->face(n_face_1) ==
                              face_1->child(i),
@@ -1868,14 +1864,12 @@ namespace
                   {
                     // find subcell ids that belong to the subface indices
                     unsigned int child_cell_1 =
-                      GeometryInfo<dim>::child_cell_on_face(
-                        cell_1->refinement_case(),
+                      cell_1->reference_cell().child_cell_on_face(
                         n_face_1,
                         i,
-                        cell_1->face_orientation(n_face_1),
-                        cell_1->face_flip(n_face_1),
-                        cell_1->face_rotation(n_face_1),
-                        face_1->refinement_case());
+                        cell_1->combined_face_orientation(n_face_1),
+                        cell_1->refinement_choice(),
+                        face_1->refinement_choice());
 
                     // recursive call
                     update_periodic_face_map_recursively<dim, spacedim>(

@@ -6095,8 +6095,8 @@ namespace internal
         // whether we need to run through the full anisotropic algorithm
         bool do_isotropic_refinement = true;
         for (const auto &cell : triangulation.active_cell_iterators())
-          if (cell->refine_flag_set() == RefinementCase<dim>::cut_x ||
-              cell->refine_flag_set() == RefinementCase<dim>::cut_y)
+          if (cell->refinement_choice_set() == RefinementChoices::CutX<dim> ||
+              cell->refinement_choice_set() == RefinementChoices::CutY<dim>)
             {
               do_isotropic_refinement = false;
               break;
@@ -6114,7 +6114,7 @@ namespace internal
             for (const auto &cell :
                  triangulation.active_cell_iterators_on_level(
                    triangulation.levels.size() - 1))
-              if (cell->refine_flag_set())
+              if (cell->refinement_choice_set())
                 {
                   triangulation.levels.push_back(
                     std::make_unique<internal::TriangulationImplementation::
@@ -6163,12 +6163,12 @@ namespace internal
 
                 for (const auto &cell :
                      triangulation.active_cell_iterators_on_level(level_no))
-                  if (cell->refine_flag_set())
+                  if (cell->refinement_choice_set())
                     {
                       Assert(cell->reference_cell().is_hyper_cube(),
                              ExcNotImplemented());
-                      if (cell->refine_flag_set() ==
-                          RefinementCase<dim>::cut_xy)
+                      if (cell->refinement_choice_set() ==
+                          RefinementChoices::Isotropic<dim>)
                         {
                           needed_cells += 4;
 
@@ -6200,9 +6200,11 @@ namespace internal
                       for (const unsigned int line_no :
                            GeometryInfo<dim>::face_indices())
                         {
-                          if (GeometryInfo<dim>::face_refinement_case(
-                                cell->refine_flag_set(), line_no) ==
-                              RefinementCase<1>::cut_x)
+                          if (cell->reference_cell().face_refinement_choice(
+                                cell->refinement_choice_set(),
+                                line_no,
+                                numbers::default_geometric_orientation) ==
+                              RefinementChoices::Isotropic<1>)
                             {
                               typename Triangulation<dim,
                                                      spacedim>::line_iterator
@@ -6381,7 +6383,7 @@ namespace internal
 
                 for (const auto &cell :
                      triangulation.active_cell_iterators_on_level(level))
-                  if (cell->refine_flag_set())
+                  if (cell->refinement_choice_set())
                     {
                       // actually set up the children and update neighbor
                       // information

@@ -1321,12 +1321,12 @@ namespace
   face_will_be_refined_by_neighbor_internal(
     const TriaIterator<dealii::CellAccessor<dim, spacedim>> &cell,
     const unsigned int                                       face_no,
-    RefinementCase<dim - 1> &expected_face_ref_case)
+    RefinementChoice<dim - 1> &expected_face_ref_case)
   {
     // first of all: set the default value for
     // expected_face_ref_case, which is no
     // refinement at all
-    expected_face_ref_case = RefinementCase<dim - 1>::no_refinement;
+    expected_face_ref_case = RefinementChoices::None<dim - 1>;
 
     const typename Triangulation<dim, spacedim>::cell_iterator neighbor =
       cell->neighbor(face_no);
@@ -1350,15 +1350,15 @@ namespace
           // coarsening, so return true in that
           // case.
           {
-            expected_face_ref_case = cell->face(face_no)->refinement_case();
+            expected_face_ref_case = cell->face(face_no)->refinement_choice();
             return true;
           }
       }
 
     // now, the neighbor is not refined, but
     // perhaps it will be
-    const RefinementCase<dim> nb_ref_flag = neighbor->refine_flag_set();
-    if (nb_ref_flag != RefinementCase<dim>::no_refinement)
+    const RefinementChoice<dim> nb_ref_flag = neighbor->refinement_choice_set();
+    if (nb_ref_flag != RefinementChoices::None<dim>)
       {
         // now we need to know, which of the
         // neighbors faces points towards us
@@ -1366,14 +1366,12 @@ namespace
         // check, whether the cell will be
         // refined in a way that refines our
         // face
-        const RefinementCase<dim - 1> face_ref_case =
-          GeometryInfo<dim>::face_refinement_case(
+        const RefinementChoice<dim - 1> face_ref_case =
+          neighbor->reference_cell().face_refinement_choice(
             nb_ref_flag,
             neighbor_neighbor,
-            neighbor->face_orientation(neighbor_neighbor),
-            neighbor->face_flip(neighbor_neighbor),
-            neighbor->face_rotation(neighbor_neighbor));
-        if (face_ref_case != RefinementCase<dim - 1>::no_refinement)
+            neighbor->combined_face_orientation(neighbor_neighbor));
+        if (face_ref_case != RefinementChoices::None<dim - 1>)
           {
             const typename Triangulation<dim, spacedim>::face_iterator
                       neighbor_face   = neighbor->face(neighbor_neighbor);
@@ -1417,8 +1415,8 @@ namespace
                       // then the face, as seen
                       // from our cell, won't be
                       // refined by the neighbor
-                      if ((neighbor_face->refinement_case() | face_ref_case) ==
-                          neighbor_face->refinement_case())
+                      if ((neighbor_face->refinement_choice() |
+                           face_ref_case) == neighbor_face->refinement_choice())
                         return false;
                       else
                         {
@@ -1433,12 +1431,11 @@ namespace
                           // opposite refine case
                           // that the face has
                           // now...
-                          Assert(
-                            face_ref_case ==
-                              RefinementCase<dim - 1>::isotropic_refinement,
-                            ExcInternalError());
+                          Assert(face_ref_case ==
+                                   RefinementChoices::Isotropic<dim - 1>,
+                                 ExcInternalError());
                           expected_face_ref_case =
-                            ~neighbor_face->refinement_case();
+                            ~neighbor_face->refinement_choice();
                           return true;
                         }
                     }
@@ -1471,7 +1468,7 @@ namespace
     const TriaIterator<dealii::CellAccessor<dim, spacedim>> &cell,
     const unsigned int                                       face_no)
   {
-    RefinementCase<dim - 1> dummy = RefinementCase<dim - 1>::no_refinement;
+    RefinementChoice<dim - 1> dummy = RefinementChoices::None<dim - 1>;
     return face_will_be_refined_by_neighbor_internal(cell, face_no, dummy);
   }
 
@@ -1484,7 +1481,7 @@ namespace
   face_will_be_refined_by_neighbor(
     const TriaActiveIterator<dealii::CellAccessor<dim, spacedim>> &cell,
     const unsigned int                                             face_no,
-    RefinementCase<dim - 1> &expected_face_ref_case)
+    RefinementChoice<dim - 1> &expected_face_ref_case)
   {
     return face_will_be_refined_by_neighbor_internal(cell,
                                                      face_no,
@@ -17435,7 +17432,7 @@ namespace
         if (dynamic_cast<
               const parallel::distributed::Triangulation<dim, spacedim> *>(
               &cell->get_triangulation()) == nullptr)
-          Assert(cell->refine_flag_set() == false, ExcInternalError());
+          Assert(!cell->refinement_choice_set(), ExcInternalError());
         else
           // But if this is a p::d::Triangulation, then we don't have that
           // much control and we can get here because mesh smoothing is
@@ -17443,7 +17440,7 @@ namespace
           // what gets refined. In that case, we can at least provide
           // a better error message.
           Assert(
-            cell->refine_flag_set() == false,
+            !cell->refinement_choice_set(),
             ExcMessage(
               "The triangulation is trying to avoid unrefined islands "
               "during mesh refinement/coarsening, as you had requested "
@@ -17492,7 +17489,7 @@ namespace
                 if (!cell->at_boundary(face) &&
                     (face_will_be_refined_by_neighbor(cell, face) == false) &&
                     (cell->neighbor(face)->has_children() == false) &&
-                    (cell->neighbor(face)->refine_flag_set() == false))
+                    (!cell->neighbor(face)->refinement_choice_set()))
                   possibly_refine_unrefined_island<dim, spacedim>(
                     cell->neighbor(face), allow_anisotropic_smoothing);
           }
@@ -17501,8 +17498,8 @@ namespace
       {
         // variable to store the cell refine case needed to fulfill
         // all smoothing requirements
-        RefinementCase<dim> smoothing_cell_refinement_case =
-          RefinementCase<dim>::no_refinement;
+        RefinementChoice<dim> smoothing_cell_refinement_case =
+          RefinementChoices::None<dim>;
 
         // use second algorithm, do the check individually for each
         // direction
@@ -17513,16 +17510,16 @@ namespace
             // variable to store the cell refine case needed to refine
             // at the current face pair in the same way as the
             // neighbors do...
-            RefinementCase<dim> directional_cell_refinement_case =
-              RefinementCase<dim>::isotropic_refinement;
+            RefinementChoice<dim> directional_cell_refinement_case =
+              RefinementChoices::Isotropic<dim>;
 
             for (unsigned int face_index = 0; face_index < 2; ++face_index)
               {
                 unsigned int face = 2 * face_pair + face_index;
                 // variable to store the refine case (to come) of the
                 // face under consideration
-                RefinementCase<dim - 1> expected_face_ref_case =
-                  RefinementCase<dim - 1>::no_refinement;
+                RefinementChoice<dim - 1> expected_face_ref_case =
+                  RefinementChoices::None<dim - 1>;
 
                 if (cell->neighbor(face).state() == IteratorState::valid)
                   face_will_be_refined_by_neighbor<dim, spacedim>(
@@ -17542,20 +17539,18 @@ namespace
                 // indicators due to overly aggressive smoothing...
                 directional_cell_refinement_case =
                   (directional_cell_refinement_case &
-                   GeometryInfo<dim>::
-                     min_cell_refinement_case_for_face_refinement(
+                   ReferenceCells::get_hypercube<dim>()
+                     .min_cell_refinement_choice_for_face_refinement(
                        expected_face_ref_case,
                        face,
-                       cell->face_orientation(face),
-                       cell->face_flip(face),
-                       cell->face_rotation(face)));
+                       cell->combined_face_orientation(face)));
               } // for both face indices
             // if both requirements sum up to something useful, add
             // this to the refine case for smoothing. note: if
             // directional_cell_refinement_case is isotropic still,
             // then something went wrong...
-            Assert(directional_cell_refinement_case <
-                     RefinementCase<dim>::isotropic_refinement,
+            Assert(directional_cell_refinement_case !=
+                     RefinementChoices::Isotropic<dim>,
                    ExcInternalError());
             smoothing_cell_refinement_case =
               smoothing_cell_refinement_case | directional_cell_refinement_case;
@@ -17566,7 +17561,7 @@ namespace
         if (smoothing_cell_refinement_case)
           {
             cell->clear_coarsen_flag();
-            cell->set_refine_flag(cell->refine_flag_set() |
+            cell->set_refine_flag(cell->refinement_choice_set() |
                                   smoothing_cell_refinement_case);
           }
       }

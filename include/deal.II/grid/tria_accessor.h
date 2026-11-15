@@ -1830,28 +1830,6 @@ private:
   clear_refinement_choice() const;
 
   /**
-   * Temporary wrapper around set_refinement_choice() which takes a
-   * RefinementCase (for tetrahedra: the values 1, 2, and 3 for Cut68, Cut57,
-   * and Cut49) while the implementation of Triangulation is converted.
-   */
-  void
-  set_refinement_case(const RefinementCase<structdim> &ref_case) const
-  {
-    set_refinement_choice(
-      internal::refinement_choice_from_legacy_refinement_case(
-        this->reference_cell(), ref_case));
-  }
-
-  /**
-   * Temporary wrapper around clear_refinement_choice().
-   */
-  void
-  clear_refinement_case() const
-  {
-    clear_refinement_choice();
-  }
-
-  /**
    * Set the index of the ith child. Since the children come at least in
    * pairs, we need to store the index of only every second child, i.e. of the
    * even numbered children. Make sure, that the index of child i=0 is set

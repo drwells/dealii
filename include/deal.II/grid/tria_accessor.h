@@ -1808,25 +1808,48 @@ private:
   clear_used_flag() const;
 
   /**
-   * Set the @p RefinementCase<dim> this TriaObject is refined with. Not
-   * defined for <tt>structdim=1</tt> as lines are always refined resulting in
-   * 2 children lines (isotropic refinement).
+   * Set the RefinementChoice this TriaObject is refined with. Not defined for
+   * <tt>structdim=1</tt> as lines are always refined resulting in 2 children
+   * lines (isotropic refinement).
    *
    * You should know quite exactly what you are doing if you touch this
    * function. It is exclusively for internal use in the library.
    */
   void
-  set_refinement_case(const RefinementCase<structdim> &ref_case) const;
+  set_refinement_choice(
+    const RefinementChoice<structdim> &refinement_choice) const;
 
   /**
-   * Clear the RefinementCase<dim> of this TriaObject, i.e. reset it to
-   * RefinementCase<dim>::no_refinement.
+   * Clear the RefinementChoice of this TriaObject, i.e. reset it to
+   * RefinementChoices::None.
    *
    * You should know quite exactly what you are doing if you touch this
    * function. It is exclusively for internal use in the library.
    */
   void
-  clear_refinement_case() const;
+  clear_refinement_choice() const;
+
+  /**
+   * Temporary wrapper around set_refinement_choice() which takes a
+   * RefinementCase (for tetrahedra: the values 1, 2, and 3 for Cut68, Cut57,
+   * and Cut49) while the implementation of Triangulation is converted.
+   */
+  void
+  set_refinement_case(const RefinementCase<structdim> &ref_case) const
+  {
+    set_refinement_choice(
+      internal::refinement_choice_from_legacy_refinement_case(
+        this->reference_cell(), ref_case));
+  }
+
+  /**
+   * Temporary wrapper around clear_refinement_choice().
+   */
+  void
+  clear_refinement_case() const
+  {
+    clear_refinement_choice();
+  }
 
   /**
    * Set the index of the ith child. Since the children come at least in
@@ -3662,8 +3685,26 @@ public:
    * space it lives in.
    */
   void
-  set_refine_flag(const RefinementCase<dim> ref_case =
-                    RefinementCase<dim>::isotropic_refinement) const;
+  set_refine_flag(const RefinementCase<dim> ref_case) const;
+
+  /**
+   * Flag the cell pointed to for isotropic refinement. For tetrahedra, which
+   * can be refined isotropically in three distinct ways, this uses the
+   * choice previously set by set_refine_choice() or, if no choice was set,
+   * the one which creates children with the best aspect ratios.
+   */
+  void
+  set_refine_flag() const;
+
+  /**
+   * Flag the cell pointed to for refinement with @p refinement_choice, which
+   * must be compatible with the reference cell of this cell (see
+   * ReferenceCell::is_compatible_refinement_choice()). This function is only
+   * allowed for active cells. Passing RefinementChoices::None is equivalent to
+   * calling clear_refine_flag().
+   */
+  void
+  set_refine_flag(const RefinementChoice<dim> &refinement_choice) const;
 
   /**
    * Clear the refinement flag.
@@ -3717,6 +3758,15 @@ public:
     const unsigned int             face_no,
     const RefinementCase<dim - 1> &face_refinement_case =
       RefinementCase<dim - 1>::isotropic_refinement) const;
+
+  /**
+   * Same as above, but with the refinement of the face given by a
+   * RefinementChoice.
+   */
+  bool
+  flag_for_face_refinement(
+    const unsigned int               face_no,
+    const RefinementChoice<dim - 1> &face_refinement_choice) const;
 
   /**
    * Modify the refinement flag of the cell to ensure that line
@@ -5724,32 +5774,10 @@ template <int structdim, int dim, int spacedim>
 RefinementCase<structdim>
 TriaAccessor<structdim, dim, spacedim>::refinement_case() const
 {
-  Assert(this->state() == IteratorState::valid,
-         TriaAccessorExceptions::ExcDereferenceInvalidObject<TriaAccessor>(
-           *this));
-
-  switch (structdim)
-    {
-      case 1:
-        return (RefinementCase<structdim>(
-          this->objects().children[this->present_index] != -1 ?
-            // cast the branches here first to uchar and then (above) to
-            // RefinementCase<structdim> so that the conversion is valid even
-            // for the case structdim>1 (for which this part of the code is dead
-            // anyway)
-            static_cast<std::uint8_t>(RefinementCase<1>::cut_x) :
-            static_cast<std::uint8_t>(RefinementCase<1>::no_refinement)));
-
-      default:
-        Assert(static_cast<unsigned int>(this->present_index) <
-                 this->objects().refinement_cases.size(),
-               ExcIndexRange(this->present_index,
-                             0,
-                             this->objects().refinement_cases.size()));
-
-        return (static_cast<RefinementCase<structdim>>(
-          this->objects().refinement_cases[this->present_index]));
-    }
+  // For tetrahedra this returns the legacy encoding (1, 2, or 3 for Cut68,
+  // Cut57, or Cut49)
+  return internal::legacy_refinement_case_from_refinement_choice(
+    this->reference_cell(), refinement_choice());
 }
 
 
@@ -5758,10 +5786,22 @@ template <int structdim, int dim, int spacedim>
 inline RefinementChoice<structdim>
 TriaAccessor<structdim, dim, spacedim>::refinement_choice() const
 {
-  // Triangulation stores the refinement of a tetrahedron (one of Cut68, Cut57,
-  // or Cut49) as a RefinementCase with the value 1, 2, or 3.
-  return internal::refinement_choice_from_legacy_refinement_case(
-    this->reference_cell(), refinement_case());
+  Assert(this->state() == IteratorState::valid,
+         TriaAccessorExceptions::ExcDereferenceInvalidObject<TriaAccessor>(
+           *this));
+
+  // Lines can only be refined in one way so we do not store anything for them
+  if constexpr (structdim == 1)
+    return this->objects().children[this->present_index] != -1 ?
+             RefinementChoices::Isotropic<1> :
+             RefinementChoices::None<1>;
+  else
+    {
+      AssertIndexRange(this->present_index,
+                       this->objects().refinement_choices.size());
+      return internal::make_refinement_choice_from_int<structdim>(
+        this->objects().refinement_choices[this->present_index]);
+    }
 }
 
 
@@ -5873,44 +5913,43 @@ TriaAccessor<structdim, dim, spacedim>::n_children() const
          TriaAccessorExceptions::ExcDereferenceInvalidObject<TriaAccessor>(
            *this));
 
-  return reference_cell().n_children(refinement_case());
+  return reference_cell().n_children(refinement_choice());
 }
 
 
 
 template <int structdim, int dim, int spacedim>
 inline void
-TriaAccessor<structdim, dim, spacedim>::set_refinement_case(
-  const RefinementCase<structdim> &refinement_case) const
+TriaAccessor<structdim, dim, spacedim>::set_refinement_choice(
+  const RefinementChoice<structdim> &refinement_choice) const
 {
   Assert(this->state() == IteratorState::valid,
          TriaAccessorExceptions::ExcDereferenceInvalidObject<TriaAccessor>(
            *this));
-  Assert(static_cast<unsigned int>(this->present_index) <
-           this->objects().refinement_cases.size(),
-         ExcIndexRange(this->present_index,
-                       0,
-                       this->objects().refinement_cases.size()));
+  AssertIndexRange(this->present_index,
+                   this->objects().refinement_choices.size());
+  Assert(this->reference_cell().is_compatible_refinement_choice(
+           refinement_choice),
+         ExcMessage("The given RefinementChoice is not valid for this "
+                    "object."));
 
-  this->objects().refinement_cases[this->present_index] = refinement_case;
+  this->objects().refinement_choices[this->present_index] =
+    static_cast<std::uint8_t>(refinement_choice);
 }
 
 
 template <int structdim, int dim, int spacedim>
 inline void
-TriaAccessor<structdim, dim, spacedim>::clear_refinement_case() const
+TriaAccessor<structdim, dim, spacedim>::clear_refinement_choice() const
 {
   Assert(this->state() == IteratorState::valid,
          TriaAccessorExceptions::ExcDereferenceInvalidObject<TriaAccessor>(
            *this));
-  Assert(static_cast<unsigned int>(this->present_index) <
-           this->objects().refinement_cases.size(),
-         ExcIndexRange(this->present_index,
-                       0,
-                       this->objects().refinement_cases.size()));
+  AssertIndexRange(this->present_index,
+                   this->objects().refinement_choices.size());
 
-  this->objects().refinement_cases[this->present_index] =
-    RefinementCase<structdim>::no_refinement;
+  this->objects().refinement_choices[this->present_index] =
+    static_cast<std::uint8_t>(RefinementChoices::None<structdim>);
 }
 
 
@@ -7742,16 +7781,8 @@ template <int dim, int spacedim>
 inline RefinementCase<dim>
 CellAccessor<dim, spacedim>::refine_flag_set() const
 {
-  Assert(this->used(), TriaAccessorExceptions::ExcCellNotUsed());
-  // cells flagged for refinement must be active (the @p set_refine_flag
-  // function checks this, but activity may change when refinement is executed
-  // and for some reason the refine flag is not cleared).
-  Assert(
-    this->is_active() ||
-      !this->tria->levels[this->level()]->refine_flags[this->present_index],
-    ExcRefineCellNotActive());
-  return RefinementCase<dim>(
-    this->tria->levels[this->level()]->refine_flags[this->present_index]);
+  // For tetrahedra this returns RefinementCase::isotropic_refinement
+  return static_cast<RefinementCase<dim>>(refinement_choice_set());
 }
 
 
@@ -7760,25 +7791,60 @@ template <int dim, int spacedim>
 inline RefinementChoice<dim>
 CellAccessor<dim, spacedim>::refinement_choice_set() const
 {
-  const RefinementCase<dim> refinement_case = refine_flag_set();
-  if (refinement_case == RefinementCase<dim>::no_refinement)
-    return RefinementChoices::None<dim>;
+  Assert(this->used(), TriaAccessorExceptions::ExcCellNotUsed());
+  // cells flagged for refinement must be active (the @p set_refine_flag
+  // function checks this, but activity may change when refinement is executed
+  // and for some reason the refine flag is not cleared).
+  Assert(
+    this->is_active() ||
+      this->tria->levels[this->level()]->refine_flags[this->present_index] ==
+        RefinementChoices::None<dim>,
+    ExcRefineCellNotActive());
+  return this->tria->levels[this->level()]->refine_flags[this->present_index];
+}
 
-  // Tetrahedra store their specific refinement separately.
-  // CellAccessor::set_refine_flag() guarantees that it has been set.
-  if (this->tria->levels[this->level()]->refine_choice.size() != 0 &&
-      this->reference_cell() == ReferenceCells::Tetrahedron)
+
+
+template <int dim, int spacedim>
+inline void
+CellAccessor<dim, spacedim>::set_refine_flag(
+  const RefinementChoice<dim> &refinement_choice) const
+{
+  Assert(this->used() && this->is_active(), ExcRefineCellNotActive());
+  Assert(!coarsen_flag_set(), ExcCellFlaggedForCoarsening());
+  Assert(this->reference_cell().is_compatible_refinement_choice(
+           refinement_choice),
+         ExcMessage("The given RefinementChoice is not valid for this cell."));
+
+  this->tria->levels[this->level()]->refine_flags[this->present_index] =
+    refinement_choice;
+  // Also remember the choice for tetrahedra
+  if (refinement_choice != RefinementChoices::None<dim> &&
+      this->tria->levels[this->level()]->refine_choice.size() != 0)
+    this->tria->levels[this->level()]->refine_choice[this->present_index] =
+      refinement_choice;
+}
+
+
+
+template <int dim, int spacedim>
+inline void
+CellAccessor<dim, spacedim>::set_refine_flag() const
+{
+  // Tetrahedra additionally need to know how they will be refined. If no
+  // choice has been made yet then pick the one with the best aspect ratios.
+  if (this->reference_cell() == ReferenceCells::Tetrahedron)
     {
+      Assert(this->tria->levels[this->level()]->refine_choice.size() != 0,
+             ExcInternalError());
       const RefinementChoice<dim> choice =
         this->tria->levels[this->level()]->refine_choice[this->present_index];
-      Assert(choice != RefinementChoices::None<dim>, ExcInternalError());
-      return choice;
+      set_refine_flag(choice != RefinementChoices::None<dim> ?
+                        choice :
+                        best_tetrahedral_refine_choice());
     }
-
-  const RefinementChoice<dim> choice(refinement_case);
-  Assert(this->reference_cell().is_compatible_refinement_choice(choice),
-         ExcInternalError());
-  return choice;
+  else
+    set_refine_flag(RefinementChoices::Isotropic<dim>);
 }
 
 
@@ -7788,19 +7854,18 @@ inline void
 CellAccessor<dim, spacedim>::set_refine_flag(
   const RefinementCase<dim> refinement_case) const
 {
-  Assert(this->used() && this->is_active(), ExcRefineCellNotActive());
-  Assert(!coarsen_flag_set(), ExcCellFlaggedForCoarsening());
-
-  this->tria->levels[this->level()]->refine_flags[this->present_index] =
-    refinement_case;
-
-  // Tetrahedra additionally need to know how they will be refined. If no
-  // choice has been made yet then pick the one with the best aspect ratios.
-  if (refinement_case != RefinementCase<dim>::no_refinement &&
-      this->tria->levels[this->level()]->refine_choice.size() != 0 &&
-      this->tria->levels[this->level()]->refine_choice[this->present_index] ==
-        RefinementChoices::None<dim>)
-    set_refine_choice();
+  if (refinement_case == RefinementCase<dim>::no_refinement)
+    set_refine_flag(RefinementChoices::None<dim>);
+  else if (this->reference_cell() == ReferenceCells::Tetrahedron)
+    {
+      // RefinementCase does not describe the specific refinement of a
+      // tetrahedron
+      Assert(refinement_case == RefinementCase<dim>::isotropic_refinement,
+             ExcMessage("Tetrahedra can only be refined isotropically."));
+      set_refine_flag();
+    }
+  else
+    set_refine_flag(RefinementChoice<dim>(refinement_case));
 }
 
 
@@ -7811,7 +7876,7 @@ CellAccessor<dim, spacedim>::clear_refine_flag() const
 {
   Assert(this->used() && this->is_active(), ExcRefineCellNotActive());
   this->tria->levels[this->level()]->refine_flags[this->present_index] =
-    RefinementCase<dim>::no_refinement;
+    RefinementChoices::None<dim>;
 }
 
 
@@ -7820,6 +7885,11 @@ inline std::uint8_t
 CellAccessor<dim, spacedim>::refine_choice() const
 {
   Assert(this->used(), TriaAccessorExceptions::ExcCellNotUsed());
+  // A flagged tetrahedron stores its choice in the refinement flag
+  if (refinement_choice_set() != RefinementChoices::None<dim> &&
+      this->reference_cell() == ReferenceCells::Tetrahedron)
+    return static_cast<std::uint8_t>(
+      static_cast<IsotropicRefinementChoice>(refinement_choice_set()));
   if (this->tria->levels[this->level()]->refine_choice.size() == 0)
     return static_cast<std::uint8_t>(
       static_cast<IsotropicRefinementChoice>(RefinementChoices::None<dim>));
@@ -7837,18 +7907,21 @@ CellAccessor<dim, spacedim>::set_refine_choice(
   if (this->tria->levels[this->level()]->refine_choice.size() != 0 &&
       this->reference_cell() == ReferenceCells::Tetrahedron)
     {
-      if (refinement_choice ==
-            static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_68) ||
-          refinement_choice ==
-            static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_57) ||
-          refinement_choice ==
-            static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_49))
-        this->tria->levels[this->level()]->refine_choice[this->present_index] =
+      const RefinementChoice<dim> choice =
+        (refinement_choice ==
+           static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_68) ||
+         refinement_choice ==
+           static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_57) ||
+         refinement_choice ==
+           static_cast<std::uint8_t>(IsotropicRefinementChoice::cut_tet_49)) ?
           RefinementChoice<dim>(
-            static_cast<IsotropicRefinementChoice>(refinement_choice));
-      else
-        this->tria->levels[this->level()]->refine_choice[this->present_index] =
+            static_cast<IsotropicRefinementChoice>(refinement_choice)) :
           best_tetrahedral_refine_choice();
+      this->tria->levels[this->level()]->refine_choice[this->present_index] =
+        choice;
+      // A flagged tetrahedron stores its choice in the refinement flag
+      if (refinement_choice_set() != RefinementChoices::None<dim>)
+        set_refine_flag(choice);
     }
 }
 
@@ -7860,8 +7933,9 @@ CellAccessor<dim, spacedim>::set_refine_choice() const
   Assert(this->used() && this->is_active(), ExcRefineCellNotActive());
   if (this->tria->levels[this->level()]->refine_choice.size() != 0 &&
       this->reference_cell() == ReferenceCells::Tetrahedron)
-    this->tria->levels[this->level()]->refine_choice[this->present_index] =
-      best_tetrahedral_refine_choice();
+    set_refine_choice(
+      static_cast<std::uint8_t>(static_cast<IsotropicRefinementChoice>(
+        best_tetrahedral_refine_choice())));
 }
 
 
@@ -7871,8 +7945,14 @@ CellAccessor<dim, spacedim>::clear_refine_choice() const
 {
   Assert(this->used() && this->is_active(), ExcRefineCellNotActive());
   if (this->tria->levels[this->level()]->refine_choice.size() != 0)
-    this->tria->levels[this->level()]->refine_choice[this->present_index] =
-      RefinementChoices::None<dim>;
+    {
+      this->tria->levels[this->level()]->refine_choice[this->present_index] =
+        RefinementChoices::None<dim>;
+      // A flagged tetrahedron must still know how it will be refined
+      if (this->reference_cell() == ReferenceCells::Tetrahedron &&
+          refinement_choice_set() != RefinementChoices::None<dim>)
+        set_refine_flag(best_tetrahedral_refine_choice());
+    }
 }
 
 
@@ -7882,25 +7962,46 @@ CellAccessor<dim, spacedim>::flag_for_face_refinement(
   const unsigned int             face_no,
   const RefinementCase<dim - 1> &face_refinement_case) const
 {
+  return flag_for_face_refinement(
+    face_no, RefinementChoice<dim - 1>(face_refinement_case));
+}
+
+
+
+template <int dim, int spacedim>
+inline bool
+CellAccessor<dim, spacedim>::flag_for_face_refinement(
+  const unsigned int               face_no,
+  const RefinementChoice<dim - 1> &face_refinement_choice) const
+{
   Assert(dim > 1, ExcImpossibleInDim(dim));
   AssertIndexRange(face_no, this->n_faces());
-  AssertIndexRange(face_refinement_case,
-                   RefinementCase<dim>::isotropic_refinement + 1);
 
-  // the new refinement case is a combination of the minimum required one for
-  // the given face refinement and the already existing flagged refinement case
-  RefinementCase<dim> old_ref_case = refine_flag_set();
-  RefinementCase<dim> new_ref_case =
-    (old_ref_case |
-     GeometryInfo<dim>::min_cell_refinement_case_for_face_refinement(
-       face_refinement_case,
-       face_no,
-       this->face_orientation(face_no),
-       this->face_flip(face_no),
-       this->face_rotation(face_no)));
-  set_refine_flag(new_ref_case);
+  const RefinementChoice<dim> old_choice = refinement_choice_set();
+  if (old_choice != RefinementChoices::None<dim> ||
+      face_refinement_choice == RefinementChoices::None<dim - 1>)
+    {
+      // Every refinement of a non-hypercube refines all faces
+      if (!this->reference_cell().is_hyper_cube())
+        return false;
+    }
+  else if (!this->reference_cell().is_hyper_cube())
+    {
+      set_refine_flag();
+      return true;
+    }
+
+  // the new refinement is a combination of the minimum required one for the
+  // given face refinement and the already existing flagged refinement
+  const RefinementChoice<dim> new_choice =
+    old_choice |
+    this->reference_cell().min_cell_refinement_choice_for_face_refinement(
+      face_refinement_choice,
+      face_no,
+      this->combined_face_orientation(face_no));
+  set_refine_flag(new_choice);
   // return, whether we had to change the refinement flag
-  return new_ref_case != old_ref_case;
+  return new_choice != old_choice;
 }
 
 
@@ -7913,16 +8014,25 @@ CellAccessor<dim, spacedim>::flag_for_line_refinement(
   Assert(dim > 1, ExcImpossibleInDim(dim));
   AssertIndexRange(line_no, this->n_lines());
 
-  // the new refinement case is a combination of the minimum required one for
-  // the given line refinement and the already existing flagged refinement case
-  RefinementCase<dim>
-    old_ref_case = refine_flag_set(),
-    new_ref_case =
-      old_ref_case |
-      GeometryInfo<dim>::min_cell_refinement_case_for_line_refinement(line_no);
-  set_refine_flag(new_ref_case);
+  const RefinementChoice<dim> old_choice = refinement_choice_set();
+  // Every refinement of a non-hypercube refines all lines
+  if (!this->reference_cell().is_hyper_cube())
+    {
+      if (old_choice != RefinementChoices::None<dim>)
+        return false;
+      set_refine_flag();
+      return true;
+    }
+
+  // the new refinement is a combination of the minimum required one for the
+  // given line refinement and the already existing flagged refinement
+  const RefinementChoice<dim> new_choice =
+    old_choice |
+    this->reference_cell().min_cell_refinement_choice_for_line_refinement(
+      line_no);
+  set_refine_flag(new_choice);
   // return, whether we had to change the refinement flag
-  return new_ref_case != old_ref_case;
+  return new_choice != old_choice;
 }
 
 

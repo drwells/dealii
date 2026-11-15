@@ -182,14 +182,18 @@ namespace internal
       unsigned int vertices_per_object;
 
       /**
-       * @p RefinementCase<dim>::Type flags for the cells to be refined with
-       * or not (RefinementCase<dim>::no_refinement). The meaning what a cell
-       * is, is dimension specific, therefore also the length of this vector
-       * depends on the dimension: in one dimension, the length of this vector
-       * equals the length of the @p lines vector, in two dimensions that of
-       * the @p quads vector, etc.
+       * The RefinementChoice with which each cell is flagged to be refined
+       * (RefinementChoices::None if the cell is not flagged for refinement).
+       * For tetrahedra this is one of RefinementChoices::Cut49,
+       * RefinementChoices::Cut57, or RefinementChoices::Cut68.
+       *
+       * @note This vector stores one value for every cell on this level, but
+       * only active cells can be flagged for refinement: for all other cells
+       * the value is RefinementChoices::None. Once a cell has been refined its
+       * flag is cleared, and the RefinementChoice with which it was refined is
+       * instead stored in TriaObjects::refinement_choices.
        */
-      std::vector<std::uint8_t> refine_flags;
+      std::vector<RefinementChoice<dim>> refine_flags;
 
       /**
        * The RefinementChoice with which each tetrahedral cell will be refined.

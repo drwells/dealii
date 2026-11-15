@@ -72,7 +72,7 @@ namespace internal
       // Lines can only be refined in one way so, in that case, we don't need to
       // store a field indicating which type of refinement to use per object
       if (structdim > 1)
-        refinement_cases.assign(n_objects, 0);
+        refinement_choices.assign(n_objects, 0);
 
       Assert(children_per_object % 2 == 0, ExcNotImplemented());
       children.assign(children_per_object / 2 * n_objects, -1);
@@ -174,10 +174,11 @@ namespace internal
 
               if (structdim > 1)
                 {
-                  refinement_cases.reserve(new_size);
-                  refinement_cases.insert(refinement_cases.end(),
-                                          new_size - refinement_cases.size(),
-                                          /*RefinementCase::no_refinement=*/0);
+                  refinement_choices.reserve(new_size);
+                  refinement_choices.insert(refinement_choices.end(),
+                                            new_size -
+                                              refinement_choices.size(),
+                                            /*RefinementChoices::None=*/0);
                 }
 
               // first reserve, then resize. Otherwise the std library can
@@ -245,10 +246,10 @@ namespace internal
               user_data.reserve(new_size);
               user_data.resize(new_size);
 
-              refinement_cases.reserve(new_size);
-              refinement_cases.insert(refinement_cases.end(),
-                                      new_size - refinement_cases.size(),
-                                      /*RefinementCase::no_refinement=*/0);
+              refinement_choices.reserve(new_size);
+              refinement_choices.insert(refinement_choices.end(),
+                                        new_size - refinement_choices.size(),
+                                        /*RefinementChoices::None=*/0);
             }
           next_free_single = next_free_pair = 0;
         }
@@ -265,7 +266,7 @@ namespace internal
               MemoryConsumption::memory_consumption(user_flags) +
               MemoryConsumption::memory_consumption(boundary_or_material_id) +
               MemoryConsumption::memory_consumption(manifold_id) +
-              MemoryConsumption::memory_consumption(refinement_cases) +
+              MemoryConsumption::memory_consumption(refinement_choices) +
               user_data.capacity() * sizeof(UserData) + sizeof(user_data));
     }
 

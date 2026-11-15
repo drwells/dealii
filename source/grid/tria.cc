@@ -13975,13 +13975,14 @@ namespace internal
     }
 
     template <int dim, int spacedim>
-    std::vector<std::vector<std::uint8_t>>
+    std::vector<std::vector<RefinementChoice<dim>>>
     extract_raw_refine_flags(
       const std::vector<
         std::unique_ptr<dealii::internal::TriangulationImplementation::
                           TriaLevel<dim, spacedim>>> &levels)
     {
-      std::vector<std::vector<std::uint8_t>> refine_flags(levels.size());
+      std::vector<std::vector<RefinementChoice<dim>>> refine_flags(
+        levels.size());
       for (unsigned int level = 0; level < levels.size(); ++level)
         refine_flags[level] = levels[level]->refine_flags;
       return refine_flags;

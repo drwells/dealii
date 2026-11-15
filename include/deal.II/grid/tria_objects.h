@@ -160,11 +160,17 @@ namespace internal
       std::vector<int> children;
 
       /**
-       * Store the refinement case each of the cells is refined with. This
-       * vector might be replaced by vector<vector<bool> > (dim, vector<bool>
-       * (n_cells)) which is more memory efficient.
+       * Store the RefinementChoice (i.e., the value obtained by converting it
+       * to std::uint8_t) each of the objects is refined with. Since lines can
+       * only be refined in one way, this vector is not used for lines.
+       *
+       * @note This vector stores one value for every object, but the value is
+       * only meaningful for objects which have children (i.e., which have
+       * already been refined): for active objects it is
+       * RefinementChoices::None. The refinement with which an active cell
+       * will be refined is instead stored in TriaLevel::refine_flags.
        */
-      std::vector<std::uint8_t> refinement_cases;
+      std::vector<std::uint8_t> refinement_choices;
 
       /**
        * Vector storing whether an object is used in the @p cells vector.
@@ -642,7 +648,7 @@ namespace internal
       ar & children_per_object;
       ar & faces_per_object;
       ar & bounding_objects & children;
-      ar & refinement_cases;
+      ar & refinement_choices;
       ar & used;
       ar & user_flags;
       ar & boundary_or_material_id;

@@ -1,0 +1,8 @@
+Changed: Triangulation now stores the refinement of each object as a
+RefinementChoice. As a result, serialized Triangulations which contain refined
+tetrahedra created with previous versions of deal.II can no longer be loaded.
+Furthermore, CellAccessor::set_refine_flag() which takes a RefinementCase no
+longer has a default argument: instead, the new overload without arguments
+flags a cell for isotropic refinement.
+<br>
+(David Wells, 2026/11/14)

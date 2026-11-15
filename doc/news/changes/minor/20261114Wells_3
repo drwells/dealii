@@ -1,0 +1,7 @@
+New: TriaAccessor::refinement_choice() returns the RefinementChoice with which
+an object has been refined and CellAccessor::refinement_choice_set() returns
+the RefinementChoice with which a cell is flagged to be refined. Cells can
+now be flagged for refinement with CellAccessor::set_refine_flag(), which
+takes a RefinementChoice. Triangulation now uses RefinementChoice internally.
+<br>
+(David Wells, 2026/11/14)

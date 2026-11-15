@@ -84,7 +84,7 @@ namespace internal
       subdomain_ids.assign(n_cells, 0);
       level_subdomain_ids.assign(n_cells, 0);
 
-      refine_flags.assign(n_cells, 0u);
+      refine_flags.assign(n_cells, RefinementChoices::None<dim>);
       refine_choice.assign(n_cells, RefinementChoices::None<dim>);
       coarsen_flags.assign(n_cells, false);
 
@@ -129,7 +129,7 @@ namespace internal
       refine_flags.reserve(total_cells);
       refine_flags.insert(refine_flags.end(),
                           total_cells - refine_flags.size(),
-                          /*RefinementCase::no_refinement=*/0);
+                          RefinementChoices::None<dim>);
 
       if (has_tetrahedra)
         {

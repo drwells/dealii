@@ -288,6 +288,15 @@ public:
   static constexpr std::size_t
   memory_consumption();
 
+  /**
+   * Read or write the data of this object to or from a stream for the purpose
+   * of serialization using the [BOOST serialization
+   * library](https://www.boost.org/doc/libs/1_74_0/libs/serialization/doc/index.html).
+   */
+  template <class Archive>
+  void
+  serialize(Archive &archive, const unsigned int version);
+
 private:
   /**
    * The value of RefinementChoice::kind corresponding to isotropic refinement.
@@ -669,6 +678,16 @@ RefinementChoice<dim>::cut_axis(const unsigned int i)
   // As with RefinementCase, cutting along an axis sets the bit corresponding to
   // that axis.
   return RefinementChoice<dim>(static_cast<std::uint8_t>(1u << i));
+}
+
+
+
+template <int dim>
+template <class Archive>
+inline void
+RefinementChoice<dim>::serialize(Archive &archive, const unsigned int)
+{
+  archive & kind;
 }
 
 

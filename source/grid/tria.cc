@@ -4996,7 +4996,7 @@ namespace internal
       {
         const unsigned int dim = 2;
         // clear refinement flag
-        const RefinementCase<dim> ref_case = cell->refine_flag_set();
+        const RefinementChoice<dim> ref_case = cell->refinement_choice_set();
         cell->clear_refine_flag();
 
         /* For the refinement process: since we go the levels up from the
@@ -5098,7 +5098,7 @@ namespace internal
             new_vertices[4 + line_no] =
               cell->line(line_no)->child(0)->vertex_index(1);
 
-        if (ref_case == RefinementCase<dim>::cut_xy)
+        if (ref_case == RefinementChoices::Isotropic<dim>)
           {
             // find the next
             // unused vertex and
@@ -5128,7 +5128,7 @@ namespace internal
         typename Triangulation<dim, spacedim>::raw_line_iterator new_lines[12];
         unsigned int                                             lmin = 8;
         unsigned int                                             lmax = 12;
-        if (ref_case != RefinementCase<dim>::cut_xy)
+        if (ref_case != RefinementChoices::Isotropic<dim>)
           {
             lmin = 6;
             lmax = 7;
@@ -5144,7 +5144,7 @@ namespace internal
             AssertIsNotUsed(new_lines[l]);
           }
 
-        if (ref_case == RefinementCase<dim>::cut_xy)
+        if (ref_case == RefinementChoices::Isotropic<dim>)
           {
             //   .-6-.-7-.
             //   1   9   3
@@ -5169,7 +5169,7 @@ namespace internal
             new_lines[11]->set_bounding_object_indices(
               {new_vertices[8], new_vertices[5]});
           }
-        else if (ref_case == RefinementCase<dim>::cut_x)
+        else if (ref_case == RefinementChoices::CutX<dim>)
           {
             //   .-4-.-5-.
             //   |   |   |
@@ -5187,7 +5187,8 @@ namespace internal
           }
         else
           {
-            Assert(ref_case == RefinementCase<dim>::cut_y, ExcInternalError());
+            Assert(ref_case == RefinementChoices::CutY<dim>,
+                   ExcInternalError());
             //   .---5---.
             //   1       3
             //   .---6---.
@@ -5222,7 +5223,8 @@ namespace internal
         while (next_unused_cell->used() == true)
           ++next_unused_cell;
 
-        const unsigned int n_children = GeometryInfo<dim>::n_children(ref_case);
+        const unsigned int n_children =
+          ReferenceCells::get_hypercube<dim>().n_children(ref_case);
         for (unsigned int i = 0; i < n_children; ++i)
           {
             AssertIsNotUsed(next_unused_cell);
@@ -5233,7 +5235,7 @@ namespace internal
                 ++next_unused_cell;
           }
 
-        if (ref_case == RefinementCase<dim>::cut_xy)
+        if (ref_case == RefinementChoices::Isotropic<dim>)
           {
             // children:
             //   .--.--.
@@ -5264,7 +5266,7 @@ namespace internal
                                                       new_lines[11]->index(),
                                                       new_lines[7]->index()});
           }
-        else if (ref_case == RefinementCase<dim>::cut_x)
+        else if (ref_case == RefinementChoices::CutX<dim>)
           {
             // children:
             //   .--.--.
@@ -5289,7 +5291,8 @@ namespace internal
           }
         else
           {
-            Assert(ref_case == RefinementCase<dim>::cut_y, ExcInternalError());
+            Assert(ref_case == RefinementChoices::CutY<dim>,
+                   ExcInternalError());
             // children:
             //   .-----.
             //   |  1  |
@@ -5341,7 +5344,7 @@ namespace internal
         for (unsigned int i = 0; i < n_children / 2; ++i)
           cell->set_children(2 * i, subcells[2 * i]->index());
         // set the refine case
-        cell->set_refinement_case(ref_case);
+        cell->set_refinement_choice(ref_case);
 
         // note that the
         // refinement flag was

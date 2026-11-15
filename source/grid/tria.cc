@@ -5380,7 +5380,7 @@ namespace internal
         // this on the highest level only
         for (const auto &cell : triangulation.active_cell_iterators_on_level(
                triangulation.levels.size() - 1))
-          if (cell->refine_flag_set())
+          if (cell->refinement_choice_set())
             {
               triangulation.levels.push_back(
                 std::make_unique<internal::TriangulationImplementation::
@@ -5416,7 +5416,7 @@ namespace internal
 
             for (const auto &cell :
                  triangulation.active_cell_iterators_on_level(level_no))
-              if (cell->refine_flag_set())
+              if (cell->refinement_choice_set())
                 {
                   if (cell->reference_cell() == ReferenceCells::Triangle)
                     {
@@ -5563,7 +5563,7 @@ namespace internal
                                         auto         &next_unused_line,
                                         auto         &next_unused_cell,
                                         const auto   &cell) {
-          const auto ref_case = cell->refine_flag_set();
+          const auto ref_case = cell->refinement_choice_set();
           cell->clear_refine_flag();
 
           unsigned int n_new_vertices = 0;
@@ -5806,7 +5806,7 @@ namespace internal
           for (unsigned int i = 0; i < n_children / 2; ++i)
             cell->set_children(2 * i, subcells[2 * i]->index());
 
-          cell->set_refinement_case(ref_case);
+          cell->set_refinement_choice(ref_case);
 
           if (dim == spacedim - 1)
             for (unsigned int c = 0; c < n_children; ++c)
@@ -5822,7 +5822,7 @@ namespace internal
 
             for (const auto &cell :
                  triangulation.active_cell_iterators_on_level(level))
-              if (cell->refine_flag_set())
+              if (cell->refinement_choice_set())
                 {
                   create_children(triangulation,
                                   next_unused_vertex,

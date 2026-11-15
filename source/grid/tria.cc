@@ -3656,9 +3656,11 @@ namespace internal
                   // visit cells on finer levels, so no harm will be done.
                   if (face->has_children() &&
                       (cell->is_active() ||
-                       GeometryInfo<dim>::face_refinement_case(
-                         cell->refinement_case(), f) ==
-                         RefinementCase<dim - 1>::isotropic_refinement))
+                       cell->reference_cell().face_refinement_choice(
+                         cell->refinement_choice(),
+                         f,
+                         numbers::default_geometric_orientation) ==
+                         RefinementChoices::Isotropic<dim - 1>))
                     {
                       for (unsigned int c = 0; c < face->n_children(); ++c)
                         adjacent_cells[2 * face->child(c)->index() + offset] =

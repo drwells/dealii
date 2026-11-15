@@ -16614,7 +16614,7 @@ void Triangulation<dim, spacedim>::pack_data_serial()
           if (children_will_be_coarsened == false)
             {
               ::dealii::CellStatus status =
-                cell->refine_flag_set() ?
+                cell->refinement_choice_set() ?
                   ::dealii::CellStatus::cell_will_be_refined :
                   ::dealii::CellStatus::cell_will_persist;
 

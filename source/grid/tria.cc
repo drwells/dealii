@@ -6429,7 +6429,7 @@ namespace internal
         // this on the highest level only
         for (const auto &cell : triangulation.active_cell_iterators_on_level(
                triangulation.levels.size() - 1))
-          if (cell->refine_flag_set())
+          if (cell->refinement_choice_set())
             {
               AssertThrow(
                 triangulation.levels.size() < numbers::max_n_levels,
@@ -6475,11 +6475,11 @@ namespace internal
 
               for (const auto &cell :
                    triangulation.active_cell_iterators_on_level(level_no))
-                if (cell->refine_flag_set())
+                if (cell->refinement_choice_set())
                   {
-                    // Only support isotropic refinement
-                    Assert(cell->refine_flag_set() ==
-                             RefinementCase<dim>::cut_xyz,
+                    // Only support isotropic refinement (which includes the
+                    // three ways to refine a tetrahedron)
+                    Assert(!cell->refinement_choice_set().is_anisotropic(),
                            ExcInternalError());
 
                     // get reference cell type of current cell
@@ -6661,7 +6661,7 @@ namespace internal
         if constexpr (running_in_debug_mode())
           {
             for (const auto &cell : triangulation.active_cell_iterators())
-              if (!cell->refine_flag_set())
+              if (!cell->refinement_choice_set())
                 for (unsigned int line_n = 0; line_n < cell->n_lines();
                      ++line_n)
                   if (cell->line(line_n)->has_children())
@@ -6807,7 +6807,7 @@ namespace internal
                   face->set_children(2 * f, new_faces[2 * f]->index());
                 }
               // Tell the original face that is has been isotropically refined.
-              face->set_refinement_case(RefinementCase<2>::cut_xy);
+              face->set_refinement_choice(RefinementChoices::Isotropic<2>);
 
               if constexpr (running_in_debug_mode())
                 {
@@ -7075,15 +7075,16 @@ namespace internal
                    cell->level() == static_cast<int>(level);
                  ++cell)
               {
-                if (cell->refine_flag_set() ==
-                    RefinementCase<dim>::no_refinement)
+                if (cell->refinement_choice_set() ==
+                    RefinementChoices::None<dim>)
                   continue;
 
                 // Copy the requested refinement case to the cell's actual
                 // refinement flag, informing the cell how it has been refined.
-                const RefinementCase<dim> ref_case = cell->refine_flag_set();
+                const RefinementChoice<dim> ref_case =
+                  cell->refinement_choice_set();
                 cell->clear_refine_flag();
-                cell->set_refinement_case(ref_case);
+                cell->set_refinement_choice(ref_case);
 
                 const auto cell_reference_cell = cell->reference_cell();
 
@@ -7320,8 +7321,7 @@ namespace internal
                           chosen_line_tetrahedron =
                             refinement_choice.new_tetrahedron_line();
 
-                          cell->set_refinement_case(
-                            RefinementCase<dim>(chosen_line_tetrahedron + 1));
+                          cell->set_refinement_choice(refinement_choice);
 
                           new_lines[0]->set_bounding_object_indices(
                             {vertex_indices

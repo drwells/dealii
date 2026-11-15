@@ -7983,6 +7983,10 @@ namespace internal
                          const bool                  check_for_distorted_cells)
       {
         const unsigned int dim = 3;
+        // This function is only implemented for hypercubes
+        constexpr auto reference_cell = ReferenceCells::get_hypercube<dim>();
+        constexpr auto face_reference_cell =
+          ReferenceCells::get_hypercube<dim - 1>();
 
         {
           bool flag_isotropic_mesh = true;
@@ -7992,12 +7996,18 @@ namespace internal
           for (; cell != endc; ++cell)
             if (cell->used())
               if (triangulation.get_anisotropic_refinement_flag() ||
-                  cell->refine_flag_set() == RefinementCase<dim>::cut_x ||
-                  cell->refine_flag_set() == RefinementCase<dim>::cut_y ||
-                  cell->refine_flag_set() == RefinementCase<dim>::cut_z ||
-                  cell->refine_flag_set() == RefinementCase<dim>::cut_xy ||
-                  cell->refine_flag_set() == RefinementCase<dim>::cut_xz ||
-                  cell->refine_flag_set() == RefinementCase<dim>::cut_yz)
+                  cell->refinement_choice_set() ==
+                    RefinementChoices::CutX<dim> ||
+                  cell->refinement_choice_set() ==
+                    RefinementChoices::CutY<dim> ||
+                  cell->refinement_choice_set() ==
+                    RefinementChoices::CutZ<dim> ||
+                  cell->refinement_choice_set() ==
+                    RefinementChoices::CutXY<dim> ||
+                  cell->refinement_choice_set() ==
+                    RefinementChoices::CutXZ<dim> ||
+                  cell->refinement_choice_set() ==
+                    RefinementChoices::CutYZ<dim>)
                 {
                   flag_isotropic_mesh = false;
                   break;
@@ -8018,7 +8028,7 @@ namespace internal
         // this on the highest level only
         for (const auto &cell : triangulation.active_cell_iterators_on_level(
                triangulation.levels.size() - 1))
-          if (cell->refine_flag_set())
+          if (cell->refinement_choice_set())
             {
               AssertThrow(
                 triangulation.levels.size() < numbers::max_n_levels,
@@ -8051,11 +8061,11 @@ namespace internal
         // create an array of face refine cases. User indices of faces
         // will be set to values corresponding with indices in this
         // array.
-        const RefinementCase<dim - 1> face_refinement_cases[4] = {
-          RefinementCase<dim - 1>::no_refinement,
-          RefinementCase<dim - 1>::cut_x,
-          RefinementCase<dim - 1>::cut_y,
-          RefinementCase<dim - 1>::cut_xy};
+        const RefinementChoice<dim - 1> face_refinement_cases[4] = {
+          RefinementChoices::None<dim - 1>,
+          RefinementChoices::CutX<dim - 1>,
+          RefinementChoices::CutY<dim - 1>,
+          RefinementChoices::Isotropic<dim - 1>};
 
         // check how much space is needed on every level. We need not
         // check the highest level since either
@@ -8083,30 +8093,31 @@ namespace internal
 
             for (const auto &acell :
                  triangulation.active_cell_iterators_on_level(level_no))
-              if (acell->refine_flag_set())
+              if (acell->refinement_choice_set())
                 {
-                  RefinementCase<dim> ref_case = acell->refine_flag_set();
+                  RefinementChoice<dim> ref_case =
+                    acell->refinement_choice_set();
 
                   // now for interior vertices, lines and quads, which
                   // are needed in any case
-                  if (ref_case == RefinementCase<dim>::cut_x ||
-                      ref_case == RefinementCase<dim>::cut_y ||
-                      ref_case == RefinementCase<dim>::cut_z)
+                  if (ref_case == RefinementChoices::CutX<dim> ||
+                      ref_case == RefinementChoices::CutY<dim> ||
+                      ref_case == RefinementChoices::CutZ<dim>)
                     {
                       ++needed_quads_single;
                       needed_cells += 2;
                       triangulation.anisotropic_refinement = true;
                     }
-                  else if (ref_case == RefinementCase<dim>::cut_xy ||
-                           ref_case == RefinementCase<dim>::cut_xz ||
-                           ref_case == RefinementCase<dim>::cut_yz)
+                  else if (ref_case == RefinementChoices::CutXY<dim> ||
+                           ref_case == RefinementChoices::CutXZ<dim> ||
+                           ref_case == RefinementChoices::CutYZ<dim>)
                     {
                       ++needed_lines_single;
                       needed_quads_single += 4;
                       needed_cells += 4;
                       triangulation.anisotropic_refinement = true;
                     }
-                  else if (ref_case == RefinementCase<dim>::cut_xyz)
+                  else if (ref_case == RefinementChoices::Isotropic<dim>)
                     {
                       ++needed_vertices;
                       needed_lines_single += 6;
@@ -8131,26 +8142,24 @@ namespace internal
                         aface = acell->face(face);
                       // get the RefineCase this faces has for the
                       // given RefineCase of the cell
-                      RefinementCase<dim - 1> face_ref_case =
-                        GeometryInfo<dim>::face_refinement_case(
+                      RefinementChoice<dim - 1> face_ref_case =
+                        reference_cell.face_refinement_choice(
                           ref_case,
                           face,
-                          acell->face_orientation(face),
-                          acell->face_flip(face),
-                          acell->face_rotation(face));
+                          acell->combined_face_orientation(face));
                       // only do something, if this face has to be
                       // refined
                       if (face_ref_case)
                         {
                           if (face_ref_case ==
-                              RefinementCase<dim - 1>::isotropic_refinement)
+                              RefinementChoices::Isotropic<dim - 1>)
                             {
                               if (aface->n_active_descendants() < 4)
                                 // we use user_flags to denote needed
                                 // isotropic refinement
                                 aface->set_user_flag();
                             }
-                          else if (aface->refinement_case() != face_ref_case)
+                          else if (aface->refinement_choice() != face_ref_case)
                             // we use user_indices to denote needed
                             // anisotropic refinement. note, that we
                             // can have at most one anisotropic
@@ -8161,13 +8170,14 @@ namespace internal
                             // face. therefore we set the user_index
                             // uniquely
                             {
-                              Assert(aface->refinement_case() ==
-                                         RefinementCase<
-                                           dim - 1>::isotropic_refinement ||
-                                       aface->refinement_case() ==
-                                         RefinementCase<dim - 1>::no_refinement,
-                                     ExcInternalError());
-                              aface->set_user_index(face_ref_case);
+                              Assert(
+                                aface->refinement_choice() ==
+                                    RefinementChoices::Isotropic<dim - 1> ||
+                                  aface->refinement_choice() ==
+                                    RefinementChoices::None<dim - 1>,
+                                ExcInternalError());
+                              aface->set_user_index(
+                                static_cast<std::uint8_t>(face_ref_case));
                             }
                         }
                     } // for all faces
@@ -8176,8 +8186,7 @@ namespace internal
                   for (unsigned int line = 0;
                        line < GeometryInfo<dim>::lines_per_cell;
                        ++line)
-                    if (GeometryInfo<dim>::line_refinement_case(ref_case,
-                                                                line) &&
+                    if (reference_cell.line_refinement_choice(ref_case, line) &&
                         !acell->line(line)->has_children())
                       acell->line(line)->set_user_flag();
 
@@ -8239,15 +8248,15 @@ namespace internal
                 // in case we need them...
                 if (quad->has_children())
                   {
-                    Assert(quad->refinement_case() ==
-                             RefinementCase<dim - 1>::isotropic_refinement,
+                    Assert(quad->refinement_choice() ==
+                             RefinementChoices::Isotropic<dim - 1>,
                            ExcInternalError());
                     if ((face_refinement_cases[quad->user_index()] ==
-                           RefinementCase<dim - 1>::cut_x &&
+                           RefinementChoices::CutX<dim - 1> &&
                          (quad->child(0)->line_index(1) + 1 !=
                           quad->child(2)->line_index(1))) ||
                         (face_refinement_cases[quad->user_index()] ==
-                           RefinementCase<dim - 1>::cut_y &&
+                           RefinementChoices::CutY<dim - 1> &&
                          (quad->child(0)->line_index(3) + 1 !=
                           quad->child(1)->line_index(3))))
                       needed_lines_pair += 2;
@@ -8300,7 +8309,7 @@ namespace internal
         if constexpr (running_in_debug_mode())
           {
             for (const auto &cell : triangulation.active_cell_iterators())
-              if (!cell->refine_flag_set())
+              if (!cell->refinement_choice_set())
                 for (unsigned int line = 0;
                      line < GeometryInfo<dim>::lines_per_cell;
                      ++line)
@@ -8440,7 +8449,7 @@ namespace internal
               {
                 if (quad->user_index())
                   {
-                    RefinementCase<dim - 1> aniso_quad_ref_case =
+                    RefinementChoice<dim - 1> aniso_quad_ref_case =
                       face_refinement_cases[quad->user_index()];
                     // there is one unlikely event here, where we
                     // already have refind the face: if the face was
@@ -8450,20 +8459,22 @@ namespace internal
                     // children were already flagged for anisotropic
                     // refinement, they might already be processed and
                     // refined.
-                    if (aniso_quad_ref_case == quad->refinement_case())
+                    if (aniso_quad_ref_case == quad->refinement_choice())
                       continue;
 
-                    Assert(quad->refinement_case() ==
-                               RefinementCase<dim - 1>::cut_xy ||
-                             quad->refinement_case() ==
-                               RefinementCase<dim - 1>::no_refinement,
+                    Assert(quad->refinement_choice() ==
+                               RefinementChoices::Isotropic<dim - 1> ||
+                             quad->refinement_choice() ==
+                               RefinementChoices::None<dim - 1>,
                            ExcInternalError());
 
                     // this quad needs to be refined anisotropically
-                    Assert(quad->user_index() ==
-                               RefinementCase<dim - 1>::cut_x ||
-                             quad->user_index() ==
-                               RefinementCase<dim - 1>::cut_y,
+                    Assert(internal::make_refinement_choice_from_int<dim - 1>(
+                             quad->user_index()) ==
+                               RefinementChoices::CutX<dim - 1> ||
+                             internal::make_refinement_choice_from_int<dim - 1>(
+                               quad->user_index()) ==
+                               RefinementChoices::CutY<dim - 1>,
                            ExcInternalError());
 
                     // make the new line interior to the quad
@@ -8489,7 +8500,7 @@ namespace internal
                     // |     |
                     // *-----*
                     unsigned int vertex_indices[2];
-                    if (aniso_quad_ref_case == RefinementCase<dim - 1>::cut_x)
+                    if (aniso_quad_ref_case == RefinementChoices::CutX<dim - 1>)
                       {
                         vertex_indices[0] =
                           quad->line(2)->child(0)->vertex_index(1);
@@ -8528,7 +8539,7 @@ namespace internal
                     new_quads[1] = next_unused_quad;
                     AssertIsNotUsed(new_quads[1]);
 
-                    if (aniso_quad_ref_case == RefinementCase<dim - 1>::cut_x)
+                    if (aniso_quad_ref_case == RefinementChoices::CutX<dim - 1>)
                       {
                         new_quads[0]->set_bounding_object_indices(
                           {static_cast<int>(quad->line_index(0)),
@@ -8608,7 +8619,7 @@ namespace internal
                       1, quad->line_orientation(1));
                     new_quads[1]->set_line_orientation(
                       3, quad->line_orientation(3));
-                    if (aniso_quad_ref_case == RefinementCase<dim - 1>::cut_x)
+                    if (aniso_quad_ref_case == RefinementChoices::CutX<dim - 1>)
                       {
                         new_quads[0]->set_line_orientation(
                           3, quad->line_orientation(3));
@@ -8626,8 +8637,8 @@ namespace internal
                     // test, whether this face is refined
                     // isotropically already. if so, set the correct
                     // children pointers.
-                    if (quad->refinement_case() ==
-                        RefinementCase<dim - 1>::cut_xy)
+                    if (quad->refinement_choice() ==
+                        RefinementChoices::Isotropic<dim - 1>)
                       {
                         // we will put a new refinemnt level of
                         // anisotropic refinement between the
@@ -8650,7 +8661,7 @@ namespace internal
                         typename Triangulation<dim, spacedim>::line_iterator
                           old_child[2];
                         if (aniso_quad_ref_case ==
-                            RefinementCase<dim - 1>::cut_x)
+                            RefinementChoices::CutX<dim - 1>)
                           {
                             old_child[0] = quad->child(0)->line(1);
                             old_child[1] = quad->child(2)->line(1);
@@ -8658,7 +8669,7 @@ namespace internal
                         else
                           {
                             Assert(aniso_quad_ref_case ==
-                                     RefinementCase<dim - 1>::cut_y,
+                                     RefinementChoices::CutY<dim - 1>,
                                    ExcInternalError());
 
                             old_child[0] = quad->child(0)->line(3);
@@ -8741,7 +8752,7 @@ namespace internal
                         // with the quads themselves, where we might
                         // encounter similar situations...
                         if (aniso_quad_ref_case ==
-                            RefinementCase<dim - 1>::cut_x)
+                            RefinementChoices::CutX<dim - 1>)
                           {
                             new_line->set_children(
                               0, quad->child(0)->line_index(1));
@@ -8830,16 +8841,16 @@ namespace internal
                               switch_1->user_index();
                             const bool switch_1_user_flag =
                               switch_1->user_flag_set();
-                            const RefinementCase<dim - 1>
+                            const RefinementChoice<dim - 1>
                                       switch_1_refinement_case =
-                                        switch_1->refinement_case();
+                                        switch_1->refinement_choice();
                             const int switch_1_first_child_pair =
                               (switch_1_refinement_case ?
                                  switch_1->child_index(0) :
                                  -1);
                             const int switch_1_second_child_pair =
                               (switch_1_refinement_case ==
-                                   RefinementCase<dim - 1>::cut_xy ?
+                                   RefinementChoices::Isotropic<dim - 1> ?
                                  switch_1->child_index(2) :
                                  -1);
 
@@ -8864,15 +8875,15 @@ namespace internal
                               switch_1->set_user_flag();
                             else
                               switch_1->clear_user_flag();
-                            switch_1->clear_refinement_case();
-                            switch_1->set_refinement_case(
-                              switch_2->refinement_case());
+                            switch_1->clear_refinement_choice();
+                            switch_1->set_refinement_choice(
+                              switch_2->refinement_choice());
                             switch_1->clear_children();
-                            if (switch_2->refinement_case())
+                            if (switch_2->refinement_choice())
                               switch_1->set_children(0,
                                                      switch_2->child_index(0));
-                            if (switch_2->refinement_case() ==
-                                RefinementCase<dim - 1>::cut_xy)
+                            if (switch_2->refinement_choice() ==
+                                RefinementChoices::Isotropic<dim - 1>)
                               switch_1->set_children(2,
                                                      switch_2->child_index(2));
 
@@ -8897,8 +8908,8 @@ namespace internal
                               switch_2->set_user_flag();
                             else
                               switch_2->clear_user_flag();
-                            switch_2->clear_refinement_case();
-                            switch_2->set_refinement_case(
+                            switch_2->clear_refinement_choice();
+                            switch_2->set_refinement_choice(
                               switch_1_refinement_case);
                             switch_2->clear_children();
                             switch_2->set_children(0,
@@ -8906,20 +8917,20 @@ namespace internal
                             switch_2->set_children(2,
                                                    switch_1_second_child_pair);
 
-                            new_quads[0]->set_refinement_case(
-                              RefinementCase<2>::cut_y);
+                            new_quads[0]->set_refinement_choice(
+                              RefinementChoices::CutY<2>);
                             new_quads[0]->set_children(0, quad->child_index(0));
-                            new_quads[1]->set_refinement_case(
-                              RefinementCase<2>::cut_y);
+                            new_quads[1]->set_refinement_choice(
+                              RefinementChoices::CutY<2>);
                             new_quads[1]->set_children(0, quad->child_index(2));
                           }
                         else
                           {
-                            new_quads[0]->set_refinement_case(
-                              RefinementCase<2>::cut_x);
+                            new_quads[0]->set_refinement_choice(
+                              RefinementChoices::CutX<2>);
                             new_quads[0]->set_children(0, quad->child_index(0));
-                            new_quads[1]->set_refinement_case(
-                              RefinementCase<2>::cut_x);
+                            new_quads[1]->set_refinement_choice(
+                              RefinementChoices::CutX<2>);
                             new_quads[1]->set_children(0, quad->child_index(2));
                             new_line->set_children(
                               0, quad->child(0)->line_index(3));
@@ -8933,7 +8944,7 @@ namespace internal
                     // note these quads as children to the present one
                     quad->set_children(0, new_quads[0]->index());
 
-                    quad->set_refinement_case(aniso_quad_ref_case);
+                    quad->set_refinement_choice(aniso_quad_ref_case);
 
                     // finally clear flag indicating the need for
                     // refinement
@@ -8963,21 +8974,21 @@ namespace internal
                     // for both children. Additionally, we have to
                     // refine the inner line, as it is an outer line
                     // of the two (anisotropic) children
-                    const RefinementCase<dim - 1> quad_ref_case =
-                      quad->refinement_case();
+                    const RefinementChoice<dim - 1> quad_ref_case =
+                      quad->refinement_choice();
 
-                    if (quad_ref_case == RefinementCase<dim - 1>::cut_x ||
-                        quad_ref_case == RefinementCase<dim - 1>::cut_y)
+                    if (quad_ref_case == RefinementChoices::CutX<dim - 1> ||
+                        quad_ref_case == RefinementChoices::CutY<dim - 1>)
                       {
                         // set the 'opposite' refine case for children
                         quad->child(0)->set_user_index(
-                          RefinementCase<dim - 1>::cut_xy - quad_ref_case);
+                          static_cast<std::uint8_t>(~quad_ref_case));
                         quad->child(1)->set_user_index(
-                          RefinementCase<dim - 1>::cut_xy - quad_ref_case);
+                          static_cast<std::uint8_t>(~quad_ref_case));
                         // refine the inner line
                         typename Triangulation<dim, spacedim>::line_iterator
                           middle_line;
-                        if (quad_ref_case == RefinementCase<dim - 1>::cut_x)
+                        if (quad_ref_case == RefinementChoices::CutX<dim - 1>)
                           middle_line = quad->child(0)->line(1);
                         else
                           middle_line = quad->child(0)->line(3);
@@ -9059,8 +9070,7 @@ namespace internal
                     // if we got here, we have an unrefined quad and
                     // have to do the usual work like in an purely
                     // isotropic refinement
-                    Assert(quad_ref_case ==
-                             RefinementCase<dim - 1>::no_refinement,
+                    Assert(quad_ref_case == RefinementChoices::None<dim - 1>,
                            ExcInternalError());
 
                     // set the middle vertex appropriately: it might be that
@@ -9223,7 +9233,8 @@ namespace internal
                     // note these quads as children to the present one
                     quad->set_children(0, new_quads[0]->index());
                     quad->set_children(2, new_quads[2]->index());
-                    quad->set_refinement_case(RefinementCase<2>::cut_xy);
+                    quad->set_refinement_choice(
+                      RefinementChoices::Isotropic<2>);
 
                     new_quads[0]->set_bounding_object_indices(
                       {line_indices[0],
@@ -9311,16 +9322,17 @@ namespace internal
               next_unused_hex = triangulation.begin_raw_hex(level + 1);
 
             for (; hex != endh; ++hex)
-              if (hex->refine_flag_set())
+              if (hex->refinement_choice_set())
                 {
                   // this hex needs to be refined
 
                   // clear flag indicating the need for refinement. do
                   // it here already, since we can't do it anymore
                   // once the cell has children
-                  const RefinementCase<dim> ref_case = hex->refine_flag_set();
+                  const RefinementChoice<dim> ref_case =
+                    hex->refinement_choice_set();
                   hex->clear_refine_flag();
-                  hex->set_refinement_case(ref_case);
+                  hex->set_refinement_choice(ref_case);
 
                   // depending on the refine case we might have to
                   // create additional vertices, lines and quads
@@ -9336,21 +9348,21 @@ namespace internal
                   unsigned int n_new_hexes = 0;
                   switch (ref_case)
                     {
-                      case RefinementCase<dim>::cut_x:
-                      case RefinementCase<dim>::cut_y:
-                      case RefinementCase<dim>::cut_z:
+                      case RefinementChoices::CutX<dim>:
+                      case RefinementChoices::CutY<dim>:
+                      case RefinementChoices::CutZ<dim>:
                         n_new_lines = 0;
                         n_new_quads = 1;
                         n_new_hexes = 2;
                         break;
-                      case RefinementCase<dim>::cut_xy:
-                      case RefinementCase<dim>::cut_xz:
-                      case RefinementCase<dim>::cut_yz:
+                      case RefinementChoices::CutXY<dim>:
+                      case RefinementChoices::CutXZ<dim>:
+                      case RefinementChoices::CutYZ<dim>:
                         n_new_lines = 1;
                         n_new_quads = 4;
                         n_new_hexes = 4;
                         break;
-                      case RefinementCase<dim>::cut_xyz:
+                      case RefinementChoices::Isotropic<dim>:
                         n_new_lines = 6;
                         n_new_quads = 12;
                         n_new_hexes = 8;
@@ -9517,13 +9529,13 @@ namespace internal
                   // index 3: face rotation
                   // note: face orientation has no influence
                   const unsigned int child_at_origin[2][2][2] = {
-                    {{0, 0},   // RefinementCase<dim>::cut_x, face_flip=false,
+                    {{0, 0},   // CutX, face_flip=false,
                                // face_rotation=false and true
-                     {1, 1}},  // RefinementCase<dim>::cut_x, face_flip=true,
+                     {1, 1}},  // CutX, face_flip=true,
                                // face_rotation=false and true
-                    {{0, 1},   // RefinementCase<dim>::cut_y, face_flip=false,
+                    {{0, 1},   // CutY, face_flip=false,
                                // face_rotation=false and true
-                     {1, 0}}}; // RefinementCase<dim>::cut_y, face_flip=true,
+                     {1, 0}}}; // CutY, face_flip=true,
                                // face_rotation=false and true
 
                   //-------------------------------------
@@ -9543,11 +9555,11 @@ namespace internal
 
                   switch (ref_case)
                     {
-                      case RefinementCase<dim>::cut_x:
+                      case RefinementChoices::CutX<dim>:
                         {
                           //----------------------------
                           //
-                          //     RefinementCase<dim>::cut_x
+                          //     CutX
                           //
                           // the refined cube will look
                           // like this:
@@ -9605,23 +9617,23 @@ namespace internal
                           const typename Triangulation<dim, spacedim>::
                             raw_line_iterator lines[4] = {
                               hex->face(2)->child(0)->line(
-                                (hex->face(2)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(2)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3), // 0
                               hex->face(3)->child(0)->line(
-                                (hex->face(3)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(3)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3), // 1
                               hex->face(4)->child(0)->line(
-                                (hex->face(4)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(4)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3), // 2
                               hex->face(5)->child(0)->line(
-                                (hex->face(5)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(5)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3) // 3
                           };
@@ -9716,36 +9728,52 @@ namespace internal
                             hex->face(1)->index(), // 2
 
                             hex->face(2)->child_index(
-                              child_at_origin[hex->face(2)->refinement_case() -
-                                              1][f_fl[2]][f_ro[2]]), // 3
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(2)->refinement_choice())][f_fl[2]]
+                                [f_ro[2]]), // 3
                             hex->face(2)->child_index(
                               1 -
-                              child_at_origin[hex->face(2)->refinement_case() -
-                                              1][f_fl[2]][f_ro[2]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(2)->refinement_choice())][f_fl[2]]
+                                [f_ro[2]]),
 
                             hex->face(3)->child_index(
-                              child_at_origin[hex->face(3)->refinement_case() -
-                                              1][f_fl[3]][f_ro[3]]), // 5
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(3)->refinement_choice())][f_fl[3]]
+                                [f_ro[3]]), // 5
                             hex->face(3)->child_index(
                               1 -
-                              child_at_origin[hex->face(3)->refinement_case() -
-                                              1][f_fl[3]][f_ro[3]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(3)->refinement_choice())][f_fl[3]]
+                                [f_ro[3]]),
 
                             hex->face(4)->child_index(
-                              child_at_origin[hex->face(4)->refinement_case() -
-                                              1][f_fl[4]][f_ro[4]]), // 7
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(4)->refinement_choice())][f_fl[4]]
+                                [f_ro[4]]), // 7
                             hex->face(4)->child_index(
                               1 -
-                              child_at_origin[hex->face(4)->refinement_case() -
-                                              1][f_fl[4]][f_ro[4]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(4)->refinement_choice())][f_fl[4]]
+                                [f_ro[4]]),
 
                             hex->face(5)->child_index(
-                              child_at_origin[hex->face(5)->refinement_case() -
-                                              1][f_fl[5]][f_ro[5]]), // 9
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(5)->refinement_choice())][f_fl[5]]
+                                [f_ro[5]]), // 9
                             hex->face(5)->child_index(
                               1 -
-                              child_at_origin[hex->face(5)->refinement_case() -
-                                              1][f_fl[5]][f_ro[5]])
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(5)->refinement_choice())][f_fl[5]]
+                                [f_ro[5]])
 
                           };
 
@@ -9766,11 +9794,11 @@ namespace internal
                           break;
                         }
 
-                      case RefinementCase<dim>::cut_y:
+                      case RefinementChoices::CutY<dim>:
                         {
                           //----------------------------
                           //
-                          //     RefinementCase<dim>::cut_y
+                          //     CutY
                           //
                           // the refined cube will look like this:
                           //
@@ -9833,23 +9861,23 @@ namespace internal
                           const typename Triangulation<dim, spacedim>::
                             raw_line_iterator lines[4] = {
                               hex->face(0)->child(0)->line(
-                                (hex->face(0)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(0)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3), // 0
                               hex->face(1)->child(0)->line(
-                                (hex->face(1)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(1)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3), // 1
                               hex->face(4)->child(0)->line(
-                                (hex->face(4)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(4)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3), // 2
                               hex->face(5)->child(0)->line(
-                                (hex->face(5)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(5)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3) // 3
                           };
@@ -9940,40 +9968,56 @@ namespace internal
                             new_quads[0]->index(), // 0
 
                             hex->face(0)->child_index(
-                              child_at_origin[hex->face(0)->refinement_case() -
-                                              1][f_fl[0]][f_ro[0]]), // 1
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(0)->refinement_choice())][f_fl[0]]
+                                [f_ro[0]]), // 1
                             hex->face(0)->child_index(
                               1 -
-                              child_at_origin[hex->face(0)->refinement_case() -
-                                              1][f_fl[0]][f_ro[0]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(0)->refinement_choice())][f_fl[0]]
+                                [f_ro[0]]),
 
                             hex->face(1)->child_index(
-                              child_at_origin[hex->face(1)->refinement_case() -
-                                              1][f_fl[1]][f_ro[1]]), // 3
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(1)->refinement_choice())][f_fl[1]]
+                                [f_ro[1]]), // 3
                             hex->face(1)->child_index(
                               1 -
-                              child_at_origin[hex->face(1)->refinement_case() -
-                                              1][f_fl[1]][f_ro[1]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(1)->refinement_choice())][f_fl[1]]
+                                [f_ro[1]]),
 
                             hex->face(2)->index(), // 5
 
                             hex->face(3)->index(), // 6
 
                             hex->face(4)->child_index(
-                              child_at_origin[hex->face(4)->refinement_case() -
-                                              1][f_fl[4]][f_ro[4]]), // 7
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(4)->refinement_choice())][f_fl[4]]
+                                [f_ro[4]]), // 7
                             hex->face(4)->child_index(
                               1 -
-                              child_at_origin[hex->face(4)->refinement_case() -
-                                              1][f_fl[4]][f_ro[4]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(4)->refinement_choice())][f_fl[4]]
+                                [f_ro[4]]),
 
                             hex->face(5)->child_index(
-                              child_at_origin[hex->face(5)->refinement_case() -
-                                              1][f_fl[5]][f_ro[5]]), // 9
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(5)->refinement_choice())][f_fl[5]]
+                                [f_ro[5]]), // 9
                             hex->face(5)->child_index(
                               1 -
-                              child_at_origin[hex->face(5)->refinement_case() -
-                                              1][f_fl[5]][f_ro[5]])
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(5)->refinement_choice())][f_fl[5]]
+                                [f_ro[5]])
 
                           };
 
@@ -9994,11 +10038,11 @@ namespace internal
                           break;
                         }
 
-                      case RefinementCase<dim>::cut_z:
+                      case RefinementChoices::CutZ<dim>:
                         {
                           //----------------------------
                           //
-                          //     RefinementCase<dim>::cut_z
+                          //     CutZ
                           //
                           // the refined cube will look like this:
                           //
@@ -10063,23 +10107,23 @@ namespace internal
                           const typename Triangulation<dim, spacedim>::
                             raw_line_iterator lines[4] = {
                               hex->face(0)->child(0)->line(
-                                (hex->face(0)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(0)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3), // 0
                               hex->face(1)->child(0)->line(
-                                (hex->face(1)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(1)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3), // 1
                               hex->face(2)->child(0)->line(
-                                (hex->face(2)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(2)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3), // 2
                               hex->face(3)->child(0)->line(
-                                (hex->face(3)->refinement_case() ==
-                                 RefinementCase<2>::cut_x) ?
+                                (hex->face(3)->refinement_choice() ==
+                                 RefinementChoices::CutX<2>) ?
                                   1 :
                                   3) // 3
                           };
@@ -10171,36 +10215,52 @@ namespace internal
                             new_quads[0]->index(), // 0
 
                             hex->face(0)->child_index(
-                              child_at_origin[hex->face(0)->refinement_case() -
-                                              1][f_fl[0]][f_ro[0]]), // 1
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(0)->refinement_choice())][f_fl[0]]
+                                [f_ro[0]]), // 1
                             hex->face(0)->child_index(
                               1 -
-                              child_at_origin[hex->face(0)->refinement_case() -
-                                              1][f_fl[0]][f_ro[0]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(0)->refinement_choice())][f_fl[0]]
+                                [f_ro[0]]),
 
                             hex->face(1)->child_index(
-                              child_at_origin[hex->face(1)->refinement_case() -
-                                              1][f_fl[1]][f_ro[1]]), // 3
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(1)->refinement_choice())][f_fl[1]]
+                                [f_ro[1]]), // 3
                             hex->face(1)->child_index(
                               1 -
-                              child_at_origin[hex->face(1)->refinement_case() -
-                                              1][f_fl[1]][f_ro[1]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(1)->refinement_choice())][f_fl[1]]
+                                [f_ro[1]]),
 
                             hex->face(2)->child_index(
-                              child_at_origin[hex->face(2)->refinement_case() -
-                                              1][f_fl[2]][f_ro[2]]), // 5
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(2)->refinement_choice())][f_fl[2]]
+                                [f_ro[2]]), // 5
                             hex->face(2)->child_index(
                               1 -
-                              child_at_origin[hex->face(2)->refinement_case() -
-                                              1][f_fl[2]][f_ro[2]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(2)->refinement_choice())][f_fl[2]]
+                                [f_ro[2]]),
 
                             hex->face(3)->child_index(
-                              child_at_origin[hex->face(3)->refinement_case() -
-                                              1][f_fl[3]][f_ro[3]]), // 7
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(3)->refinement_choice())][f_fl[3]]
+                                [f_ro[3]]), // 7
                             hex->face(3)->child_index(
                               1 -
-                              child_at_origin[hex->face(3)->refinement_case() -
-                                              1][f_fl[3]][f_ro[3]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(3)->refinement_choice())][f_fl[3]]
+                                [f_ro[3]]),
 
                             hex->face(4)->index(), // 9
 
@@ -10224,11 +10284,11 @@ namespace internal
                           break;
                         }
 
-                      case RefinementCase<dim>::cut_xy:
+                      case RefinementChoices::CutXY<dim>:
                         {
                           //----------------------------
                           //
-                          //     RefinementCase<dim>::cut_xy
+                          //     CutXY
                           //
                           // the refined cube will look like this:
                           //
@@ -10318,23 +10378,23 @@ namespace internal
                             dim,
                             spacedim>::raw_line_iterator lines[13] = {
                             hex->face(0)->child(0)->line(
-                              (hex->face(0)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(0)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 0
                             hex->face(1)->child(0)->line(
-                              (hex->face(1)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(1)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 1
                             hex->face(2)->child(0)->line(
-                              (hex->face(2)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(2)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 2
                             hex->face(3)->child(0)->line(
-                              (hex->face(3)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(3)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 3
 
@@ -10574,36 +10634,52 @@ namespace internal
                             new_quads[3]->index(),
 
                             hex->face(0)->child_index(
-                              child_at_origin[hex->face(0)->refinement_case() -
-                                              1][f_fl[0]][f_ro[0]]), // 4
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(0)->refinement_choice())][f_fl[0]]
+                                [f_ro[0]]), // 4
                             hex->face(0)->child_index(
                               1 -
-                              child_at_origin[hex->face(0)->refinement_case() -
-                                              1][f_fl[0]][f_ro[0]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(0)->refinement_choice())][f_fl[0]]
+                                [f_ro[0]]),
 
                             hex->face(1)->child_index(
-                              child_at_origin[hex->face(1)->refinement_case() -
-                                              1][f_fl[1]][f_ro[1]]), // 6
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(1)->refinement_choice())][f_fl[1]]
+                                [f_ro[1]]), // 6
                             hex->face(1)->child_index(
                               1 -
-                              child_at_origin[hex->face(1)->refinement_case() -
-                                              1][f_fl[1]][f_ro[1]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(1)->refinement_choice())][f_fl[1]]
+                                [f_ro[1]]),
 
                             hex->face(2)->child_index(
-                              child_at_origin[hex->face(2)->refinement_case() -
-                                              1][f_fl[2]][f_ro[2]]), // 8
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(2)->refinement_choice())][f_fl[2]]
+                                [f_ro[2]]), // 8
                             hex->face(2)->child_index(
                               1 -
-                              child_at_origin[hex->face(2)->refinement_case() -
-                                              1][f_fl[2]][f_ro[2]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(2)->refinement_choice())][f_fl[2]]
+                                [f_ro[2]]),
 
                             hex->face(3)->child_index(
-                              child_at_origin[hex->face(3)->refinement_case() -
-                                              1][f_fl[3]][f_ro[3]]), // 10
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(3)->refinement_choice())][f_fl[3]]
+                                [f_ro[3]]), // 10
                             hex->face(3)->child_index(
                               1 -
-                              child_at_origin[hex->face(3)->refinement_case() -
-                                              1][f_fl[3]][f_ro[3]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(3)->refinement_choice())][f_fl[3]]
+                                [f_ro[3]]),
 
                             hex->face(4)->isotropic_child_index(
                               GeometryInfo<dim>::standard_to_real_face_vertex(
@@ -10662,11 +10738,11 @@ namespace internal
                           break;
                         }
 
-                      case RefinementCase<dim>::cut_xz:
+                      case RefinementChoices::CutXZ<dim>:
                         {
                           //----------------------------
                           //
-                          //     RefinementCase<dim>::cut_xz
+                          //     (CutX | CutZ)
                           //
                           // the refined cube will look like this:
                           //
@@ -10756,23 +10832,23 @@ namespace internal
                             dim,
                             spacedim>::raw_line_iterator lines[13] = {
                             hex->face(0)->child(0)->line(
-                              (hex->face(0)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(0)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 0
                             hex->face(1)->child(0)->line(
-                              (hex->face(1)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(1)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 1
                             hex->face(4)->child(0)->line(
-                              (hex->face(4)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(4)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 2
                             hex->face(5)->child(0)->line(
-                              (hex->face(5)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(5)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 3
 
@@ -11014,20 +11090,28 @@ namespace internal
                             new_quads[3]->index(),
 
                             hex->face(0)->child_index(
-                              child_at_origin[hex->face(0)->refinement_case() -
-                                              1][f_fl[0]][f_ro[0]]), // 4
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(0)->refinement_choice())][f_fl[0]]
+                                [f_ro[0]]), // 4
                             hex->face(0)->child_index(
                               1 -
-                              child_at_origin[hex->face(0)->refinement_case() -
-                                              1][f_fl[0]][f_ro[0]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(0)->refinement_choice())][f_fl[0]]
+                                [f_ro[0]]),
 
                             hex->face(1)->child_index(
-                              child_at_origin[hex->face(1)->refinement_case() -
-                                              1][f_fl[1]][f_ro[1]]), // 6
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(1)->refinement_choice())][f_fl[1]]
+                                [f_ro[1]]), // 6
                             hex->face(1)->child_index(
                               1 -
-                              child_at_origin[hex->face(1)->refinement_case() -
-                                              1][f_fl[1]][f_ro[1]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(1)->refinement_choice())][f_fl[1]]
+                                [f_ro[1]]),
 
                             hex->face(2)->isotropic_child_index(
                               GeometryInfo<dim>::standard_to_real_face_vertex(
@@ -11056,20 +11140,28 @@ namespace internal
                                 3, f_or[3], f_fl[3], f_ro[3])),
 
                             hex->face(4)->child_index(
-                              child_at_origin[hex->face(4)->refinement_case() -
-                                              1][f_fl[4]][f_ro[4]]), // 16
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(4)->refinement_choice())][f_fl[4]]
+                                [f_ro[4]]), // 16
                             hex->face(4)->child_index(
                               1 -
-                              child_at_origin[hex->face(4)->refinement_case() -
-                                              1][f_fl[4]][f_ro[4]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(4)->refinement_choice())][f_fl[4]]
+                                [f_ro[4]]),
 
                             hex->face(5)->child_index(
-                              child_at_origin[hex->face(5)->refinement_case() -
-                                              1][f_fl[5]][f_ro[5]]), // 18
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(5)->refinement_choice())][f_fl[5]]
+                                [f_ro[5]]), // 18
                             hex->face(5)->child_index(
                               1 -
-                              child_at_origin[hex->face(5)->refinement_case() -
-                                              1][f_fl[5]][f_ro[5]])};
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(5)->refinement_choice())][f_fl[5]]
+                                [f_ro[5]])};
 
                           // due to the exchange of x and y for the front
                           // and back face, we order the children
@@ -11111,11 +11203,11 @@ namespace internal
                           break;
                         }
 
-                      case RefinementCase<dim>::cut_yz:
+                      case RefinementChoices::CutYZ<dim>:
                         {
                           //----------------------------
                           //
-                          //     RefinementCase<dim>::cut_yz
+                          //     (CutY | CutZ)
                           //
                           // the refined cube will look like this:
                           //
@@ -11208,23 +11300,23 @@ namespace internal
                             dim,
                             spacedim>::raw_line_iterator lines[13] = {
                             hex->face(2)->child(0)->line(
-                              (hex->face(2)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(2)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 0
                             hex->face(3)->child(0)->line(
-                              (hex->face(3)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(3)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 1
                             hex->face(4)->child(0)->line(
-                              (hex->face(4)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(4)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 2
                             hex->face(5)->child(0)->line(
-                              (hex->face(5)->refinement_case() ==
-                               RefinementCase<2>::cut_x) ?
+                              (hex->face(5)->refinement_choice() ==
+                               RefinementChoices::CutX<2>) ?
                                 1 :
                                 3), // 3
 
@@ -11484,36 +11576,52 @@ namespace internal
                                 3, f_or[1], f_fl[1], f_ro[1])),
 
                             hex->face(2)->child_index(
-                              child_at_origin[hex->face(2)->refinement_case() -
-                                              1][f_fl[2]][f_ro[2]]), // 12
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(2)->refinement_choice())][f_fl[2]]
+                                [f_ro[2]]), // 12
                             hex->face(2)->child_index(
                               1 -
-                              child_at_origin[hex->face(2)->refinement_case() -
-                                              1][f_fl[2]][f_ro[2]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(2)->refinement_choice())][f_fl[2]]
+                                [f_ro[2]]),
 
                             hex->face(3)->child_index(
-                              child_at_origin[hex->face(3)->refinement_case() -
-                                              1][f_fl[3]][f_ro[3]]), // 14
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(3)->refinement_choice())][f_fl[3]]
+                                [f_ro[3]]), // 14
                             hex->face(3)->child_index(
                               1 -
-                              child_at_origin[hex->face(3)->refinement_case() -
-                                              1][f_fl[3]][f_ro[3]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(3)->refinement_choice())][f_fl[3]]
+                                [f_ro[3]]),
 
                             hex->face(4)->child_index(
-                              child_at_origin[hex->face(4)->refinement_case() -
-                                              1][f_fl[4]][f_ro[4]]), // 16
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(4)->refinement_choice())][f_fl[4]]
+                                [f_ro[4]]), // 16
                             hex->face(4)->child_index(
                               1 -
-                              child_at_origin[hex->face(4)->refinement_case() -
-                                              1][f_fl[4]][f_ro[4]]),
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(4)->refinement_choice())][f_fl[4]]
+                                [f_ro[4]]),
 
                             hex->face(5)->child_index(
-                              child_at_origin[hex->face(5)->refinement_case() -
-                                              1][f_fl[5]][f_ro[5]]), // 18
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(5)->refinement_choice())][f_fl[5]]
+                                [f_ro[5]]), // 18
                             hex->face(5)->child_index(
                               1 -
-                              child_at_origin[hex->face(5)->refinement_case() -
-                                              1][f_fl[5]][f_ro[5]])};
+                              child_at_origin
+                                [face_reference_cell.refinement_choice_index(
+                                  hex->face(5)->refinement_choice())][f_fl[5]]
+                                [f_ro[5]])};
 
                           new_hexes[0]->set_bounding_object_indices(
                             {quad_indices[4],
@@ -11546,11 +11654,11 @@ namespace internal
                           break;
                         }
 
-                      case RefinementCase<dim>::cut_xyz:
+                      case RefinementChoices::Isotropic<dim>:
                         {
                           //----------------------------
                           //
-                          //     RefinementCase<dim>::cut_xyz
+                          //     RefinementChoices::Isotropic<dim>
                           //     isotropic refinement
                           //
                           // the refined cube will look
@@ -12270,7 +12378,7 @@ namespace internal
                       default:
                         // all refinement cases have been treated, there
                         // only remains
-                        // RefinementCase<dim>::no_refinement as
+                        // RefinementChoices::None<dim> as
                         // untreated enumeration value. However, in that
                         // case we should have aborted much
                         // earlier. thus we should never get here
@@ -12299,22 +12407,29 @@ namespace internal
                   // of the mother cube
                   for (const unsigned int f : GeometryInfo<dim>::face_indices())
                     for (unsigned int s = 0;
-                         s < std::max(GeometryInfo<dim - 1>::n_children(
-                                        GeometryInfo<dim>::face_refinement_case(
-                                          ref_case, f)),
-                                      1U);
+                         s <
+                         std::max(face_reference_cell.n_children(
+                                    reference_cell.face_refinement_choice(
+                                      ref_case,
+                                      f,
+                                      numbers::default_geometric_orientation)),
+                                  1U);
                          ++s)
                       {
                         const unsigned int current_child =
-                          GeometryInfo<dim>::child_cell_on_face(
-                            ref_case,
+                          reference_cell.child_cell_on_face(
                             f,
                             s,
-                            f_or[f],
-                            f_fl[f],
-                            f_ro[f],
-                            GeometryInfo<dim>::face_refinement_case(
-                              ref_case, f, f_or[f], f_fl[f], f_ro[f]));
+                            internal::combined_face_orientation(f_or[f],
+                                                                f_ro[f],
+                                                                f_fl[f]),
+                            ref_case,
+                            reference_cell.face_refinement_choice(
+                              ref_case,
+                              f,
+                              internal::combined_face_orientation(f_or[f],
+                                                                  f_ro[f],
+                                                                  f_fl[f])));
                         new_hexes[current_child]->set_combined_face_orientation(
                           f, f_co[f]);
                       }

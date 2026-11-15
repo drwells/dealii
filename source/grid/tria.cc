@@ -17317,7 +17317,7 @@ void Triangulation<dim, spacedim>::fix_coarsen_flags()
           std::vector<int> vertex_level(vertices.size(), 0);
           for (const auto &cell : this->active_cell_iterators())
             {
-              if (cell->refine_flag_set())
+              if (cell->refinement_choice_set())
                 for (const unsigned int vertex : cell->vertex_indices())
                   vertex_level[cell->vertex_index(vertex)] =
                     std::max(vertex_level[cell->vertex_index(vertex)],
@@ -17355,7 +17355,7 @@ void Triangulation<dim, spacedim>::fix_coarsen_flags()
           // see refinement
           active_cell_iterator endc = end();
           for (active_cell_iterator cell = last_active(); cell != endc; --cell)
-            if (cell->refine_flag_set() == false)
+            if (!cell->refinement_choice_set())
               {
                 for (const unsigned int vertex : cell->vertex_indices())
                   if (vertex_level[cell->vertex_index(vertex)] >=
@@ -17420,7 +17420,7 @@ void Triangulation<dim, spacedim>::fix_coarsen_flags()
               this->policy->coarsening_allowed(cell))
             for (unsigned int c = 0; c < n_children; ++c)
               {
-                Assert(cell->child(c)->refine_flag_set() == false,
+                Assert(!cell->child(c)->refinement_choice_set(),
                        ExcInternalError());
 
                 cell->child(c)->set_coarsen_flag();

@@ -5860,7 +5860,7 @@ namespace internal
         // this on the highest level only
         for (const auto &cell : triangulation.active_cell_iterators_on_level(
                triangulation.levels.size() - 1))
-          if (cell->refine_flag_set())
+          if (cell->refinement_choice_set())
             {
               triangulation.levels.push_back(
                 std::make_unique<internal::TriangulationImplementation::
@@ -5883,7 +5883,7 @@ namespace internal
 
             for (const auto &cell :
                  triangulation.active_cell_iterators_on_level(level_no))
-              if (cell->refine_flag_set())
+              if (cell->refinement_choice_set())
                 needed_cells += ReferenceCells::Line.n_isotropic_children();
 
             // count number of used cells on the next higher level
@@ -5933,7 +5933,7 @@ namespace internal
 
             for (const auto &cell :
                  triangulation.active_cell_iterators_on_level(level))
-              if (cell->refine_flag_set())
+              if (cell->refinement_choice_set())
                 {
                   // clear refinement flag
                   cell->clear_refine_flag();

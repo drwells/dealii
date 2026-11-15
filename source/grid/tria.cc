@@ -1553,15 +1553,15 @@ namespace
   middle_vertex_index(
     const typename Triangulation<dim, spacedim>::quad_iterator &quad)
   {
-    switch (static_cast<unsigned char>(quad->refinement_case()))
+    switch (quad->refinement_choice())
       {
-        case RefinementCase<2>::cut_x:
+        case RefinementChoices::CutX<2>:
           return middle_vertex_index<dim, spacedim>(quad->child(0)->line(1));
           break;
-        case RefinementCase<2>::cut_y:
+        case RefinementChoices::CutY<2>:
           return middle_vertex_index<dim, spacedim>(quad->child(0)->line(3));
           break;
-        case RefinementCase<2>::cut_xy:
+        case RefinementChoices::Isotropic<2>:
           return quad->child(0)->vertex_index(3);
           break;
         default:

@@ -12602,15 +12602,15 @@ namespace internal
             // flag those lines that are refined and will not be
             // coarsened and those that will be refined
             for (const auto &cell : triangulation.cell_iterators())
-              if (cell->refine_flag_set())
+              if (cell->refinement_choice_set())
                 {
                   const std::array<unsigned int, 12> line_indices =
                     TriaAccessorImplementation::Implementation::
                       get_line_indices_of_cell(*cell);
                   for (unsigned int l = 0; l < cell->n_lines(); ++l)
-                    if (GeometryInfo<dim>::line_refinement_case(
-                          cell->refine_flag_set(), l) ==
-                        RefinementCase<1>::cut_x)
+                    if (cell->reference_cell().line_refinement_choice(
+                          cell->refinement_choice_set(), l) ==
+                        RefinementChoices::Isotropic<1>)
                       {
                         raw_line_iterator line(&triangulation,
                                                0,
@@ -12626,9 +12626,9 @@ namespace internal
                     TriaAccessorImplementation::Implementation::
                       get_line_indices_of_cell(*cell);
                   for (unsigned int l = 0; l < cell->n_lines(); ++l)
-                    if (GeometryInfo<dim>::line_refinement_case(
-                          cell->refinement_case(), l) ==
-                        RefinementCase<1>::cut_x)
+                    if (cell->reference_cell().line_refinement_choice(
+                          cell->refinement_choice(), l) ==
+                        RefinementChoices::Isotropic<1>)
                       {
                         raw_line_iterator line(&triangulation,
                                                0,
@@ -12674,9 +12674,9 @@ namespace internal
                                    ExcInternalError());
 
                             if (line->child(c)->user_flag_set() &&
-                                (GeometryInfo<dim>::line_refinement_case(
-                                   cell->refine_flag_set(), l) ==
-                                 RefinementCase<1>::no_refinement))
+                                (cell->reference_cell().line_refinement_choice(
+                                   cell->refinement_choice_set(), l) ==
+                                 RefinementChoices::None<1>))
                               {
                                 // tag this cell for refinement
                                 cell->clear_coarsen_flag();
@@ -12693,9 +12693,10 @@ namespace internal
 
                                 for (unsigned int k = 0; k < cell->n_lines();
                                      ++k)
-                                  if (GeometryInfo<dim>::line_refinement_case(
-                                        cell->refine_flag_set(), l) ==
-                                      RefinementCase<1>::cut_x)
+                                  if (cell->reference_cell()
+                                        .line_refinement_choice(
+                                          cell->refinement_choice_set(), l) ==
+                                      RefinementChoices::Isotropic<1>)
                                     // flag a line, that will be refined
                                     raw_line_iterator(&triangulation,
                                                       0,
@@ -12717,10 +12718,10 @@ namespace internal
                                                         0,
                                                         line_indices[k]);
                                     if (!line->has_children() &&
-                                        (GeometryInfo<dim>::
-                                           line_refinement_case(
-                                             cell->refine_flag_set(), k) !=
-                                         RefinementCase<1>::no_refinement))
+                                        (cell->reference_cell()
+                                           .line_refinement_choice(
+                                             cell->refinement_choice_set(),
+                                             k) != RefinementChoices::None<1>))
                                       line->set_user_flag();
                                   }
 
@@ -12770,9 +12771,9 @@ namespace internal
                             cell->child(c)->clear_coarsen_flag();
                           cell->clear_user_flag();
                           for (unsigned int k = 0; k < cell->n_lines(); ++k)
-                            if (GeometryInfo<dim>::line_refinement_case(
-                                  cell->refinement_case(), k) ==
-                                RefinementCase<1>::cut_x)
+                            if (cell->reference_cell().line_refinement_choice(
+                                  cell->refinement_choice(), k) ==
+                                RefinementChoices::Isotropic<1>)
                               // flag a line, that is refined and will
                               // stay so
                               raw_line_iterator(&triangulation,

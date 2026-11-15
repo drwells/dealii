@@ -4219,8 +4219,8 @@ namespace internal
                       std::vector<unsigned int> &line_cell_count,
                       std::vector<unsigned int> &)
       {
-        const unsigned int        dim      = 2;
-        const RefinementCase<dim> ref_case = cell->refinement_case();
+        const unsigned int          dim      = 2;
+        const RefinementChoice<dim> ref_case = cell->refinement_choice();
 
         Assert(line_cell_count.size() == triangulation.n_raw_lines(),
                ExcInternalError());
@@ -4252,7 +4252,7 @@ namespace internal
         // is no inner vertex.
         // additionally delete unneeded inner
         // lines
-        if (ref_case == RefinementCase<dim>::cut_xy)
+        if (ref_case == RefinementChoices::Isotropic<dim>)
           {
             triangulation
               .vertices_used[cell->child(0)->line(1)->vertex_index(1)] = false;
@@ -4265,7 +4265,7 @@ namespace internal
         else
           {
             unsigned int inner_face_no =
-              ref_case == RefinementCase<dim>::cut_x ? 1 : 3;
+              ref_case == RefinementChoices::CutX<dim> ? 1 : 3;
 
             // the inner line will not be
             // used any more
@@ -4283,7 +4283,7 @@ namespace internal
 
         // delete pointer to children
         cell->clear_children();
-        cell->clear_refinement_case();
+        cell->clear_refinement_choice();
         cell->clear_user_flag();
 
         // look at the refinement of outer

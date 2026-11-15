@@ -14025,10 +14025,13 @@ void Triangulation<dim, spacedim>::load_refine_flags(const std::vector<bool> &v)
       for (unsigned int j = 0; j < dim; ++j, ++i)
         if (*i == true)
           ref_case += 1 << j;
-      Assert(ref_case < RefinementCase<dim>::isotropic_refinement + 1,
-             ExcGridReadError());
+      Assert(ref_case < (1u << dim), ExcGridReadError());
+      // See save_refine_flags(): the bits are those of a RefinementCase, and
+      // tetrahedra flagged for isotropic refinement pick their specific
+      // refinement in set_refine_flag()
       if (ref_case > 0)
-        cell->set_refine_flag(RefinementCase<dim>(ref_case));
+        cell->set_refine_flag(
+          RefinementCase<dim>(static_cast<std::uint8_t>(ref_case)));
       else
         cell->clear_refine_flag();
     }

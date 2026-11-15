@@ -4358,6 +4358,8 @@ namespace internal
                       std::vector<unsigned int> &quad_cell_count)
       {
         const unsigned int dim = 3;
+        // This function is only implemented for hypercubes
+        constexpr auto reference_cell = ReferenceCells::get_hypercube<dim>();
 
         Assert(line_cell_count.size() == triangulation.n_raw_lines(),
                ExcInternalError());
@@ -4366,7 +4368,7 @@ namespace internal
 
         // first of all, we store the RefineCase of
         // this cell
-        const RefinementCase<dim> ref_case = cell->refinement_case();
+        const RefinementChoice<dim> ref_case = cell->refinement_choice();
         // vectors to hold all lines and quads which
         // may be deleted
         std::vector<typename Triangulation<dim, spacedim>::line_iterator>
@@ -4401,16 +4403,16 @@ namespace internal
 
         switch (ref_case)
           {
-            case RefinementCase<dim>::cut_x:
+            case RefinementChoices::CutX<dim>:
               quads_to_delete.push_back(cell->child(0)->face(1));
               break;
-            case RefinementCase<dim>::cut_y:
+            case RefinementChoices::CutY<dim>:
               quads_to_delete.push_back(cell->child(0)->face(3));
               break;
-            case RefinementCase<dim>::cut_z:
+            case RefinementChoices::CutZ<dim>:
               quads_to_delete.push_back(cell->child(0)->face(5));
               break;
-            case RefinementCase<dim>::cut_xy:
+            case RefinementChoices::CutXY<dim>:
               quads_to_delete.push_back(cell->child(0)->face(1));
               quads_to_delete.push_back(cell->child(0)->face(3));
               quads_to_delete.push_back(cell->child(3)->face(0));
@@ -4418,7 +4420,7 @@ namespace internal
 
               lines_to_delete.push_back(cell->child(0)->line(11));
               break;
-            case RefinementCase<dim>::cut_xz:
+            case RefinementChoices::CutXZ<dim>:
               quads_to_delete.push_back(cell->child(0)->face(1));
               quads_to_delete.push_back(cell->child(0)->face(5));
               quads_to_delete.push_back(cell->child(3)->face(0));
@@ -4426,7 +4428,7 @@ namespace internal
 
               lines_to_delete.push_back(cell->child(0)->line(5));
               break;
-            case RefinementCase<dim>::cut_yz:
+            case RefinementChoices::CutYZ<dim>:
               quads_to_delete.push_back(cell->child(0)->face(3));
               quads_to_delete.push_back(cell->child(0)->face(5));
               quads_to_delete.push_back(cell->child(3)->face(2));
@@ -4434,7 +4436,7 @@ namespace internal
 
               lines_to_delete.push_back(cell->child(0)->line(7));
               break;
-            case RefinementCase<dim>::cut_xyz:
+            case RefinementChoices::Isotropic<dim>:
               quads_to_delete.push_back(cell->child(0)->face(1));
               quads_to_delete.push_back(cell->child(2)->face(1));
               quads_to_delete.push_back(cell->child(4)->face(1));
@@ -4490,7 +4492,7 @@ namespace internal
 
         // delete pointer to children
         cell->clear_children();
-        cell->clear_refinement_case();
+        cell->clear_refinement_choice();
         cell->clear_user_flag();
 
         // so far we only looked at inner quads,
@@ -4507,20 +4509,22 @@ namespace internal
               cell->face(quad_no);
 
             Assert(
-              (GeometryInfo<dim>::face_refinement_case(ref_case, quad_no) &&
+              (reference_cell.face_refinement_choice(
+                 ref_case, quad_no, numbers::default_geometric_orientation) &&
                quad->has_children()) ||
-                GeometryInfo<dim>::face_refinement_case(ref_case, quad_no) ==
-                  RefinementCase<dim - 1>::no_refinement,
+                reference_cell.face_refinement_choice(
+                  ref_case, quad_no, numbers::default_geometric_orientation) ==
+                  RefinementChoices::None<dim - 1>,
               ExcInternalError());
 
-            switch (quad->refinement_case())
+            switch (quad->refinement_choice())
               {
-                case RefinementCase<dim - 1>::no_refinement:
+                case RefinementChoices::None<dim - 1>:
                   // nothing to do as the quad
                   // is not refined
                   break;
-                case RefinementCase<dim - 1>::cut_x:
-                case RefinementCase<dim - 1>::cut_y:
+                case RefinementChoices::CutX<dim - 1>:
+                case RefinementChoices::CutY<dim - 1>:
                   {
                     // if one of the cell counters is
                     // zero, the other has to be as
@@ -4561,9 +4565,9 @@ namespace internal
                               // anisotropic
                               // refinements add up to
                               // isotropic refinement
-                              Assert(quad->refinement_case() +
-                                         quad->child(c)->refinement_case() ==
-                                       RefinementCase<dim>::cut_xy,
+                              Assert((quad->refinement_choice() |
+                                      quad->child(c)->refinement_choice()) ==
+                                       RefinementChoices::Isotropic<dim - 1>,
                                      ExcInternalError());
                               // we may delete the
                               // quad's children and
@@ -4574,15 +4578,15 @@ namespace internal
                                 quad->child(c)->child(0));
                               quads_to_delete.push_back(
                                 quad->child(c)->child(1));
-                              if (quad->child(c)->refinement_case() ==
-                                  RefinementCase<2>::cut_x)
+                              if (quad->child(c)->refinement_choice() ==
+                                  RefinementChoices::CutX<2>)
                                 lines_to_delete.push_back(
                                   quad->child(c)->child(0)->line(1));
                               else
                                 lines_to_delete.push_back(
                                   quad->child(c)->child(0)->line(3));
                               quad->child(c)->clear_children();
-                              quad->child(c)->clear_refinement_case();
+                              quad->child(c)->clear_refinement_choice();
                               ++deleted_grandchildren;
                             }
                         }
@@ -4596,7 +4600,8 @@ namespace internal
                       {
                         typename Triangulation<dim, spacedim>::line_iterator
                           middle_line;
-                        if (quad->refinement_case() == RefinementCase<2>::cut_x)
+                        if (quad->refinement_choice() ==
+                            RefinementChoices::CutX<2>)
                           middle_line = quad->child(0)->line(1);
                         else
                           middle_line = quad->child(0)->line(3);
@@ -4619,7 +4624,8 @@ namespace internal
                         // anymore
                         quads_to_delete.push_back(quad->child(0));
                         quads_to_delete.push_back(quad->child(1));
-                        if (quad->refinement_case() == RefinementCase<2>::cut_x)
+                        if (quad->refinement_choice() ==
+                            RefinementChoices::CutX<2>)
                           lines_to_delete.push_back(quad->child(0)->line(1));
                         else
                           lines_to_delete.push_back(quad->child(0)->line(3));
@@ -4643,8 +4649,8 @@ namespace internal
                         // set the children
                         // accordingly.
                         if (quad->child(0)->has_children())
-                          if (quad->refinement_case() ==
-                              RefinementCase<2>::cut_x)
+                          if (quad->refinement_choice() ==
+                              RefinementChoices::CutX<2>)
                             {
                               // now evereything is
                               // quite complicated. we
@@ -4787,9 +4793,9 @@ namespace internal
                               const unsigned int child_2 =
                                 quad->child(1)->child_index(0);
                               quad->clear_children();
-                              quad->clear_refinement_case();
-                              quad->set_refinement_case(
-                                RefinementCase<2>::cut_xy);
+                              quad->clear_refinement_choice();
+                              quad->set_refinement_choice(
+                                RefinementChoices::Isotropic<2>);
                               quad->set_children(0, child_0);
                               quad->set_children(2, child_2);
                               std::swap(quad_cell_count[child_0 + 1],
@@ -4813,21 +4819,21 @@ namespace internal
                               const unsigned int child_2 =
                                 quad->child(1)->child_index(0);
                               quad->clear_children();
-                              quad->clear_refinement_case();
-                              quad->set_refinement_case(
-                                RefinementCase<2>::cut_xy);
+                              quad->clear_refinement_choice();
+                              quad->set_refinement_choice(
+                                RefinementChoices::Isotropic<2>);
                               quad->set_children(0, child_0);
                               quad->set_children(2, child_2);
                             }
                         else
                           {
                             quad->clear_children();
-                            quad->clear_refinement_case();
+                            quad->clear_refinement_choice();
                           }
                       }
                     break;
                   }
-                case RefinementCase<dim - 1>::cut_xy:
+                case RefinementChoices::Isotropic<dim - 1>:
                   {
                     // if one of the cell counters is
                     // zero, the others have to be as
@@ -4863,7 +4869,7 @@ namespace internal
                           false;
 
                         quad->clear_children();
-                        quad->clear_refinement_case();
+                        quad->clear_refinement_choice();
                       }
                   }
                   break;
@@ -4889,12 +4895,11 @@ namespace internal
             typename Triangulation<dim, spacedim>::line_iterator line =
               cell->line(line_no);
 
-            Assert(
-              (GeometryInfo<dim>::line_refinement_case(ref_case, line_no) &&
-               line->has_children()) ||
-                GeometryInfo<dim>::line_refinement_case(ref_case, line_no) ==
-                  RefinementCase<1>::no_refinement,
-              ExcInternalError());
+            Assert((reference_cell.line_refinement_choice(ref_case, line_no) &&
+                    line->has_children()) ||
+                     reference_cell.line_refinement_choice(ref_case, line_no) ==
+                       RefinementChoices::None<1>,
+                   ExcInternalError());
 
             if (line->has_children())
               {
@@ -4954,7 +4959,7 @@ namespace internal
           {
             (*quad)->clear_user_data();
             (*quad)->clear_children();
-            (*quad)->clear_refinement_case();
+            (*quad)->clear_refinement_choice();
             (*quad)->clear_user_flag();
             (*quad)->clear_used_flag();
           }

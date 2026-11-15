@@ -58,6 +58,25 @@
 DEAL_II_NAMESPACE_OPEN
 
 
+namespace
+{
+  // Some algorithms in Triangulation are only implemented for hypercubes and
+  // treat all other cells as if they were hypercubes refined isotropically.
+  // Return the RefinementChoice such algorithms should use.
+  template <int dim>
+  RefinementChoice<dim>
+  hypercube_equivalent(const RefinementChoice<dim> &refinement_choice)
+  {
+    if (refinement_choice == RefinementChoices::None<dim> ||
+        ReferenceCells::get_hypercube<dim>().is_compatible_refinement_choice(
+          refinement_choice))
+      return refinement_choice;
+    return RefinementChoices::Isotropic<dim>;
+  }
+} // namespace
+
+
+
 namespace internal
 {
   namespace TriangulationImplementation
@@ -12661,31 +12680,41 @@ namespace internal
       coarsening_allowed(
         const typename Triangulation<dim, spacedim>::cell_iterator &cell)
       {
+        // This function is only implemented for hypercubes
+        constexpr auto reference_cell = ReferenceCells::get_hypercube<dim>();
+        constexpr auto face_reference_cell =
+          ReferenceCells::get_hypercube<dim - 1>();
         // in 1d, coarsening is always allowed since we don't enforce
         // the 2:1 constraint there
         if (dim == 1)
           return true;
 
-        const RefinementCase<dim> ref_case = cell->refinement_case();
+        // This algorithm treats all cells as hypercubes
+        const RefinementChoice<dim> ref_case =
+          hypercube_equivalent(cell->refinement_choice());
         for (const unsigned int n : GeometryInfo<dim>::face_indices())
           {
             // if the cell is not refined along that face, coarsening
             // will not change anything, so do nothing. the same
             // applies, if the face is at the boundary
-            const RefinementCase<dim - 1> face_ref_case =
-              GeometryInfo<dim>::face_refinement_case(cell->refinement_case(),
-                                                      n);
+            const RefinementChoice<dim - 1> face_ref_case =
+              reference_cell.face_refinement_choice(
+                ref_case, n, numbers::default_geometric_orientation);
 
             const unsigned int n_subfaces =
-              GeometryInfo<dim - 1>::n_children(face_ref_case);
+              face_reference_cell.n_children(face_ref_case);
 
             if (n_subfaces == 0 || cell->at_boundary(n))
               continue;
             for (unsigned int c = 0; c < n_subfaces; ++c)
               {
                 const typename Triangulation<dim, spacedim>::cell_iterator
-                  child = cell->child(
-                    GeometryInfo<dim>::child_cell_on_face(ref_case, n, c));
+                  child = cell->child(reference_cell.child_cell_on_face(
+                    n,
+                    c,
+                    numbers::default_geometric_orientation,
+                    ref_case,
+                    RefinementChoices::Isotropic<dim - 1>));
 
                 const typename Triangulation<dim, spacedim>::cell_iterator
                   child_neighbor = child->neighbor(n);
@@ -12713,7 +12742,7 @@ namespace internal
 
                     // the same applies, if the neighbors children are not
                     // refined but will be after refinement
-                    if (child_neighbor->refine_flag_set())
+                    if (child_neighbor->refinement_choice_set())
                       return false;
                   }
               }
